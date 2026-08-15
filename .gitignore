@@ -10,6 +10,20 @@ out-tsc
 
 # dependencies
 node_modules
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# ML validation outputs and local media
+outputs/
+*.mp4
+*.mov
+*.avi
+
+# Firebase credentials — never commit service-account keys
+firebase-service-account*.json
+service-account*.json
 
 # IDEs and editors
 /.idea

@@ -1,0 +1,67 @@
+# SilverPaws AI — Replit Master Prompt
+
+Paste everything below into Replit's AI Agent / Assistant when starting or continuing the project.
+
+---
+
+## Project Overview
+
+I'm building **SilverPaws AI**, a pet health and gait analysis application for the Congressional App Challenge (CAC). The app analyzes video of a pet walking to detect gait abnormalities (limping, stiffness, uneven weight distribution) that could indicate joint pain, arthritis, or injury — helping pet owners catch mobility issues early and share objective data with their vet.
+
+Team: Abhikshit, Sudarshan, and Kavin, with a technical build plan authored by a collaborator (Abhi).
+
+## Core Technical Approach
+
+**Do not train a custom pose model.** Use a pretrained model:
+- **Pose/gait analysis:** MoveNet Thunder, loaded from TensorFlow Hub, run on video frames to extract keypoints over time. Gait metrics (stride symmetry, joint angle variance, movement smoothness) are derived from the keypoint sequence.
+- **Backend:** FastAPI (Python), serving endpoints for video upload, running inference, and returning gait analysis results.
+- **Database:** Firebase / Firestore for storing pet profiles, uploaded video metadata, and gait analysis history.
+- **Reporting:** ReportLab to generate PDF summaries of a pet's gait analysis (e.g., to share with a vet).
+- **Data handling:** OpenCV for video frame extraction/preprocessing, NumPy/pandas for gait metric computation.
+- **Frontend:** Intentionally deferred until the AI pipeline and backend are validated. When built, it will be Flutter or React Native — do not scaffold frontend code yet unless explicitly asked.
+
+## Environment / Stack
+
+- Python 3.10 or 3.11
+- Libraries: `tensorflow`, `tensorflow-hub`, `opencv-python`, `numpy`, `pandas`, `fastapi`, `uvicorn`, `firebase-admin`, `reportlab`
+- Version control: GitHub (make sure `.gitignore` excludes the virtual environment folder and the Firebase service account key — never commit credentials)
+- API testing: Postman
+- GPU prototyping: Google Colab (for testing MoveNet on sample videos before wiring it into FastAPI)
+
+## Current State
+
+- Local dev environment is set up (venv, VS Code, core libraries installed)
+- GitHub repo initialized
+- Firebase/Firestore project configured
+- Not yet done: validating the MoveNet gait pipeline end-to-end, building the FastAPI backend, connecting FastAPI to Firestore
+
+## What I Need You To Do
+
+Act as a senior full-stack engineer helping me build this incrementally and correctly. Specifically:
+
+1. **Validate the AI pipeline first.** Help me write a script (Colab-compatible) that loads MoveNet Thunder from TensorFlow Hub, runs it on a sample walking video, extracts keypoints per frame, and computes at least one basic gait symmetry metric. Keep this decoupled from the backend at first.
+
+2. **Then build the FastAPI backend**, structured cleanly:
+   - `/upload` — accept a video file
+   - `/analyze/{video_id}` — run the MoveNet pipeline and return gait metrics
+   - `/pets/{pet_id}/history` — return past analyses from Firestore
+   - `/report/{analysis_id}` — generate and return a PDF report via ReportLab
+   - Use Pydantic models for request/response validation
+   - Keep Firebase credentials out of source code (use environment variables / Replit Secrets)
+
+3. **Wire in Firestore** for storing pet profiles and analysis results, using `firebase-admin`.
+
+4. **Do not build frontend UI yet.** If I ask for that later, treat it as a separate phase (Flutter or React Native).
+
+## Coding Guidelines
+
+- Write clean, commented, modular Python — this needs to be understandable by a team of three students, not just runnable.
+- Prefer explicit, readable code over clever one-liners.
+- Every new backend route should be testable via Postman — tell me the exact request format when you add one.
+- Flag anywhere I'd need to add a Replit Secret (API keys, Firebase credentials) rather than hardcoding it.
+- When suggesting file structure, keep AI/model logic (`/gait_engine` or similar) separate from API routing logic (`/api`) so the pipeline can be tested independently of FastAPI.
+- Since this is a CAC submission, briefly note (in comments or a short explanation) *why* a design choice was made when it's non-obvious — judges and teammates may read this code.
+
+## First Task
+
+Start by helping me confirm the MoveNet Thunder pipeline works on a sample video and prints out keypoints + one gait metric, before touching the FastAPI layer.
