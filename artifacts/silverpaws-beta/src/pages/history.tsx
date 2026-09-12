@@ -1,8 +1,9 @@
 import { type CSSProperties } from 'react';
-import { ArrowLeft, ArrowRight, CalendarDays, CircleAlert, FileVideo, Gauge, Info, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarDays, CircleAlert, Download, FileVideo, Gauge, Info, Trash2 } from 'lucide-react';
 import { Link, useParams } from 'wouter';
 import { type Analysis, type Pet } from '@/lib/storage';
 import { formatDate, formatDuration, formatRelative } from '@/lib/format';
+import { downloadAnalysisReport } from '@/lib/report';
 
 type Props = { pets: Pet[]; analyses: Analysis[]; deleteAnalysis: (id: string) => void };
 
@@ -27,7 +28,10 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
     <Link href="/history" className="btn-quiet -ml-3" data-testid="link-back-history"><ArrowLeft size={15} /> All observations</Link>
     <div className="flex flex-wrap items-end justify-between gap-5 mt-6 stagger">
       <div><div className="eyebrow">Saved observation · {formatDate(analysis.createdAt)}</div><h1 className="display-title text-5xl mt-3">A closer look at<br /><span style={{ color: '#b9684d' }}>{pet?.name ?? 'your pet'}’s walk.</span></h1></div>
-      <button className="btn-quiet" onClick={() => { if (window.confirm('Remove this saved observation from this device?')) onDelete(); }} data-testid={`button-delete-analysis-${analysis.id}`}><Trash2 size={15} /> Remove</button>
+       <div className="flex flex-wrap gap-2">
+         <button type="button" className="btn-secondary" onClick={() => downloadAnalysisReport(analysis, pet)} data-testid={`button-download-report-${analysis.id}`}><Download size={15} /> Download report</button>
+         <button className="btn-quiet" onClick={() => { if (window.confirm('Remove this saved observation from this device?')) onDelete(); }} data-testid={`button-delete-analysis-${analysis.id}`}><Trash2 size={15} /> Remove</button>
+       </div>
     </div>
     <div className="detail-grid mt-9 stagger-2">
       <div className="panel panel-padded">

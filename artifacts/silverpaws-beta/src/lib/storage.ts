@@ -23,6 +23,9 @@ export type Analysis = {
   confidence?: number;
   observation?: string;
   limitations?: string;
+  source?: string;
+  license?: string;
+  sourceUrl?: string;
 };
 
 const PETS_KEY = 'silverpaws:pets';

@@ -1,0 +1,230 @@
+import { type Analysis, type Pet } from '@/lib/storage';
+
+type ReportLine = {
+  text: string;
+  size?: number;
+  bold?: boolean;
+  color?: string;
+  gapAfter?: number;
+};
+
+const PAGE_WIDTH = 612;
+const PAGE_HEIGHT = 792;
+const LEFT_MARGIN = 54;
+const RIGHT_MARGIN = 54;
+const TOP_MARGIN = 72;
+const BOTTOM_MARGIN = 52;
+const CONTENT_WIDTH = PAGE_WIDTH - LEFT_MARGIN - RIGHT_MARGIN;
+const BODY_COLOR = '0.125 0.231 0.227';
+const MUTED_COLOR = '0.388 0.459 0.451';
+const MOSS_COLOR = '0.086 0.306 0.290';
+const PEACH_COLOR = '0.91 0.545 0.451';
+
+function cleanText(value: string) {
+  return value
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[–—]/g, '-')
+    .replace(/…/g, '...')
+    .replace(/[^\x20-\x7E]/g, '');
+}
+
+function escapePdfText(value: string) {
+  return cleanText(value).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
+
+function wrapText(value: string, size: number) {
+  const maxCharacters = Math.max(28, Math.floor(CONTENT_WIDTH / (size * 0.52)));
+  const words = cleanText(value).split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    if (!current) {
+      current = word;
+      continue;
+    }
+    if ((current.length + word.length + 1) <= maxCharacters) {
+      current += ` ${word}`;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [''];
+}
+
+function addText(lines: ReportLine[], text: string, options: Omit<ReportLine, 'text'> = {}) {
+  lines.push({ text, ...options });
+}
+
+function formatMeasurement(value: number | undefined, suffix = '') {
+  return value === undefined ? 'Unavailable' : `${value}${suffix}`;
+}
+
+function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
+  const petName = pet?.name ?? 'your pet';
+  const source = analysis.source ?? 'User-provided local video (not uploaded by SilverPaws AI)';
+  const license = analysis.license ?? 'Not provided; confirm sharing rights before publishing this media';
+  const limitations = analysis.limitations
+    ?? 'This is a simulated beta observation from one short clip. It is not a diagnosis and cannot rule out pain or injury.';
+  const lines: ReportLine[] = [];
+
+  addText(lines, 'SilverPaws AI', { size: 26, bold: true, color: MOSS_COLOR, gapAfter: 4 });
+  addText(lines, 'Mobility observation report', { size: 11, color: MUTED_COLOR, gapAfter: 3 });
+  addText(lines, 'A plain-language summary of one saved beta observation.', { size: 10, color: MUTED_COLOR, gapAfter: 16 });
+
+  addText(lines, 'Bottom line', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
+  addText(lines, analysis.observation ?? 'No interpretation was saved for this observation.', {
+    size: 10,
+    color: BODY_COLOR,
+    gapAfter: 15,
+  });
+
+  addText(lines, 'What was analyzed', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
+  addText(lines, `Pet: ${petName}${pet?.species ? ` (${pet.species})` : ''}`, { size: 10, gapAfter: 2 });
+  addText(lines, `Video: ${analysis.fileName}`, { size: 10, gapAfter: 2 });
+  addText(lines, `Recorded in this app: ${new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(analysis.createdAt))}`, { size: 10, gapAfter: 2 });
+  addText(lines, `Clip duration: ${Math.floor(analysis.durationSeconds / 60)}:${String(analysis.durationSeconds % 60).padStart(2, '0')}`, { size: 10, gapAfter: 14 });
+
+  addText(lines, 'Raw measurements', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
+  addText(lines, 'These are the values saved by the beta pipeline. They describe the clip and do not explain why a movement pattern occurred.', {
+    size: 10,
+    color: MUTED_COLOR,
+    gapAfter: 7,
+  });
+  addText(lines, `Analysis status: ${analysis.status}`, { size: 10, gapAfter: 2 });
+  addText(lines, `Stride symmetry score: ${formatMeasurement(analysis.strideSymmetryScore, '/100')}`, { size: 10, gapAfter: 2 });
+  addText(lines, `Estimated asymmetry: ${formatMeasurement(analysis.asymmetryPercent, '%')}`, { size: 10, gapAfter: 2 });
+  addText(lines, `Detection confidence: ${formatMeasurement(analysis.confidence, '%')}`, { size: 10, gapAfter: 14 });
+
+  addText(lines, 'Interpretation', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
+  addText(lines, analysis.observation ?? 'No interpretation was saved for this observation.', { size: 10, gapAfter: 6 });
+  addText(lines, limitations, { size: 10, color: BODY_COLOR, gapAfter: 14 });
+
+  addText(lines, 'Sources and licensing', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
+  addText(lines, `Source: ${source}`, { size: 10, gapAfter: 3 });
+  addText(lines, `License: ${license}`, { size: 10, gapAfter: analysis.sourceUrl ? 3 : 14 });
+  if (analysis.sourceUrl) addText(lines, `Link: ${analysis.sourceUrl}`, { size: 8, color: MUTED_COLOR, gapAfter: 14 });
+
+  addText(lines, 'Important limitations', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
+  addText(lines, 'SilverPaws AI is experimental educational software. This report is not a medical diagnosis, emergency assessment, or substitute for a veterinarian. A high or low score cannot rule out pain or injury.', {
+    size: 10,
+    gapAfter: 8,
+  });
+  addText(lines, 'If a pet shows pain, sudden weakness, collapse, breathing trouble, or another urgent change, contact a qualified veterinarian or emergency clinic directly. Do not wait for an app result.', {
+    size: 10,
+    bold: true,
+    color: MOSS_COLOR,
+    gapAfter: 10,
+  });
+  addText(lines, 'SilverPaws AI beta | Experimental educational software | Generated from a saved local observation', {
+    size: 8,
+    color: MUTED_COLOR,
+    gapAfter: 0,
+  });
+  return lines;
+}
+
+function buildPageContent(lines: ReportLine[]) {
+  const pages: ReportLine[][] = [[]];
+  let y = PAGE_HEIGHT - TOP_MARGIN;
+
+  for (const line of lines) {
+    const size = line.size ?? 10;
+    const wrapped = wrapText(line.text, size);
+    const lineHeight = size * 1.45;
+    const requiredHeight = wrapped.length * lineHeight + (line.gapAfter ?? 4);
+    if (y - requiredHeight < BOTTOM_MARGIN && pages[pages.length - 1].length) {
+      pages.push([]);
+      y = PAGE_HEIGHT - TOP_MARGIN;
+    }
+    for (const text of wrapped) {
+      pages[pages.length - 1].push({ ...line, text, gapAfter: 0 });
+      y -= lineHeight;
+    }
+    y -= line.gapAfter ?? 4;
+  }
+  return pages;
+}
+
+function buildPdf(lines: ReportLine[]) {
+  const pages = buildPageContent(lines);
+  const objects: string[] = [];
+  const addObject = (value: string) => {
+    objects.push(value);
+    return objects.length;
+  };
+  const fontRegular = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  const fontBold = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  const contentIds: number[] = [];
+  const pageIds: number[] = [];
+
+  for (const page of pages) {
+    const commands = [
+      'q',
+      `${MOSS_COLOR} rg`,
+      `0 ${PAGE_HEIGHT - 12} ${PAGE_WIDTH} 12 re f`,
+      'Q',
+    ];
+    let y = PAGE_HEIGHT - TOP_MARGIN;
+    for (const line of page) {
+      const size = line.size ?? 10;
+      const font = line.bold ? 'F2' : 'F1';
+      const color = line.color ?? BODY_COLOR;
+      commands.push(`${color} rg`);
+      commands.push(`BT /${font} ${size} Tf ${LEFT_MARGIN} ${y.toFixed(2)} Td (${escapePdfText(line.text)}) Tj ET`);
+      y -= size * 1.45;
+    }
+    commands.push(`${MUTED_COLOR} rg`);
+    commands.push(`BT /F1 8 Tf ${PAGE_WIDTH - RIGHT_MARGIN - 55} 28 Td (Page ${pages.indexOf(page) + 1}) Tj ET`);
+    const stream = commands.join('\n');
+    const contentId = addObject(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+    contentIds.push(contentId);
+  }
+
+  const pagesId = objects.length + pages.length + 1;
+  for (let index = 0; index < pages.length; index += 1) {
+    pageIds.push(addObject(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentIds[index]} 0 R >>`));
+  }
+  const kids = pageIds.map((id) => `${id} 0 R`).join(' ');
+  objects.push(`<< /Type /Pages /Kids [${kids}] /Count ${pageIds.length} >>`);
+  const catalogId = addObject(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+  const infoId = addObject('<< /Title (SilverPaws AI Mobility Observation Report) /Author (SilverPaws AI) /Subject (Saved beta observation) >>');
+
+  let pdf = '%PDF-1.4\n%1234\n';
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let index = 1; index <= objects.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R /Info ${infoId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return new Blob([pdf], { type: 'application/pdf' });
+}
+
+function safeFileName(value: string) {
+  const normalized = value.toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return normalized || 'silverpaws-observation';
+}
+
+export function createAnalysisReportPdf(analysis: Analysis, pet?: Pet) {
+  return buildPdf(buildReportLines(analysis, pet));
+}
+
+export function downloadAnalysisReport(analysis: Analysis, pet?: Pet) {
+  const blob = createAnalysisReportPdf(analysis, pet);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${safeFileName(pet?.name ?? 'pet')}-${safeFileName(analysis.fileName)}-report.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

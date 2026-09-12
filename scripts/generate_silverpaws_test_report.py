@@ -43,7 +43,7 @@ class TestCase:
     title: str
     source: str
     license: str
-    source_url: str
+    source_url: str | None
     frames: int
     fps: float
     mean_confidence: float
@@ -69,7 +69,7 @@ class HorizontalRule(Flowable):
         self.canv.line(0, 4, self.width, 4)
 
 
-def load_test(path: Path, title: str, source: str, license_name: str, source_url: str, interpretation: str, status: str) -> TestCase:
+def load_test(path: Path, title: str, source: str, license_name: str, source_url: str | None, interpretation: str, status: str) -> TestCase:
     data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     metrics = data["metrics"]
     keypoints = data["keypoints"]
@@ -313,6 +313,7 @@ def build_report(output: Path, tests: list[TestCase]) -> None:
     story.extend([summary, Spacer(1, 0.12 * inch)])
 
     story.append(Paragraph("Test 1: dog and human walking clip", styles["h1"]))
+    story.append(Paragraph("Raw measurements", styles["h2"]))
     story.append(
         Paragraph(
             f"<b>Measurement:</b> {tests[0].frames} frames at {tests[0].fps:.0f} frames per second. "
@@ -322,6 +323,7 @@ def build_report(output: Path, tests: list[TestCase]) -> None:
         )
     )
     story.append(metric_bar("Stride symmetry score", tests[0].score, styles, "No score was reported because there was not enough confident ankle data."))
+    story.append(Paragraph("Interpretation", styles["h2"]))
     story.append(
         callout(
             "<b>Constructive reading:</b> this is a useful failure, not a bad result. The validator correctly refused to turn weak detections into a confident number. The next improvement is subject selection: the clip contains both dogs and people, so a single-person model has an ambiguous target.",
@@ -332,6 +334,7 @@ def build_report(output: Path, tests: list[TestCase]) -> None:
 
     story.append(PageBreak())
     story.append(Paragraph("Test 2: trained dogs hurdle clip", styles["h1"]))
+    story.append(Paragraph("Raw measurements", styles["h2"]))
     story.append(
         Paragraph(
             f"<b>Measurement:</b> {tests[1].frames} frames at {tests[1].fps:.0f} frames per second. "
@@ -342,6 +345,7 @@ def build_report(output: Path, tests: list[TestCase]) -> None:
     )
     story.append(metric_bar("Stride symmetry score", tests[1].score * 100 if tests[1].score is not None else None, styles, "This is a motion-similarity measurement, not a diagnosis."))
     story.append(metric_bar("Estimated asymmetry", tests[1].asymmetry, styles, "Lower is more similar within this clip."))
+    story.append(Paragraph("Interpretation", styles["h2"]))
     story.append(
         callout(
             "<b>Constructive reading:</b> the pipeline can produce a stable, explainable number when the detections are strong. However, the result is not proof that the dog was tracked: MoveNet Thunder is trained on human pose, and the historical clip includes people. Treat this as a pipeline success and a model-validation warning at the same time.",
@@ -412,7 +416,7 @@ def build_report(output: Path, tests: list[TestCase]) -> None:
                     Paragraph(f"<b>{test.title}</b>", styles["h2"]),
                     Paragraph(f"Source: {test.source}", styles["body"]),
                     Paragraph(f"License: {test.license}", styles["body"]),
-                    Paragraph(f"Link: {test.source_url}", styles["small"]),
+                    Paragraph(f"Link: {test.source_url}" if test.source_url else "Link: Not provided", styles["small"]),
                 ]
             )
         )

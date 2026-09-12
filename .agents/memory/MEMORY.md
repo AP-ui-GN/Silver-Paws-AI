@@ -1,1 +1,2 @@
 - [Pet pose validation](movenet-validation.md) — MoveNet Thunder can run end to end, but human-pose confidence is unreliable for pet gait and must gate any score.
+- [Local report export](report-export.md) — Keep browser PDF exports dependency-free, separate measurements from interpretation, and preserve cautious metadata.
