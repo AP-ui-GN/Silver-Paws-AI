@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "5pp0Hly89Lps9h6vAfgAA"
+uri = "file://reports/silverpaws-internet-video-test-report.pdf"
+type = "pdf"
+title = "SilverPaws AI Internet Video Test Report"
+description = "A plain-language 3-page PDF explaining two real public dog-video tests, the measurements, what the symmetry score means, model limitations, and constructive next steps."
+logical_id = "801a488b-922d-41ae-ab29-53c849cc3543"
+content_hash = "sha256:8bde6f3accb15d58ab46c780a85515d9982912c69879b23dce5a282ff119fa04"
+size = 8099
+mtime_ms = 1789174485542
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:665c3376-11c2-4e01-9959-bcdc8160e589/801a488b-922d-41ae-ab29-53c849cc3543/9b9b4d50-ad5d-4354-b5c8-f9ce428b504d"
+storage_version_token = "1789174502761118"
+content_type = "application/pdf"

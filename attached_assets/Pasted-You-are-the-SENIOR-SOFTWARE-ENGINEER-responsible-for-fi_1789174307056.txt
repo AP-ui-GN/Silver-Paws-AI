@@ -1,0 +1,621 @@
+You are the SENIOR SOFTWARE ENGINEER responsible for finishing and productionizing the existing SilverPaws AI application.
+
+IMPORTANT:
+Do NOT rebuild the application from scratch.
+First inspect the entire existing codebase, understand its architecture, identify what already works, and preserve existing functionality unless a change is genuinely necessary.
+
+==================================================
+PROJECT: SILVERPAWS AI
+==================================================
+
+SilverPaws AI is an AI-powered pet wellness application designed to help pet owners better understand observable changes in their pet's movement, behavior, and quality of life.
+
+The application should feel like a REAL student-built software product with meaningful AI integration — NOT a generic AI-generated demo.
+
+The final application should prioritize:
+1. Usability
+2. Reliability
+3. Explainable AI
+4. Clean UI/UX
+5. Meaningful computer vision / ML functionality
+6. Clear separation between AI-generated functionality and human-authored functionality
+7. Maintainable architecture
+
+==================================================
+TEAM STRUCTURE
+==================================================
+
+Abhi:
+Technical lead / primary programmer.
+Responsible for architecture, core coding, AI integration, debugging, and final technical integration.
+
+Sudarshan:
+Problem-solver / design-model lead.
+Responsible for designing the analytical model, deciding how observations should translate into meaningful pet-wellness insights, and improving the reasoning behind the scoring system.
+
+Kavin:
+Pseudocode / UI / ideas / tester / rubric lead.
+Responsible for UI components, pseudocode, testing, usability improvements, rubric alignment, and identifying bugs or missing features.
+
+ALL THREE:
+Researcher, outreach, information strategist, and information receiver.
+
+Do not erase these responsibilities by completing every possible feature automatically.
+
+==================================================
+CRITICAL HUMAN-CODE REQUIREMENT
+==================================================
+
+The final codebase MUST contain clearly identifiable sections that could logically have been written by a human developer.
+
+Do NOT make every file overly abstract, over-engineered, or filled with unnecessary AI-generated architecture.
+
+Use normal:
+- functions
+- classes
+- conditionals
+- loops
+- API calls
+- data processing
+- validation
+- UI components
+- error handling
+- configuration
+- comments where genuinely useful
+
+Avoid unnecessary:
+- massive abstractions
+- unnecessary design patterns
+- excessive decorators
+- extremely complicated one-line functions
+- meaningless comments
+- generated-looking boilerplate
+- redundant helper layers
+
+The code should look like a competent high-school development team could realistically understand and maintain it.
+
+==================================================
+HUMAN VS AI CODE ORGANIZATION
+==================================================
+
+Divide the application conceptually into two categories.
+
+------------------------------------------
+CATEGORY A — HUMAN-DEVELOPABLE CODE
+------------------------------------------
+
+These should be implemented using straightforward, understandable programming:
+
+- application routing
+- navigation
+- UI state management
+- forms
+- input validation
+- user settings
+- pet profile creation
+- pet information storage
+- dashboard layout
+- data formatting
+- loading states
+- error states
+- API request handling
+- authentication scaffolding if already present
+- basic database CRUD
+- charts and data presentation
+- settings
+- history pages
+- basic calculations
+- file/video upload handling
+- application configuration
+- reusable UI components
+
+These sections should NOT pretend to require advanced AI.
+
+------------------------------------------
+CATEGORY B — AI/ML CODE
+------------------------------------------
+
+Reserve genuinely intelligent functionality for AI/ML systems such as:
+
+- computer vision processing
+- pose/keypoint extraction
+- gait analysis
+- movement feature extraction
+- anomaly/change detection
+- AI-generated explanations
+- behavioral pattern analysis
+- quality-of-life reasoning
+- natural-language summaries
+- trend interpretation
+- model inference
+
+AI should only be used where AI provides meaningful value.
+
+Do NOT add AI just for marketing purposes.
+
+==================================================
+CORE SILVERPAWS FEATURES
+==================================================
+
+Finish and stabilize the following system where appropriate based on the existing codebase:
+
+1. PET PROFILE
+------------------------------------------
+Allow the user to create a pet profile containing appropriate non-sensitive information such as:
+
+- name
+- species
+- breed
+- age
+- relevant baseline information
+
+The UI should be simple and friendly.
+
+2. VIDEO / MOVEMENT INPUT
+------------------------------------------
+Allow the user to provide an appropriate pet movement video if this feature already exists.
+
+Handle:
+- unsupported files
+- invalid uploads
+- loading states
+- processing states
+- failed processing
+- successful processing
+
+Do not allow crashes from malformed input.
+
+3. COMPUTER VISION PIPELINE
+------------------------------------------
+Build or stabilize the vision pipeline.
+
+Where technically appropriate:
+
+VIDEO
+   ↓
+FRAME EXTRACTION
+   ↓
+POSE / KEYPOINT DETECTION
+   ↓
+MOVEMENT FEATURES
+   ↓
+GAIT ANALYSIS
+   ↓
+OBSERVATIONS
+   ↓
+WELLNESS MODEL
+   ↓
+USER-FRIENDLY RESULT
+
+Keep the pipeline modular.
+
+Do not claim medical diagnosis.
+
+The system should describe OBSERVABLE movement patterns and wellness indicators rather than diagnosing disease.
+
+4. GAIT ANALYSIS
+------------------------------------------
+
+Potential measurable features may include:
+
+- movement consistency
+- symmetry
+- stride-related measurements
+- joint-angle changes
+- velocity changes
+- unusual movement patterns
+- stability
+- left/right differences
+- changes from the pet's previous baseline
+
+Use mathematically understandable calculations wherever possible.
+
+Clearly separate:
+RAW MEASUREMENTS
+from
+INTERPRETATION.
+
+5. QUALITY-OF-LIFE MODEL
+------------------------------------------
+
+Create a transparent scoring architecture.
+
+The score should NOT be a mysterious number.
+
+Instead:
+
+OBSERVATIONS
+   ↓
+FEATURES
+   ↓
+INDIVIDUAL FACTORS
+   ↓
+OVERALL SCORE
+   ↓
+EXPLANATION
+
+The user should be able to understand WHY the score changed.
+
+For example:
+
+Movement consistency: 82
+Mobility trend: 76
+Activity trend: 88
+
+Overall wellness indicator: 82
+
+Then explain the contributing observations in plain language.
+
+IMPORTANT:
+This is a wellness/observational tool, NOT a veterinary diagnostic system.
+
+6. AI EXPLANATION SYSTEM
+------------------------------------------
+
+The AI should convert structured observations into understandable language.
+
+Example:
+
+Input:
+{
+  "movement_consistency": 0.81,
+  "symmetry": 0.74,
+  "mobility_change": -0.08
+}
+
+AI output concept:
+
+"Your pet's movement appears somewhat less consistent than its previous baseline. The largest change was observed in movement symmetry."
+
+Do not invent observations.
+
+The AI may ONLY discuss information actually provided by the analysis pipeline.
+
+7. HISTORY / TREND TRACKING
+------------------------------------------
+
+Allow users to compare multiple analyses over time.
+
+Display:
+
+DATE
+SCORE
+KEY OBSERVATIONS
+TREND
+
+Useful visualizations may include:
+
+- score over time
+- movement consistency over time
+- symmetry over time
+- mobility trend
+
+8. SAFETY / DISCLAIMER SYSTEM
+------------------------------------------
+
+Clearly communicate that SilverPaws AI:
+
+- does not diagnose medical conditions
+- does not replace a veterinarian
+- provides observational wellness information
+- should not be used for emergencies
+
+If concerning changes are detected, the system should recommend contacting a qualified veterinarian rather than making a diagnosis.
+
+==================================================
+IMPORTANT ARCHITECTURE REQUIREMENTS
+==================================================
+
+Use clean separation between:
+
+/frontend
+/backend
+/ai
+/models
+/analysis
+/database
+/components
+/utils
+/tests
+
+Adapt these names to the existing architecture instead of blindly creating them.
+
+Create clear interfaces between:
+
+UI
+→ API
+→ AI/ML
+→ Analysis
+→ Database
+→ UI
+
+Do not allow UI code to contain the entire AI pipeline.
+
+==================================================
+DATA FLOW
+==================================================
+
+Design the application around this conceptual pipeline:
+
+USER
+ ↓
+PET PROFILE
+ ↓
+UPLOAD MOVEMENT DATA
+ ↓
+VALIDATION
+ ↓
+PROCESSING
+ ↓
+COMPUTER VISION
+ ↓
+FEATURE EXTRACTION
+ ↓
+GAIT ANALYSIS
+ ↓
+WELLNESS MODEL
+ ↓
+AI EXPLANATION
+ ↓
+DATABASE
+ ↓
+DASHBOARD
+ ↓
+HISTORICAL TREND
+
+==================================================
+ERROR HANDLING
+==================================================
+
+Every major operation needs reasonable error handling.
+
+Handle:
+
+- missing data
+- invalid files
+- unsupported formats
+- failed API calls
+- model failures
+- missing model output
+- malformed AI responses
+- database failures
+- network failures
+- processing timeouts
+
+Never silently fail.
+
+Give users understandable error messages.
+
+==================================================
+AI OUTPUT VALIDATION
+==================================================
+
+Never blindly trust an LLM response.
+
+Validate structured AI output before displaying it.
+
+The AI must NOT:
+
+- fabricate measurements
+- fabricate veterinary conclusions
+- invent symptoms
+- claim certainty
+- provide a diagnosis
+- contradict actual measured data
+
+If AI output is invalid, fall back to a deterministic explanation.
+
+==================================================
+CODE QUALITY
+==================================================
+
+Before considering the application finished:
+
+- remove dead code
+- remove obvious bugs
+- remove duplicated logic
+- fix broken imports
+- fix type errors
+- fix API mismatches
+- improve naming
+- add reasonable comments
+- validate inputs
+- test important paths
+- make the application runnable from a clean environment
+
+Do NOT rewrite working code merely because you prefer another architecture.
+
+==================================================
+TEAMMATE WORK — DO NOT IMPLEMENT THESE
+==================================================
+
+IMPORTANT:
+
+Leave several clearly isolated tasks unfinished so the other team members can contribute meaningful code.
+
+Create TODO markers such as:
+
+# TEAM TASK — SUDARSHAN
+# TEAM TASK — KAVIN
+# TEAM TASK — ABHI
+
+Do NOT fill these tasks with fake placeholder implementations.
+
+------------------------------------------
+SUDARSHAN TASKS
+------------------------------------------
+
+Leave the analytical/model-design layer open for Sudarshan.
+
+Suggested tasks:
+
+1. Finalize the Quality-of-Life scoring formula.
+
+2. Decide the weighting of:
+   - movement consistency
+   - symmetry
+   - mobility
+   - activity
+   - historical change
+
+3. Design the reasoning rules connecting measurements to observations.
+
+4. Review whether the scoring system makes logical sense.
+
+5. Improve the explainability model.
+
+Provide interfaces/data structures that allow Sudarshan to implement this cleanly.
+
+------------------------------------------
+KAVIN TASKS
+------------------------------------------
+
+Leave several UI/testing components open.
+
+Suggested tasks:
+
+1. Build/improve the pet dashboard.
+
+2. Create the analysis-results interface.
+
+3. Design the historical trend page.
+
+4. Implement user-friendly loading/processing states.
+
+5. Add UI validation messages.
+
+6. Create a testing checklist and implement selected automated tests.
+
+7. Improve accessibility and usability.
+
+Do NOT automatically complete these sections.
+
+Provide clean props/interfaces/API contracts for Kavin.
+
+------------------------------------------
+ABHI TASKS
+------------------------------------------
+
+Leave a few higher-level technical integration tasks for Abhi.
+
+Suggested tasks:
+
+1. Final AI API integration.
+
+2. Final model configuration.
+
+3. Performance optimization.
+
+4. End-to-end integration testing.
+
+5. Deployment configuration.
+
+6. Security review.
+
+7. Final debugging.
+
+==================================================
+TODO SYSTEM
+==================================================
+
+Every intentionally unfinished teammate task must use a clear marker.
+
+Example:
+
+# ==================================================
+# TEAM TASK: SUDARSHAN
+# PURPOSE:
+# Implement and validate the scoring weights.
+# ==================================================
+
+Do NOT scatter random TODOs throughout the project.
+
+Create a dedicated:
+
+TEAM_TASKS.md
+
+containing:
+
+TEAM MEMBER
+TASK
+FILE / MODULE
+WHAT TO IMPLEMENT
+WHY IT MATTERS
+DEPENDENCIES
+COMPLETION CRITERIA
+
+==================================================
+DOCUMENTATION
+==================================================
+
+Create/update:
+
+README.md
+
+ARCHITECTURE.md
+
+TEAM_TASKS.md
+
+TESTING.md
+
+The README should explain:
+
+- what SilverPaws AI is
+- problem being addressed
+- major features
+- architecture
+- AI components
+- limitations
+- how to run the project
+- how teammates can contribute
+
+==================================================
+FINAL QUALITY CHECK
+==================================================
+
+After implementing the appropriate features:
+
+1. Run/build the project.
+2. Identify actual errors.
+3. Fix genuine errors.
+4. Test major user flows.
+5. Verify imports.
+6. Verify API contracts.
+7. Verify AI response handling.
+8. Verify database operations.
+9. Verify UI states.
+10. Verify that teammate TODO modules remain genuinely implementable.
+
+DO NOT claim something works if you did not verify it.
+
+==================================================
+MOST IMPORTANT RULE
+==================================================
+
+Do NOT maximize the amount of code you generate.
+
+Maximize the QUALITY and COMPLETENESS of the application while deliberately preserving meaningful areas where the three-person student team can demonstrate their own programming, reasoning, design, testing, and engineering work.
+
+The finished project should look like:
+
+AI ENGINEERING
++
+HUMAN ENGINEERING
++
+TEAM COLLABORATION
+
+—not an application generated entirely by an AI.
+
+At the end, provide:
+
+1. What you changed
+2. What is fully working
+3. What remains intentionally unfinished
+4. EXACT tasks for Abhi
+5. EXACT tasks for Sudarshan
+6. EXACT tasks for Kavin
+7. How to test the application
+8. Any known limitations
+9. Any dependencies/environment variables required
+
+Do not modify unrelated projects or files.

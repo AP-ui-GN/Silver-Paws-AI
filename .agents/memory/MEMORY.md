@@ -1,0 +1,1 @@
+- [Pet pose validation](movenet-validation.md) — MoveNet Thunder can run end to end, but human-pose confidence is unreliable for pet gait and must gate any score.
