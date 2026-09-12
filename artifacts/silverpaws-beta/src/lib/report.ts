@@ -65,8 +65,9 @@ function formatMeasurement(value: number | undefined, suffix = '') {
 
 function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
   const petName = pet?.name ?? 'your pet';
-  const source = analysis.source ?? 'User-provided local video (not uploaded by SilverPaws AI)';
-  const license = analysis.license ?? 'Not provided; confirm sharing rights before publishing this media';
+  const source = analysis.source?.trim() || 'User-provided local video (not uploaded by SilverPaws AI)';
+  const license = analysis.license?.trim() || 'Not provided; confirm sharing rights before publishing this media';
+  const sourceUrl = analysis.sourceUrl?.trim();
   const limitations = analysis.limitations
     ?? 'This is a simulated beta observation from one short clip. It is not a diagnosis and cannot rule out pain or injury.';
   const lines: ReportLine[] = [];
@@ -105,8 +106,8 @@ function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
 
   addText(lines, 'Sources and licensing', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
   addText(lines, `Source: ${source}`, { size: 10, gapAfter: 3 });
-  addText(lines, `License: ${license}`, { size: 10, gapAfter: analysis.sourceUrl ? 3 : 14 });
-  if (analysis.sourceUrl) addText(lines, `Link: ${analysis.sourceUrl}`, { size: 8, color: MUTED_COLOR, gapAfter: 14 });
+  addText(lines, `License: ${license}`, { size: 10, gapAfter: sourceUrl ? 3 : 14 });
+  if (sourceUrl) addText(lines, `Link: ${sourceUrl}`, { size: 8, color: MUTED_COLOR, gapAfter: 14 });
 
   addText(lines, 'Important limitations', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
   addText(lines, 'SilverPaws AI is experimental educational software. This report is not a medical diagnosis, emergency assessment, or substitute for a veterinarian. A high or low score cannot rule out pain or injury.', {

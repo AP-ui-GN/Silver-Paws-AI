@@ -12,6 +12,9 @@ export default function Analyze({ pets, addAnalysis }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [source, setSource] = useState('');
+  const [license, setLicense] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
   const [phase, setPhase] = useState<'upload' | 'review' | 'processing' | 'done'>('upload');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
@@ -44,13 +47,16 @@ export default function Analyze({ pets, addAnalysis }: Props) {
         confidence: 70 + Math.floor(Math.random() * 18),
         observation: 'The visible stride looked mostly even across this clip, with a mild timing difference that is worth watching across more walks.',
         limitations: 'This is a simulated beta observation from one short clip. It is not a diagnosis and cannot rule out pain or injury.',
+        source: source.trim() || undefined,
+        license: license.trim() || undefined,
+        sourceUrl: sourceUrl.trim() || undefined,
       });
       setProgress(100);
       setPhase('done');
       window.setTimeout(() => setLocation(`/history/${result.id}`), 500);
     }, 3400);
     return () => { window.clearInterval(timer); window.clearTimeout(finish); };
-  }, [addAnalysis, duration, file, petId, phase, setLocation]);
+  }, [addAnalysis, duration, file, license, petId, phase, setLocation, source, sourceUrl]);
 
   const selectFile = (selected: File | undefined) => {
     if (!selected) return;
@@ -73,6 +79,9 @@ export default function Analyze({ pets, addAnalysis }: Props) {
     setFile(null);
     setDuration(0);
     setPreviewUrl('');
+    setSource('');
+    setLicense('');
+    setSourceUrl('');
     setProgress(0);
     setPhase('upload');
     setError('');
@@ -134,6 +143,22 @@ export default function Analyze({ pets, addAnalysis }: Props) {
             <div>
               <div className="video-meta"><div className="video-icon"><FileVideo size={16} /></div><div className="min-w-0"><div className="font-semibold text-sm truncate">{file.name}</div><div className="body-muted text-xs mt-1">{duration ? formatDuration(duration) : 'Duration will be estimated'} · {Math.round(file.size / 1024)} KB</div></div></div>
               <div className="mt-6"><label className="field-label" htmlFor="pet-select-review">Pet</label><select id="pet-select-review" className="field-input" value={petId} onChange={(event) => setPetId(event.target.value)} data-testid="select-review-pet">{pets.map((pet) => <option value={pet.id} key={pet.id}>{pet.name}</option>)}</select></div>
+               <div className="soft-note p-4 mt-6">
+                 <div className="eyebrow">Optional sharing context</div>
+                 <p className="body-muted text-xs leading-relaxed mt-2">Add attribution details if this clip came from a shared library or another source. Leave these blank for a private local video.</p>
+                 <div className="mt-4">
+                   <label className="field-label" htmlFor="analysis-source">Source</label>
+                   <input id="analysis-source" className="field-input" value={source} onChange={(event) => setSource(event.target.value)} placeholder="e.g. Personal video or test library" data-testid="input-analysis-source" />
+                 </div>
+                 <div className="mt-4">
+                   <label className="field-label" htmlFor="analysis-license">License</label>
+                   <input id="analysis-license" className="field-input" value={license} onChange={(event) => setLicense(event.target.value)} placeholder="e.g. CC BY 4.0 or permission granted" data-testid="input-analysis-license" />
+                 </div>
+                 <div className="mt-4">
+                   <label className="field-label" htmlFor="analysis-source-url">Source link</label>
+                   <input id="analysis-source-url" type="url" className="field-input" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://..." data-testid="input-analysis-source-url" />
+                 </div>
+               </div>
               <button className="btn-primary w-full mt-6" onClick={() => { setProgress(5); setPhase('processing'); }} data-testid="button-run-analysis"><Sparkles size={16} style={{ color: '#ef9b7f' }} /> Run beta analysis <ArrowRight size={15} /></button>
               <p className="body-muted text-[11px] leading-relaxed mt-4">The result is simulated for this beta. It describes visible movement only and should never replace veterinary advice.</p>
             </div>
