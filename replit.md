@@ -1,45 +1,52 @@
-# [Project name]
+# SilverPaws AI
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+SilverPaws AI is a local-first pet movement observation app that helps owners notice mobility patterns and compare changes over time without claiming medical diagnosis.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm install` — install workspace dependencies and native platform binaries
+- `pnpm build` — typecheck + build all workspace packages
+- `pnpm --filter @workspace/api-server run dev` — run the backend development server
+- `pnpm --filter @workspace/silverpaws-beta run dev` — run the frontend app in development mode
+- `pnpm typecheck` — full TypeScript validation
+- `PORT` and `BASE_PATH` are optional for local builds; both default to safe local values when missing
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: Vite + React + Tailwind
 - API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Analysis: gait-related metrics and observation logic in `gait_engine/`
+- Storage: local browser storage for beta flow
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/silverpaws-beta/` — user-facing product app
+- `artifacts/api-server/` — backend route and runtime scaffolding
+- `gait_engine/` — gait and movement analysis logic
+- `lib/` — shared typed API and DB contracts
+- `docs/` and root markdown files — project documentation
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Keep human-facing app logic separate from AI/analysis code
+- Save structured measurements and interpretation separately
+- Use transparent, explainable caveats instead of medical certainty
+- Prefer local-first storage in the beta phase so the app stays simple and reliable
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+The app allows pet owners to create a profile, upload a walking video, review the clip, and save a structured observation with raw measurements and plain-language interpretation.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep the app observational and educational
+- Do not imply medical diagnosis
+- Preserve teammate task boundaries for future model and UI work
+- Prefer transparent, understandable explanations over opaque scoring
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Use pnpm rather than npm for workspace installs
+- Install native optional platform dependencies before a clean build if the environment is missing them
+- Vite config defaults allow local builds without required env values in the first pass

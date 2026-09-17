@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "SilverPaws AI",
+    "slug": "silverpaws-ai",
+    "scheme": "silverpaws",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.silverpaws.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "SilverPaws records a short walking clip so it can measure how steady the movement looks.",
+        "NSMicrophoneUsageDescription": "Audio is captured with the clip by the camera and is not analyzed.",
+        "NSPhotoLibraryUsageDescription": "SilverPaws lets you choose an existing walking clip to analyze."
+      }
+    },
+    "android": {
+      "package": "org.silverpaws.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#f7f2eb",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SilverPaws lets you choose an existing walking clip to analyze.",
+          "cameraPermission": "SilverPaws records a short walking clip so it can measure how steady the movement looks."
+        }
+      ],
+      "expo-font"
+    ]
+  }
+}

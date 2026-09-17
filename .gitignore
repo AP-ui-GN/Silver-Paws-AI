@@ -25,6 +25,11 @@ outputs/
 firebase-service-account*.json
 service-account*.json
 
+# Local environment files (keep the examples)
+.env
+.env.*
+!.env.example
+
 # IDEs and editors
 /.idea
 .project

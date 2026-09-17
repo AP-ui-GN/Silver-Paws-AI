@@ -1,6 +1,7 @@
-import { Activity, ClipboardList, PawPrint, Plus, UserRound } from 'lucide-react';
+import { Activity, ClipboardList, PawPrint, Plus, ShieldAlert, UserRound } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
+import { EMERGENCY_NOTE, SAFETY_DISCLAIMER } from '@/lib/disclaimers';
 
 const items = [
   { href: '/', label: 'Overview', icon: Activity },
@@ -62,6 +63,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="eyebrow">Beta lab</span>
         </header>
         <main>{children}</main>
+        <footer className="page-frame pt-0" data-testid="text-safety-disclaimer">
+          <div className="soft-note p-4 text-xs leading-relaxed flex gap-3 items-start">
+            <ShieldAlert size={16} className="shrink-0 mt-[1px]" />
+            <span>
+              {SAFETY_DISCLAIMER}
+              <span className="block mt-2 font-semibold">{EMERGENCY_NOTE}</span>
+            </span>
+          </div>
+        </footer>
         <NavItems mobile />
       </div>
     </div>

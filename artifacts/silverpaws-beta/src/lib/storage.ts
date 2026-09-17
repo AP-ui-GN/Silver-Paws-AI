@@ -1,3 +1,17 @@
+/**
+ * Local-first storage for pets and saved observations.
+ *
+ * The beta keeps every record in this browser. Nothing here talks to the network,
+ * and every read is written so a missing or corrupted key cannot crash the app.
+ */
+
+import type {
+  AnalysisFactors,
+  AnalysisMeasurements,
+  AnalysisWeights,
+  AnalyzeResult,
+} from '@workspace/api-client-react';
+
 export type Pet = {
   id: string;
   name: string;
@@ -18,11 +32,31 @@ export type Analysis = {
   durationSeconds: number;
   createdAt: string;
   status: AnalysisStatus;
-  strideSymmetryScore?: number;
-  asymmetryPercent?: number;
-  confidence?: number;
+  strideSymmetryScore?: number | null;
+  asymmetryPercent?: number | null;
+  confidence?: number | null;
   observation?: string;
   limitations?: string;
+  source?: string;
+  license?: string;
+  sourceUrl?: string;
+  /** Which measurement path produced this record: 'movenet' or 'opencv-motion'. */
+  pipeline?: string;
+  signalQuality?: string;
+  signalNote?: string;
+  overallScore?: number | null;
+  factors?: AnalysisFactors;
+  measurements?: AnalysisMeasurements;
+  weightsUsed?: AnalysisWeights;
+  concerningChange?: boolean;
+  usedLlm?: boolean;
+};
+
+/** The fields the app supplies itself, alongside the analysis result. */
+export type ClipDetails = {
+  petId: string;
+  fileName: string;
+  durationSeconds: number;
   source?: string;
   license?: string;
   sourceUrl?: string;
@@ -30,33 +64,6 @@ export type Analysis = {
 
 const PETS_KEY = 'silverpaws:pets';
 const ANALYSES_KEY = 'silverpaws:analyses';
-
-const starterPet: Pet = {
-  id: 'pet-mabel',
-  name: 'Mabel',
-  species: 'Dog',
-  breed: 'Cavalier King Charles Spaniel',
-  age: '7',
-  weight: '9.4',
-  notes: 'A little cautious on slick floors.',
-  createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 28).toISOString(),
-};
-
-const starterAnalyses: Analysis[] = [
-  {
-    id: 'analysis-starter',
-    petId: 'pet-mabel',
-    fileName: 'mabel-garden-walk.mp4',
-    durationSeconds: 18,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-    status: 'complete',
-    strideSymmetryScore: 86,
-    asymmetryPercent: 7,
-    confidence: 78,
-    observation: 'Mabel’s stride looked broadly even in this clip, with a small difference in rear-leg timing.',
-    limitations: 'This is an educational observation from one camera angle and one moment in time. It is not a diagnosis.',
-  },
-];
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -76,14 +83,11 @@ function write<T>(key: string, value: T) {
 }
 
 export function getPets() {
-  const pets = read<Pet[]>(PETS_KEY, []);
-  if (pets.length) return pets;
-  write(PETS_KEY, [starterPet]);
-  return [starterPet];
+  return read<Pet[]>(PETS_KEY, []);
 }
 
 export function getAnalyses() {
-  return read<Analysis[]>(ANALYSES_KEY, starterAnalyses);
+  return read<Analysis[]>(ANALYSES_KEY, []);
 }
 
 export function savePets(pets: Pet[]) {
@@ -96,4 +100,63 @@ export function saveAnalyses(analyses: Analysis[]) {
 
 export function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/**
+ * Turn an API result into a saved record. Measurements and interpretation are
+ * stored side by side but never merged, so a report can show them separately.
+ */
+export function toAnalysisRecord(
+  result: AnalyzeResult,
+  details: ClipDetails,
+): Omit<Analysis, 'id' | 'createdAt'> {
+  return {
+    petId: details.petId,
+    fileName: details.fileName,
+    // The pipeline measures duration from the decoded frames; the browser value is
+    // the fallback for containers where the frame rate could not be read.
+    durationSeconds: Math.round(result.measurements.durationSeconds || details.durationSeconds),
+    status: 'complete',
+    pipeline: result.pipeline,
+    signalQuality: result.signalQuality,
+    signalNote: result.signalNote,
+    overallScore: result.overallScore ?? null,
+    factors: result.factors,
+    measurements: result.measurements,
+    weightsUsed: result.weightsUsed,
+    strideSymmetryScore: result.strideSymmetryScore ?? null,
+    asymmetryPercent: result.asymmetryPercent ?? null,
+    confidence: result.confidence ?? null,
+    observation: result.observation,
+    limitations: result.limitations,
+    concerningChange: result.concerningChange,
+    usedLlm: result.usedLlm,
+    source: details.source?.trim() || undefined,
+    license: details.license?.trim() || undefined,
+    sourceUrl: details.sourceUrl?.trim() || undefined,
+  };
+}
+
+/**
+ * Find the most recent scored walk for one pet, used as the trend baseline.
+ * Only clips measured the same way can be compared, so the pipeline travels with
+ * the score.
+ */
+export function findBaseline(analyses: Analysis[], petId: string) {
+  const previous = analyses.find(
+    (analysis) =>
+      analysis.petId === petId &&
+      typeof analysis.overallScore === 'number' &&
+      Boolean(analysis.pipeline),
+  );
+
+  if (!previous || typeof previous.overallScore !== 'number') return undefined;
+  return { overallScore: previous.overallScore, pipeline: previous.pipeline as string };
+}
+
+/** The score to show for a saved record, preferring the overall indicator. */
+export function displayScore(analysis: Analysis): number | null {
+  if (typeof analysis.overallScore === 'number') return analysis.overallScore;
+  if (typeof analysis.strideSymmetryScore === 'number') return analysis.strideSymmetryScore;
+  return null;
 }

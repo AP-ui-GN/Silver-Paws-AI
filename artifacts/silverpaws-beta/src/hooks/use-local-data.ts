@@ -37,13 +37,9 @@ export function useLocalData() {
     return next;
   }, []);
 
-  const updateAnalysis = useCallback((id: string, updates: Partial<Analysis>) => {
-    setAnalyses((current) => current.map((analysis) => analysis.id === id ? { ...analysis, ...updates } : analysis));
-  }, []);
-
   const deleteAnalysis = useCallback((id: string) => {
     setAnalyses((current) => current.filter((analysis) => analysis.id !== id));
   }, []);
 
-  return { pets, analyses, addPet, updatePet, addAnalysis, updateAnalysis, deleteAnalysis };
+  return { pets, analyses, addPet, updatePet, addAnalysis, deleteAnalysis };
 }

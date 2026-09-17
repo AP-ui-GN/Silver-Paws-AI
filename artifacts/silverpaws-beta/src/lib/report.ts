@@ -59,9 +59,23 @@ function addText(lines: ReportLine[], text: string, options: Omit<ReportLine, 't
   lines.push({ text, ...options });
 }
 
-function formatMeasurement(value: number | undefined, suffix = '') {
-  return value === undefined ? 'Unavailable' : `${value}${suffix}`;
+function formatMeasurement(value: number | null | undefined, suffix = '') {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 'Not measured';
+  return `${value}${suffix}`;
 }
+
+const FACTOR_REPORT_LABELS: [keyof NonNullable<Analysis['factors']>, string][] = [
+  ['movementConsistency', 'Movement consistency'],
+  ['symmetry', 'Stride symmetry'],
+  ['mobility', 'Mobility'],
+  ['activity', 'Activity'],
+  ['historicalChange', 'Change from baseline'],
+];
+
+const PIPELINE_REPORT_LABELS: Record<string, string> = {
+  movenet: 'Pose landmarks (MoveNet)',
+  'opencv-motion': 'Picture motion only',
+};
 
 function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
   const petName = pet?.name ?? 'your pet';
@@ -69,7 +83,7 @@ function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
   const license = analysis.license?.trim() || 'Not provided; confirm sharing rights before publishing this media';
   const sourceUrl = analysis.sourceUrl?.trim();
   const limitations = analysis.limitations
-    ?? 'This is a simulated beta observation from one short clip. It is not a diagnosis and cannot rule out pain or injury.';
+    ?? 'This observation comes from one short clip. It is not a diagnosis and cannot rule out pain or injury.';
   const lines: ReportLine[] = [];
 
   addText(lines, 'SilverPaws AI', { size: 26, bold: true, color: MOSS_COLOR, gapAfter: 4 });
@@ -96,13 +110,52 @@ function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
     gapAfter: 7,
   });
   addText(lines, `Analysis status: ${analysis.status}`, { size: 10, gapAfter: 2 });
+  if (analysis.pipeline) {
+    addText(lines, `Measured with: ${PIPELINE_REPORT_LABELS[analysis.pipeline] ?? analysis.pipeline}`, { size: 10, gapAfter: 2 });
+  }
+  if (analysis.signalQuality) {
+    addText(lines, `Signal quality: ${analysis.signalQuality}${analysis.signalNote ? ` — ${analysis.signalNote}` : ''}`, { size: 10, gapAfter: 2 });
+  }
+  addText(lines, `Overall wellness indicator: ${formatMeasurement(analysis.overallScore, '/100')}`, { size: 10, gapAfter: 2 });
+  if (analysis.factors) {
+    for (const [key, label] of FACTOR_REPORT_LABELS) {
+      addText(lines, `${label}: ${formatMeasurement(analysis.factors[key], '/100')}`, { size: 10, gapAfter: 2 });
+    }
+  }
   addText(lines, `Stride symmetry score: ${formatMeasurement(analysis.strideSymmetryScore, '/100')}`, { size: 10, gapAfter: 2 });
   addText(lines, `Estimated asymmetry: ${formatMeasurement(analysis.asymmetryPercent, '%')}`, { size: 10, gapAfter: 2 });
-  addText(lines, `Detection confidence: ${formatMeasurement(analysis.confidence, '%')}`, { size: 10, gapAfter: 14 });
+  addText(lines, `Detection confidence: ${formatMeasurement(analysis.confidence, '%')}`, { size: 10, gapAfter: 2 });
+  if (analysis.measurements) {
+    addText(lines, `Frames read: ${formatMeasurement(analysis.measurements.frameCount)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Mean frame motion: ${formatMeasurement(analysis.measurements.motionMean)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Motion variation: ${formatMeasurement(analysis.measurements.motionStd)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Frames with movement: ${formatMeasurement(analysis.measurements.motionCoverage)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Hip stability: ${formatMeasurement(analysis.measurements.hipStability)}`, { size: 10, gapAfter: 2 });
+  }
+  addText(lines, 'A value of "Not measured" means the clip did not support that measurement. It does not mean zero.', {
+    size: 8,
+    color: MUTED_COLOR,
+    gapAfter: 14,
+  });
 
   addText(lines, 'Interpretation', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
-  addText(lines, analysis.observation ?? 'No interpretation was saved for this observation.', { size: 10, gapAfter: 6 });
+  addText(lines, analysis.observation ?? 'No interpretation was saved for this observation.', { size: 10, gapAfter: 4 });
+  addText(lines, analysis.usedLlm
+    ? 'This wording was rewritten by a language model from the measured values above and checked before saving.'
+    : 'This wording was generated from the measured values above by fixed rules, not by a language model.', {
+    size: 8,
+    color: MUTED_COLOR,
+    gapAfter: 6,
+  });
   addText(lines, limitations, { size: 10, color: BODY_COLOR, gapAfter: 14 });
+  if (analysis.concerningChange) {
+    addText(lines, 'The measured values changed enough that discussing this clip with a qualified veterinarian is recommended. This is a prompt to ask a professional, not a diagnosis.', {
+      size: 10,
+      bold: true,
+      color: MOSS_COLOR,
+      gapAfter: 14,
+    });
+  }
 
   addText(lines, 'Sources and licensing', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
   addText(lines, `Source: ${source}`, { size: 10, gapAfter: 3 });

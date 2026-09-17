@@ -1,6 +1,6 @@
 import { ArrowRight, CalendarDays, ChevronRight, CircleHelp, FileVideo, HeartHandshake, PawPrint, Sparkles } from 'lucide-react';
 import { Link } from 'wouter';
-import { type Analysis, type Pet } from '@/lib/storage';
+import { displayScore, type Analysis, type Pet } from '@/lib/storage';
 import { formatRelative } from '@/lib/format';
 
 type Props = { pets: Pet[]; analyses: Analysis[] };
@@ -8,6 +8,7 @@ type Props = { pets: Pet[]; analyses: Analysis[] };
 export default function Home({ pets, analyses }: Props) {
   const pet = pets[0];
   const latest = analyses.find((item) => item.status === 'complete');
+  const latestScore = latest ? displayScore(latest) : null;
   const recent = analyses.slice(0, 3);
 
   if (!pet) {
@@ -44,7 +45,7 @@ export default function Home({ pets, analyses }: Props) {
               <div>
                 <div className="eyebrow">Selected companion</div>
                 <h2 className="display-title text-3xl mt-1">{pet.name}</h2>
-                <p className="text-sm mt-1" style={{ color: '#4f6e66' }}>{pet.breed || pet.species} · {pet.age || 'Age not set'} years</p>
+                <p className="text-sm mt-1" style={{ color: '#4f6e66' }}>{pet.breed || pet.species}{pet.age ? ` · ${pet.age} years` : ''}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-8 max-w-sm">
@@ -61,10 +62,12 @@ export default function Home({ pets, analyses }: Props) {
           {latest ? (
             <>
               <p className="body-muted text-sm leading-relaxed mt-7">{latest.observation}</p>
-              <div className="mt-7">
-                <div className="flex justify-between items-center text-xs mb-2"><span className="font-semibold">Stride symmetry</span><span className="mono">{latest.strideSymmetryScore}/100</span></div>
-                <div className="progress-track"><div className="progress-fill" style={{ width: `${latest.strideSymmetryScore}%` }} /></div>
-              </div>
+              {latestScore !== null && (
+                <div className="mt-7">
+                  <div className="flex justify-between items-center text-xs mb-2"><span className="font-semibold">Overall indicator</span><span className="mono">{latestScore}/100</span></div>
+                  <div className="progress-track"><div className="progress-fill" style={{ width: `${latestScore}%` }} /></div>
+                </div>
+              )}
               <Link href={`/history/${latest.id}`} className="btn-quiet self-start mt-5 -ml-3" data-testid={`link-view-latest-${latest.id}`}>Open observation <ArrowRight size={15} /></Link>
             </>
           ) : (
@@ -79,7 +82,7 @@ export default function Home({ pets, analyses }: Props) {
           {recent.length ? recent.map((analysis) => (
             <Link href={`/history/${analysis.id}`} key={analysis.id} className="analysis-row no-underline" data-testid={`link-analysis-${analysis.id}`}>
               <div className="flex gap-3 items-center min-w-0"><div className="video-icon"><FileVideo size={16} /></div><div className="min-w-0"><div className="font-semibold text-sm truncate">{analysis.fileName}</div><div className="body-muted text-xs mt-1"><span className={`status-dot status-${analysis.status}`} />{formatRelative(analysis.createdAt)} · {analysis.status === 'complete' ? 'Observation ready' : 'Processing'}</div></div></div>
-              <div className="text-right"><div className="font-bold text-sm">{analysis.strideSymmetryScore ? `${analysis.strideSymmetryScore}/100` : '—'}</div><div className="body-muted text-[10px] mt-1">symmetry</div></div>
+              <div className="text-right"><div className="font-bold text-sm">{displayScore(analysis) === null ? '—' : `${displayScore(analysis)}/100`}</div><div className="body-muted text-[10px] mt-1">overall</div></div>
             </Link>
           )) : <div className="body-muted text-sm py-8 text-center">Your completed observations will collect here.</div>}
         </div>

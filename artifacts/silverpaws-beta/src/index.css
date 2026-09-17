@@ -156,6 +156,15 @@
 .dark .video-icon { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .detail-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px; }
 .mobile-bottom-nav { display: none; }
+/* Used while waiting on the analysis service, which reports no progress of its own. */
+.progress-indeterminate { position: relative; }
+.progress-indeterminate::after { content: ''; position: absolute; inset: 0; width: 38%; border-radius: inherit; background: #ef9b7f; animation: progress-slide 1.5s ease-in-out infinite; }
+@keyframes progress-slide { from { transform: translateX(-110%); } to { transform: translateX(275%); } }
+.factor-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px dashed hsl(var(--border)); }
+.factor-row:last-child { border-bottom: 0; }
+.measure-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.alert-note { background: #fbeee6; border: 1px solid #e8c4ae; color: #7d3b26; border-radius: 14px; }
+.dark .alert-note { background: hsl(var(--muted)); border-color: #a54339; color: hsl(var(--foreground)); }
 
 @media (max-width: 800px) {
   .app-nav { display: none; }

@@ -25,6 +25,12 @@ export default function PetProfile({ pets, addPet, updatePet }: Props) {
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
+    // ==================================================
+    // TEAM TASK: KAVIN
+    // PURPOSE:
+    // Show a visible message when name is blank, and when age or weight is
+    // present but not a positive number. Do not save until those checks pass.
+    // ==================================================
     if (!form.name.trim()) return;
     if (selectedPet) updatePet(selectedPet.id, form);
     else {
