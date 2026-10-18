@@ -11,6 +11,7 @@ import { DisclaimerFooter } from '../../src/components/disclaimer-footer';
 import { FactorRow, ScoreBadge } from '../../src/components/score';
 import { Button, Card, EmptyState, Eyebrow, Muted, Note, Tag } from '../../src/components/ui';
 import { useLocalData } from '../../src/hooks/use-local-data';
+import { aiUseResultLines } from '../../src/lib/ai-use';
 import { EMERGENCY_NOTE, SAFETY_DISCLAIMER } from '../../src/lib/disclaimers';
 import { sharePdf } from '../../src/lib/print-report';
 import { vetSummaryHtml, walkReportHtml } from '../../src/lib/report-html';
@@ -124,6 +125,9 @@ export default function WalkDetailScreen() {
             Measured on the server with {analysis.modelInfo.modelName}, version {analysis.modelInfo.modelVersion}.
           </Muted>
         ) : null}
+        {aiUseResultLines(analysis.aiUse).map((line) => (
+          <Muted key={line}>{line}</Muted>
+        ))}
       </Card>
 
       {analysis.lowConfidence && (

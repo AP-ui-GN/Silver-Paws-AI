@@ -3,12 +3,23 @@
  * interpretation, then the limits. Nulls stay "Not measured".
  */
 
+import { aiUseResultLines } from './ai-use.ts';
 import { EMERGENCY_NOTE, SAFETY_DISCLAIMER } from './disclaimers.ts';
 import { PIPELINE_LABELS, formatDateTime, formatMeasure } from './format.ts';
 import type { Analysis, Pet } from './types.ts';
 import { isDemoWalk } from './walks.ts';
 
-const AI_USE_FOOTER = 'A detailed list of AI use in this report is added with the registry.';
+function aiUseSection(analysis: Analysis): string {
+  if (isDemoWalk(analysis)) {
+    return '<h2>AI use in this report</h2><p>This sample is not a clip, so none of the analysis steps ran.</p>';
+  }
+  const lines = aiUseResultLines(analysis.aiUse);
+  if (lines.length === 0) {
+    return '<h2>AI use in this report</h2><p>This saved walk does not list which steps ran.</p>';
+  }
+  const items = lines.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
+  return `<h2>AI use in this report</h2><ul>${items}</ul>`;
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -78,7 +89,7 @@ export function walkReportHtml(analysis: Analysis, pets: Pet[]): string {
   <footer>
     <p>${escapeHtml(SAFETY_DISCLAIMER)}</p>
     <p>${escapeHtml(EMERGENCY_NOTE)}</p>
-    <p>${escapeHtml(AI_USE_FOOTER)}</p>
+    ${aiUseSection(analysis)}
   </footer>
 </body>
 </html>`;
@@ -97,7 +108,9 @@ export function vetSummaryHtml(walks: Analysis[], pets: Pet[]): string {
       const body = rows
         .map((walk) => {
           const flag = walk.concerningChange ? ' Worth asking a veterinarian. Not a diagnosis.' : '';
-          return `<li><strong>${escapeHtml(formatDateTime(walk.createdAt))}</strong> · ${escapeHtml(petName(pets, walk.petId))} · overall ${escapeHtml(formatMeasure(walk.overallScore, '/100', 0))} · consistency ${escapeHtml(formatMeasure(walk.factors.movementConsistency, '/100', 0))} · symmetry ${escapeHtml(formatMeasure(walk.factors.symmetry, '/100', 0))}.${escapeHtml(flag)}</li>`;
+          const steps = aiUseResultLines(walk.aiUse);
+          const stepText = steps.length > 0 ? ` ${steps.join(' ')}` : '';
+          return `<li><strong>${escapeHtml(formatDateTime(walk.createdAt))}</strong> · ${escapeHtml(petName(pets, walk.petId))} · overall ${escapeHtml(formatMeasure(walk.overallScore, '/100', 0))} · consistency ${escapeHtml(formatMeasure(walk.factors.movementConsistency, '/100', 0))} · symmetry ${escapeHtml(formatMeasure(walk.factors.symmetry, '/100', 0))}.${escapeHtml(flag)}${escapeHtml(stepText)}</li>`;
         })
         .join('');
       return `<h2>${escapeHtml(PIPELINE_LABELS[pipeline] ?? pipeline)}</h2><ul>${body}</ul>`;
@@ -124,7 +137,8 @@ export function vetSummaryHtml(walks: Analysis[], pets: Pet[]): string {
   <footer>
     <p>${escapeHtml(SAFETY_DISCLAIMER)}</p>
     <p>${escapeHtml(EMERGENCY_NOTE)}</p>
-    <p>${escapeHtml(AI_USE_FOOTER)}</p>
+    <h2>AI use in this report</h2>
+    <p>Each walk above names the steps that produced it. Steps are not combined across walks that were measured in different ways.</p>
   </footer>
 </body>
 </html>`;

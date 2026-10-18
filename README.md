@@ -51,16 +51,26 @@ Pose detection, feature math, scoring, and explanation live behind the API.
 
 ## AI components
 
-- **MoveNet Thunder** (TensorFlow Hub) for 17-point pose landmarks, when
-  TensorFlow is available. This model was trained on human bodies, so pet
-  detections can be unreliable; low confidence is reported as “not measured”
-  rather than treated as a perfect score.
-- **OpenCV motion fallback** when TensorFlow is missing: frame-to-frame
-  picture change. The result is labeled `opencv-motion` so it is never mixed
-  with pose-based scores.
-- **Rule-based observation** in `gait_engine/wellness.py`.
-- **Optional LLM rewrite** in `artifacts/api-server/src/lib/explanation.ts`.
-  Invalid rewrites are rejected; the rule-based text is shown instead.
+The wording for each step lives in `lib/ai-use/registry.json` and is copied
+into the apps by `node scripts/sync-ai-use.mjs`. The generated page is
+`docs/AI_USE.md`. Pose limits are in `docs/MODEL_CARD.md`.
+
+- **MoveNet Thunder** finds 17 body keypoints on the analysis server when
+  TensorFlow is installed. It was trained on human bodies. Low confidence is
+  reported as “not measured”, not as a perfect score.
+- **OpenCV frame difference** runs on every clip. It is not a learned model.
+  When MoveNet is missing, it is the only movement measurement. When MoveNet
+  runs, it still supplies movement consistency and activity. Results from the
+  two pipelines are never mixed in a chart.
+- **Scores and the note** come from fixed formulas and templates in
+  `gait_engine/wellness.py`. They are not an AI model.
+- **Optional language-model rewrite** in
+  `artifacts/api-server/src/lib/explanation.ts`, only when
+  `SILVERPAWS_LLM_URL` and `SILVERPAWS_LLM_MODEL` are set. Invalid rewrites
+  are discarded. The rule-based note is shown instead.
+- **Development.** Parts of this app's code and documentation were written
+  with AI coding assistants and reviewed by the team. That fact is not a step
+  that runs on a clip.
 
 ## Limitations
 

@@ -62,6 +62,8 @@ export type Analysis = {
   framesTotal?: number | null;
   lowConfidence?: boolean;
   qualityNotes?: string[];
+  /** Registry ids for the steps that produced this walk. */
+  aiUse?: string[];
 };
 
 /** The fields the app supplies itself, alongside the analysis result. */
@@ -149,6 +151,7 @@ export function toAnalysisRecord(
     framesTotal: result.framesTotal,
     lowConfidence: result.lowConfidence,
     qualityNotes: result.qualityNotes,
+    aiUse: result.aiUse,
     source: details.source?.trim() || undefined,
     license: details.license?.trim() || undefined,
     sourceUrl: details.sourceUrl?.trim() || undefined,

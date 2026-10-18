@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, CalendarDays, CircleAlert, Download, FileVideo, 
 import { Link, useParams } from 'wouter';
 import { displayScore, type Analysis, type Pet } from '@/lib/storage';
 import { SAFETY_DISCLAIMER } from '@/lib/disclaimers';
+import { aiUseResultLines } from '@/lib/ai-use';
 import { formatDate, formatDuration, formatPoseFrames, formatRelative } from '@/lib/format';
 import { downloadAnalysisReport } from '@/lib/report';
 import { TrendPanel } from '@/components/trend-panel';
@@ -130,6 +131,13 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
         </div>
         {analysis.signalNote && <p className="body-muted text-xs leading-relaxed mt-4">{analysis.signalNote}</p>}
         {analysis.modelInfo && <p className="body-muted text-xs leading-relaxed mt-2">Measured on the server with {analysis.modelInfo.modelName}, version {analysis.modelInfo.modelVersion}.</p>}
+        {aiUseResultLines(analysis.aiUse).length > 0 && (
+          <ul className="mt-3 flex flex-col gap-1" data-testid="text-ai-use-lines">
+            {aiUseResultLines(analysis.aiUse).map((line) => (
+              <li key={line} className="body-muted text-xs leading-relaxed">{line}</li>
+            ))}
+          </ul>
+        )}
       </div>
       <div className="panel panel-padded">
         <div className="flex items-center gap-2"><Gauge size={18} style={{ color: '#b9684d' }} /><div className="eyebrow">What we noticed</div></div>

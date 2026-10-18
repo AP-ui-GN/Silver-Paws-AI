@@ -90,6 +90,7 @@ export function toAnalysisRecord(result: AnalyzeResult, details: ClipDetails): A
     framesTotal: result.framesTotal,
     lowConfidence: result.lowConfidence,
     qualityNotes: result.qualityNotes,
+    aiUse: result.aiUse,
   };
 }
 

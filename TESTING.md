@@ -98,6 +98,10 @@ pnpm --filter @workspace/silverpaws-beta run dev
 - A large drop vs the previous walk, or reliable high asymmetry, sets
   `concerningChange` and tells the owner to ask a veterinarian
 
+## What to test
+
+On a saved result, the AI-use lines should name only the steps that produced that walk: MoveNet when pose ran, frame-to-frame motion (it runs on every clip), fixed scores and a fixed note, and a language-model reword only when the server kept one.
+
 ## Manual checklist (for teammates)
 
 - [ ] Create and edit a second pet

@@ -85,6 +85,20 @@ def _model_info(pipeline: str, model_url: str | None) -> dict[str, str]:
     }
 
 
+def ai_use_ids(pipeline: str) -> list[str]:
+    """Registry ids for the steps that produced one result.
+
+    Frame-difference motion runs on every successful clip, including when
+    MoveNet also runs. ``development`` is a product fact, not a per-clip step.
+    ``llm-rewrite`` is added by the API only when a validated rewrite is kept.
+    """
+
+    shared = ["motion-fallback", "scoring", "observation-rules"]
+    if pipeline == "movenet":
+        return ["pose-model", *shared]
+    return shared
+
+
 def _clean_pet_name(pet_name: str | None) -> str | None:
     """Keep the display name short and free of line breaks before it enters text."""
 
@@ -328,6 +342,7 @@ def analyze_clip(
         "framesTotal": frames_total,
         "lowConfidence": low_confidence,
         "qualityNotes": notes,
+        "aiUse": ai_use_ids(pipeline),
         "diagnostics": {
             "fps": signal.fps,
             "framePairs": len(signal.frame_motion),

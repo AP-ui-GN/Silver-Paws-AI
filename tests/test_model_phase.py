@@ -9,7 +9,7 @@ import numpy as np
 
 from gait_engine.clip_quality import quality_notes
 from gait_engine.confidence import pose_is_trusted, summarize_keypoints
-from gait_engine.pipeline import MIN_POSE_CONFIDENCE, analyze_clip
+from gait_engine.pipeline import MIN_POSE_CONFIDENCE, ai_use_ids, analyze_clip
 
 
 def keypoints(frames, confidence):
@@ -116,3 +116,22 @@ class OpenCvResultTests(unittest.TestCase):
         self.assertIsNone(result["measurements"]["strideSymmetry"])
         self.assertIsNone(result["measurements"]["hipStability"])
         self.assertTrue(result["modelInfo"]["modelVersion"])
+        self.assertEqual(
+            result["aiUse"],
+            ["motion-fallback", "scoring", "observation-rules"],
+        )
+        self.assertNotIn("pose-model", result["aiUse"])
+        self.assertNotIn("llm-rewrite", result["aiUse"])
+        self.assertNotIn("development", result["aiUse"])
+
+
+class AiUseIdTests(unittest.TestCase):
+    def test_a_pose_run_lists_pose_and_the_motion_measurement(self):
+        ids = ai_use_ids("movenet")
+
+        self.assertEqual(
+            ids,
+            ["pose-model", "motion-fallback", "scoring", "observation-rules"],
+        )
+        self.assertNotIn("development", ids)
+        self.assertNotIn("llm-rewrite", ids)

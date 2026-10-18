@@ -66,6 +66,7 @@ export type AnalyzeResult = {
   framesTotal: number | null;
   lowConfidence: boolean;
   qualityNotes: string[];
+  aiUse: string[];
 };
 
 export type Pet = {
@@ -112,4 +113,5 @@ export type Analysis = {
   qualityNotes?: string[];
   /** Sample layout only. Never written to real history. */
   demo?: boolean;
+  aiUse?: string[];
 };

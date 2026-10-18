@@ -25,6 +25,7 @@ import {
   resolveApiUrl,
   type ClipAsset,
 } from '../../src/lib/api';
+import { aiUseResultLines } from '../../src/lib/ai-use';
 import { PRIVACY_LINE } from '../../src/lib/disclaimers';
 import { formatBytes, formatDuration, SIGNAL_LABELS } from '../../src/lib/format';
 import { findBaseline, toAnalysisRecord } from '../../src/lib/storage';
@@ -309,6 +310,9 @@ export default function AnalyzeScreen() {
               </Note>
             )}
             <Text style={styles.observation}>{saved.observation}</Text>
+            {aiUseResultLines(saved.aiUse).map((line) => (
+              <Muted key={line}>{line}</Muted>
+            ))}
             <Button label="See the full breakdown" icon="arrow-forward" onPress={() => router.push({ pathname: '/history/[id]', params: { id: saved.id } })} />
           </View>
         )}

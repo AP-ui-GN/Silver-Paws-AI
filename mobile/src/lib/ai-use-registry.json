@@ -1,0 +1,53 @@
+{
+  "summary": "SilverPaws can use one pose-detection model, MoveNet Thunder, to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers.",
+  "entries": [
+    {
+      "id": "pose-model",
+      "whatItIs": "MoveNet Thunder, a machine-learning pose model published by Google on TensorFlow Hub as singlepose/thunder/4. It was trained on human bodies.",
+      "whatItDoes": "When TensorFlow is installed, the analysis server runs MoveNet on video frames. It returns 17 body keypoints, each with a position and a confidence. It does not run on the phone.",
+      "whatItDoesnt": "It outputs positions and confidences only. It does not name a condition, detect pain, or choose the wellness score.",
+      "codePath": "gait_engine/movenet.py",
+      "resultLine": "Movement measured with a pose-detection model (MoveNet)."
+    },
+    {
+      "id": "motion-fallback",
+      "whatItIs": "Standard OpenCV frame-difference analysis. This is not a learned model.",
+      "whatItDoes": "The server compares consecutive frames and records how much the picture changed. This runs on every clip. When MoveNet is unavailable, it is the only movement measurement. When MoveNet runs, this measurement still supplies movement consistency and activity.",
+      "whatItDoesnt": "It does not find limbs or keypoints, and it is not an AI model.",
+      "codePath": "gait_engine/motion.py",
+      "resultLine": "Motion measured with standard video analysis (no AI model)."
+    },
+    {
+      "id": "scoring",
+      "whatItIs": "Fixed formulas and weights in the wellness module.",
+      "whatItDoes": "Turns the measured values into factor scores and one overall indicator from 0 to 100. A missing measurement is left out. It is not treated as zero.",
+      "whatItDoesnt": "No AI model chooses or adjusts these scores.",
+      "codePath": "gait_engine/wellness.py",
+      "resultLine": "Scores come from fixed formulas, not from an AI model."
+    },
+    {
+      "id": "observation-rules",
+      "whatItIs": "Sentence templates in the wellness module.",
+      "whatItDoes": "Builds the plain-language note from the measured values and the scores.",
+      "whatItDoesnt": "It does not invent numbers, name a condition, or call a language model.",
+      "codePath": "gait_engine/wellness.py",
+      "resultLine": "Note written from your measurements by fixed rules."
+    },
+    {
+      "id": "llm-rewrite",
+      "whatItIs": "An optional language-model call on the analysis server.",
+      "whatItDoes": "When SILVERPAWS_LLM_URL and SILVERPAWS_LLM_MODEL are set, the server asks that provider to rephrase the rule-based note. The reply is shown only if it passes validation.",
+      "whatItDoesnt": "It is off when those variables are unset. It cannot add a measurement, name a condition, or drop a veterinarian recommendation. A failed or invalid reply is discarded and the rule-based note is shown.",
+      "codePath": "artifacts/api-server/src/lib/explanation.ts",
+      "resultLine": "Note reworded by an AI language model; the numbers are unchanged."
+    },
+    {
+      "id": "development",
+      "whatItIs": "AI coding assistants used while building the app.",
+      "whatItDoes": "Parts of this app's code and documentation were written with AI coding assistants and reviewed by the team.",
+      "whatItDoesnt": "This is not a model that runs on a clip. It does not measure a pet or write the note an owner sees from a walk. The team lead confirms this entry's final wording before release.",
+      "codePath": "repository",
+      "resultLine": "Parts of this app's code and documentation were written with AI coding assistants and reviewed by the team."
+    }
+  ]
+}

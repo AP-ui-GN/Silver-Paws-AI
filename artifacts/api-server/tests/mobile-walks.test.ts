@@ -47,8 +47,10 @@ test("a missing score is not written as zero in the report", () => {
   const html = walkReportHtml(sampleWalk, []);
   assert.match(html, /Sample data — not your pet/);
   assert.match(html, /Not measured/);
+  assert.match(html, /AI use in this report/);
+  assert.match(html, /none of the analysis steps ran/);
   assert.doesNotMatch(html, /Stride symmetry<\/th><td>0/);
-  assert.match(html, /registry/);
+  assert.doesNotMatch(html, /MoveNet/);
   const summary = vetSummaryHtml([sampleWalk], []);
   assert.match(summary, /No saved walks yet/);
 });

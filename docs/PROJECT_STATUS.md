@@ -526,3 +526,34 @@ Phone features around the existing screens. Phase 4 was not started.
 5. **No phone or simulator was available here.** Checks are typecheck and
    unit tests. Expo Go, local notifications, and the PDF share sheet were
    not run on a device.
+
+The Phase 3 gaps above (dark-mode text colors, no unit conversion for older
+profiles, filming-guide 5–15 seconds versus the API's 120 second limit) are
+unchanged.
+
+---
+
+## 12. Phase 4 (October 18, 2026)
+
+One AI-use registry. Phase 5 was not started.
+
+### What landed
+
+- `lib/ai-use/registry.json` is the only wording source. `scripts/sync-ai-use.mjs`
+  copies it into the web app and `mobile/src/lib/`, and writes `docs/AI_USE.md`.
+- A clip's `aiUse` lists the steps that ran. MoveNet runs include `pose-model`.
+  Every successful clip includes `motion-fallback`, because OpenCV frame
+  difference always runs. `scoring` and `observation-rules` are always included.
+  `llm-rewrite` is added by the API only when a validated rewrite is kept.
+  `development` is never attached to a clip.
+- Result screens and both PDFs show one registry `resultLine` per id. Settings
+  → How AI is used (and the web AI-use page) show the summary and the full
+  list, including development.
+
+### Where this prompt disagreed with the repo
+
+The suggested MoveNet id list was pose-model, scoring, and observation-rules.
+`gait_engine/pipeline.py` calls `read_motion_signal` before it tries pose, and
+movement consistency and activity come from that signal even when MoveNet
+succeeds. `motion-fallback` is therefore included on pose runs as well. Its
+registry text says it runs on every clip, not only when pose is missing.

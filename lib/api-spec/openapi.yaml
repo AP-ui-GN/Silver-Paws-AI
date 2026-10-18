@@ -294,6 +294,14 @@ components:
             the clip did not trip a check. These are filming tips, not a diagnosis.
           items:
             type: string
+        aiUse:
+          type: array
+          description: >-
+            Ids from lib/ai-use/registry.json for the steps that produced this
+            result. development is never included. llm-rewrite is included only
+            when a validated rewrite was kept.
+          items:
+            type: string
         diagnostics:
           type: object
           additionalProperties: true
@@ -317,4 +325,5 @@ components:
         - framesTotal
         - lowConfidence
         - qualityNotes
+        - aiUse
 

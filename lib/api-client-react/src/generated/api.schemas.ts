@@ -143,6 +143,8 @@ export interface AnalyzeResult {
   lowConfidence: boolean;
   /** Plain, actionable notes from the clip-quality pre-check. Empty when the clip did not trip a check. These are filming tips, not a diagnosis. */
   qualityNotes: string[];
+  /** Ids from lib/ai-use/registry.json for the steps that produced this result. development is never included. llm-rewrite is included only when a validated rewrite was kept. */
+  aiUse: string[];
   /** Pipeline-specific debug values. Keys are not part of the stable contract and should not be shown to users. */
   diagnostics?: AnalyzeResultDiagnostics;
 }

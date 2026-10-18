@@ -14,6 +14,7 @@ import express, { Router, type IRouter, type Request, type Response } from "expr
 
 import { AnalyzeMovementClipResponse, type AnalyzeError } from "@workspace/api-zod";
 
+import { aiUseForResult } from "../lib/ai-use";
 import { runAnalysis } from "../lib/analysis-runner";
 import { explainObservation } from "../lib/explanation";
 import { logger } from "../lib/logger";
@@ -140,6 +141,7 @@ router.post(
         ...outcome.result,
         observation: explanation.observation,
         usedLlm: explanation.usedLlm,
+        aiUse: aiUseForResult(outcome.result.aiUse, explanation.usedLlm),
       });
 
       if (!finalResult.success) {

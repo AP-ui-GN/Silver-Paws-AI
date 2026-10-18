@@ -71,6 +71,7 @@ export const AnalyzeMovementClipResponse = zod.object({
   "framesTotal": zod.number().nullable().describe('Pose frames the model actually ran on. Null when pose was not run.'),
   "lowConfidence": zod.boolean().describe('True when pose ran but confidence was below the trust threshold. Clients show \"Low confidence — try a clearer clip\" and treat limb values as not measured.'),
   "qualityNotes": zod.array(zod.string()).describe('Plain, actionable notes from the clip-quality pre-check. Empty when the clip did not trip a check. These are filming tips, not a diagnosis.'),
+  "aiUse": zod.array(zod.string()).describe('Ids from lib\/ai-use\/registry.json for the steps that produced this result. development is never included. llm-rewrite is included only when a validated rewrite was kept.'),
   "diagnostics": zod.record(zod.string(), zod.unknown()).optional().describe('Pipeline-specific debug values. Keys are not part of the stable contract and should not be shown to users.')
 })
 
