@@ -118,6 +118,9 @@ pnpm --filter @workspace/silverpaws-beta run dev
 
 Open http://127.0.0.1:4173
 
+To run the API in Docker, see `docs/HOSTING.md`. The image was not built in
+this repository checkout.
+
 ### On a phone (Expo Go)
 
 With the API from terminal 1 still running:

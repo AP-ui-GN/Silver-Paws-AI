@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { checkHealth, resolveApiUrl } from '../lib/api';
+import { checkHealth, MISSING_API_URL_MESSAGE, resolveApiUrl } from '../lib/api';
 
 export type ConnectionState =
   | { kind: 'checking' }
@@ -21,6 +21,11 @@ export function useConnection(active: boolean) {
   const check = useCallback(async () => {
     setState((current) => (current.kind === 'online' ? current : { kind: 'checking' }));
     const url = await resolveApiUrl();
+    if (!url) {
+      attempt.current = 0;
+      setState({ kind: 'offline', message: MISSING_API_URL_MESSAGE });
+      return;
+    }
     const outcome = await checkHealth(url);
     if (outcome.ok) {
       attempt.current = 0;

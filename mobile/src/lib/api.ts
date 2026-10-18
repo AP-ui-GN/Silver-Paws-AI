@@ -8,6 +8,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
+import { chooseApiUrl } from './api-address';
 import type { AnalyzeResult, Pipeline } from './types';
 
 const API_URL_KEY = 'silverpaws:apiUrl';
@@ -69,14 +70,33 @@ export async function saveApiUrl(url: string | null) {
   }
 }
 
-/** Saved address first, then the EXPO_PUBLIC_API_URL build setting, then the guess. */
-export async function resolveApiUrl(): Promise<string> {
-  const saved = await getSavedApiUrl();
-  if (saved) return saved;
+/** The public build setting. This value is visible in the app bundle. */
+export function configuredApiUrl(): string | null {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL;
-  if (fromEnv) return normalizeApiUrl(fromEnv) ?? fromEnv;
-  return guessApiUrl() ?? `http://localhost:${DEFAULT_API_PORT}`;
+  const fromExtra = Constants.expoConfig?.extra?.apiUrl;
+  const raw = typeof fromEnv === 'string' && fromEnv.trim() ? fromEnv : fromExtra;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  return normalizeApiUrl(raw);
 }
+
+/**
+ * Saved Advanced address, then the build's EXPO_PUBLIC_API_URL.
+ * Development with neither of those guesses the laptop from the Expo dev server.
+ * A release build does not guess.
+ */
+export async function resolveApiUrl(): Promise<string | null> {
+  const saved = await getSavedApiUrl();
+  return chooseApiUrl({
+    saved,
+    configured: configuredApiUrl(),
+    devGuess: guessApiUrl(),
+    dev: typeof __DEV__ !== 'undefined' && __DEV__,
+    devFallback: `http://localhost:${DEFAULT_API_PORT}`,
+  });
+}
+
+export const MISSING_API_URL_MESSAGE =
+  'This build has no analysis server address. A tester can set one under Settings, Advanced API address.';
 
 // ---------------------------------------------------------------------------
 // Health check

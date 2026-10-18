@@ -1,0 +1,14 @@
+.git
+.venv
+venv
+**/node_modules
+mobile
+**/.expo
+models/tfhub
+attached_assets
+tmp
+dist
+**/*.mp4
+**/*.mov
+**/.env
+**/.env.*

@@ -557,3 +557,66 @@ The suggested MoveNet id list was pose-model, scoring, and observation-rules.
 movement consistency and activity come from that signal even when MoveNet
 succeeds. `motion-fallback` is therefore included on pose runs as well. Its
 registry text says it runs on every clip, not only when pose is missing.
+
+The Phase 3 gaps (dark-mode label colors, no unit conversion for older
+profiles, filming-guide 5–15 seconds versus the API's 120 second limit) are
+still open. Phase 5 does not change them.
+
+---
+
+## 13. Phase 5 (October 18, 2026)
+
+Hosting config and an Expo tester guide. Phase 6 was not started. No deploy
+and no Expo build were run. There is no public URL and no store listing.
+
+### What landed
+
+- `Dockerfile` and `docker-compose.yml` for the API and the Python pipeline.
+  The image is Node 20 and Debian bookworm Python 3.11, with
+  `opencv-python-headless`, NumPy, TensorFlow, and a MoveNet cache filled by
+  `scripts/cache_movenet.py` at image build time.
+- Production requests other than `/api/healthz` require HTTPS. Uploads stay
+  capped (`MAX_UPLOAD_MB`, default 60). Analysis stops after
+  `ANALYSIS_TIMEOUT_MS` (default 120000). Each client address gets a small
+  per-minute analysis limit.
+- `docs/HOSTING.md` lists the environment variables, starts RAM at 2 GB, and
+  says how to read a real peak. The host steps are for Render. The service
+  was not created.
+- `mobile/app.config.ts` reads `EXPO_PUBLIC_API_URL`. Development still guesses
+  the laptop. A release build does not. Settings → Advanced remains the tester
+  override.
+- `mobile/eas.json` has `development`, `preview` (internal), and `production`,
+  each with its own update channel. The bundle id `com.silverpaws.app` is a
+  placeholder. The previous id was `org.silverpaws.mobile`.
+- Camera and photo-library strings say what is measured. Microphone permission
+  is turned off (`microphonePermission: false`) because the pipeline never
+  reads sound.
+- `docs/EXPO_TESTING.md` is the tester guide. Commands were checked against
+  docs.expo.dev for EAS Build, internal distribution, and EAS Update.
+
+### Docker
+
+The `docker` command is not installed in this environment, so the image was
+**not** built. About 246 GB of disk was free. Available RAM was about 4.6 GB,
+which is tight for a TensorFlow image build even if Docker were present.
+Do not treat the Dockerfile as a finished image.
+
+### Where this prompt disagreed with the repo
+
+1. **OpenCV wheel.** `requirements.txt` pins `opencv-python` for a laptop with
+   a display. The image uses `opencv-python-headless` at the same version
+   (`4.10.0.84`) because the container has no screen.
+2. **Bundle id.** The repo had `org.silverpaws.mobile`. Phase 5 sets the
+   placeholder `com.silverpaws.app` and flags it for a human to replace.
+3. **Icons.** `attached_assets/` has no images. `mobile/assets/` already holds
+   the Expo template icon and splash. They were left in place and flagged.
+   No new artwork was invented.
+4. **Updates URL.** `eas update:configure` writes the Expo project id and
+   `updates.url` after a person logs in. Those values are not in the repo,
+   because inventing a project id would be a fake deploy. `docs/EXPO_TESTING.md`
+   tells the human to run that command before the first preview build.
+5. **Expo patch pins.** `npx expo-doctor` failed on the previous SDK 57 patch
+   pins (`expo` 57.0.23 and three related packages). They were moved to the
+   versions doctor asked for (`expo` ~57.0.30 and matching patches). The SDK
+   stayed 57. The legacy `splash` field is not allowed, so the placeholder
+   splash image is set with the `expo-splash-screen` plugin instead.

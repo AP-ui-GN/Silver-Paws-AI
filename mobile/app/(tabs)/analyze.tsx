@@ -21,6 +21,7 @@ import {
   describeAnalysisError,
   MAX_CLIP_SECONDS,
   MAX_UPLOAD_MB,
+  MISSING_API_URL_MESSAGE,
   requestAnalysis,
   resolveApiUrl,
   type ClipAsset,
@@ -148,6 +149,11 @@ export default function AnalyzeScreen() {
 
     try {
       const baseUrl = await resolveApiUrl();
+      if (!baseUrl) {
+        setErrorMessage(MISSING_API_URL_MESSAGE);
+        setPhase('error');
+        return;
+      }
       const baseline = findBaseline(analyses, pet.id);
 
       const result = await requestAnalysis({

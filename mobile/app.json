@@ -9,15 +9,14 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "org.silverpaws.mobile",
+      "bundleIdentifier": "com.silverpaws.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "SilverPaws records a short walking clip so it can measure how steady the movement looks.",
-        "NSMicrophoneUsageDescription": "Audio is captured with the clip by the camera and is not analyzed.",
-        "NSPhotoLibraryUsageDescription": "SilverPaws lets you choose an existing walking clip to analyze."
+        "NSCameraUsageDescription": "SilverPaws uses the camera to record a short side-on walking clip. Only the picture is measured. This app does not record or analyze sound.",
+        "NSPhotoLibraryUsageDescription": "SilverPaws opens your video library so you can choose a walking clip to measure. The chosen clip is sent to the analysis server and then deleted. Other photos and videos stay on this phone."
       }
     },
     "android": {
-      "package": "org.silverpaws.mobile",
+      "package": "com.silverpaws.app",
       "adaptiveIcon": {
         "backgroundColor": "#f7f2eb",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -34,11 +33,21 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "SilverPaws lets you choose an existing walking clip to analyze.",
-          "cameraPermission": "SilverPaws records a short walking clip so it can measure how steady the movement looks."
+          "photosPermission": "SilverPaws opens your video library so you can choose a walking clip to measure. The chosen clip is sent to the analysis server and then deleted. Other photos and videos stay on this phone.",
+          "cameraPermission": "SilverPaws uses the camera to record a short side-on walking clip. Only the picture is measured. This app does not record or analyze sound.",
+          "microphonePermission": false
         }
       ],
       "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#f7f2eb",
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "imageWidth": 200
+        }
+      ],
       [
         "expo-notifications",
         {

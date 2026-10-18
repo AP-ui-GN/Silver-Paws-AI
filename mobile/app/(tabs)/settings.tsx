@@ -34,7 +34,7 @@ export default function SettingsScreen() {
     void (async () => {
       const saved = await getSavedApiUrl();
       setUsingSaved(Boolean(saved));
-      setDraft(saved ?? (await resolveApiUrl()));
+      setDraft(saved ?? (await resolveApiUrl()) ?? '');
     })();
   }, []);
 
@@ -65,8 +65,9 @@ export default function SettingsScreen() {
     await saveApiUrl(null);
     setUsingSaved(false);
     const detected = await resolveApiUrl();
-    setDraft(detected);
-    await test(detected);
+    setDraft(detected ?? '');
+    if (detected) await test(detected);
+    else setStatus({ kind: 'fail', message: 'This build has no server address yet. Enter one above.' });
   }
 
   async function onReminder(enabled: boolean) {
@@ -128,7 +129,7 @@ export default function SettingsScreen() {
     ]);
   }
 
-  const guess = guessApiUrl();
+  const guess = typeof __DEV__ !== 'undefined' && __DEV__ ? guessApiUrl() : null;
 
   return (
     <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
@@ -213,7 +214,13 @@ export default function SettingsScreen() {
           <Button label="Test connection" icon="pulse-outline" variant="secondary" onPress={() => void test()} busy={status.kind === 'checking'} style={{ flex: 1 }} />
           <Button label="Save" icon="checkmark" onPress={() => void save()} style={{ flex: 1 }} />
         </View>
-        {usingSaved && <Button label="Use detected address instead" variant="secondary" onPress={() => void useDetected()} />}
+        {usingSaved && (
+          <Button
+            label={typeof __DEV__ !== 'undefined' && __DEV__ ? 'Use detected address instead' : 'Use the address from this build'}
+            variant="secondary"
+            onPress={() => void useDetected()}
+          />
+        )}
 
         {status.kind === 'ok' && <Note tone="info" title="Connected">The API at {status.url} answered the health check.</Note>}
         {status.kind === 'fail' && <Note tone="error" title="Not reachable">{status.message}</Note>}

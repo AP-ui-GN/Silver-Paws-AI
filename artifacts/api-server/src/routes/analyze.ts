@@ -16,6 +16,11 @@ import { AnalyzeMovementClipResponse, type AnalyzeError } from "@workspace/api-z
 
 import { aiUseForResult } from "../lib/ai-use";
 import { runAnalysis } from "../lib/analysis-runner";
+import {
+  analyzeRateLimitPerMinute,
+  clientAddress,
+  takeAnalyzeSlot,
+} from "../lib/hosting";
 import { explainObservation } from "../lib/explanation";
 import { logger } from "../lib/logger";
 import { MultipartError, parseBoundary, parseMultipart } from "../lib/multipart";
@@ -67,6 +72,16 @@ router.post(
   "/analyze",
   express.raw({ type: "multipart/form-data", limit: MAX_UPLOAD_BYTES }),
   async (req: Request, res: Response) => {
+    const allowed = takeAnalyzeSlot(
+      clientAddress(req.header("x-forwarded-for"), req.socket.remoteAddress),
+      Date.now(),
+      analyzeRateLimitPerMinute(),
+    );
+    if (!allowed) {
+      sendError(res, 429, "Too many analyses from this address. Wait a minute and try again.");
+      return;
+    }
+
     const boundary = parseBoundary(req.headers["content-type"]);
     if (!boundary || !Buffer.isBuffer(req.body)) {
       sendError(res, 400, "The upload was not sent as a video form submission.");
