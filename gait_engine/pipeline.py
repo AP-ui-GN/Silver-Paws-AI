@@ -19,9 +19,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import cv2
+
+from .clip_quality import quality_notes
+from .confidence import pose_is_trusted, summarize_keypoints
 from .features import MOTION_FLOOR, hip_stability, motion_statistics
 from .metrics import compute_gait_metrics
 from .motion import read_motion_signal
+from .movenet import DEFAULT_MODEL_URL, MOVENET_MODEL_NAME, MOVENET_MODEL_VERSION
 from .wellness import (
     DEFAULT_WEIGHTS,
     build_limitations,
@@ -45,6 +50,39 @@ MIN_POSE_CONFIDENCE = 0.3
 MIN_ANKLE_FRAMES = 10
 
 MIN_COMPARABLE_FRAMES = 5
+
+
+def _pose_model_identity(model_url: str | None) -> tuple[str, str]:
+    """Name and version for the pose model that was actually requested.
+
+    A different URL is not labeled as MoveNet Thunder. The fallback path never
+    claims to be pose.
+    """
+
+    url = (model_url or DEFAULT_MODEL_URL).rstrip("/")
+    if url == DEFAULT_MODEL_URL.rstrip("/"):
+        return MOVENET_MODEL_NAME, MOVENET_MODEL_VERSION
+    return "MoveNet", url
+
+
+def _model_info(pipeline: str, model_url: str | None) -> dict[str, str]:
+    """Describe the model that produced this result. Inference stays on the server."""
+
+    if pipeline == "movenet":
+        name, version = _pose_model_identity(model_url)
+        return {
+            "pipeline": "movenet",
+            "modelName": name,
+            "modelVersion": version,
+            "runsOn": "server",
+        }
+
+    return {
+        "pipeline": "opencv-motion",
+        "modelName": "OpenCV frame difference",
+        "modelVersion": cv2.__version__,
+        "runsOn": "server",
+    }
 
 
 def _clean_pet_name(pet_name: str | None) -> str | None:
@@ -158,6 +196,10 @@ def analyze_clip(
 
     pipeline = "opencv-motion"
     pose_skip_reason: str | None = "pose extraction was disabled for this run"
+    model_confidence: float | None = None
+    frames_used: int | None = None
+    frames_total: int | None = None
+    low_confidence = False
 
     if use_pose:
         keypoints, pose_skip_reason = _try_pose(
@@ -167,27 +209,56 @@ def analyze_clip(
         )
         if keypoints is not None:
             pipeline = "movenet"
-            gait = compute_gait_metrics(
+            summary = summarize_keypoints(
                 keypoints,
-                confidence_threshold=POSE_CONFIDENCE_THRESHOLD,
+                frame_threshold=MIN_POSE_CONFIDENCE,
             )
-            measurements["meanKeypointConfidence"] = gait.mean_keypoint_confidence
-            measurements["leftAnkleMotion"] = gait.left_ankle_motion
-            measurements["rightAnkleMotion"] = gait.right_ankle_motion
-            measurements["strideSymmetry"] = gait.stride_symmetry_score
-            measurements["asymmetryPercent"] = gait.asymmetry_percent
-            measurements["hipStability"] = hip_stability(
-                keypoints,
-                confidence_threshold=POSE_CONFIDENCE_THRESHOLD,
-            )
-            measurements["symmetryReliable"] = bool(
-                gait.stride_symmetry_score is not None
-                and gait.mean_keypoint_confidence >= MIN_POSE_CONFIDENCE
-                and gait.valid_left_ankle_frames >= MIN_ANKLE_FRAMES
-                and gait.valid_right_ankle_frames >= MIN_ANKLE_FRAMES
-            )
+            model_confidence = summary["modelConfidence"]
+            frames_used = summary["framesUsed"]
+            frames_total = summary["framesTotal"]
+            measurements["meanKeypointConfidence"] = model_confidence
+            # Below the trust line, limb numbers are left unset. They are not
+            # published as zero, and the result UI shows "Not measured".
+            if pose_is_trusted(summary, minimum=MIN_POSE_CONFIDENCE):
+                gait = compute_gait_metrics(
+                    keypoints,
+                    confidence_threshold=POSE_CONFIDENCE_THRESHOLD,
+                )
+                measurements["leftAnkleMotion"] = gait.left_ankle_motion
+                measurements["rightAnkleMotion"] = gait.right_ankle_motion
+                measurements["strideSymmetry"] = gait.stride_symmetry_score
+                measurements["asymmetryPercent"] = gait.asymmetry_percent
+                measurements["hipStability"] = hip_stability(
+                    keypoints,
+                    confidence_threshold=POSE_CONFIDENCE_THRESHOLD,
+                )
+                measurements["symmetryReliable"] = bool(
+                    gait.stride_symmetry_score is not None
+                    and gait.mean_keypoint_confidence >= MIN_POSE_CONFIDENCE
+                    and gait.valid_left_ankle_frames >= MIN_ANKLE_FRAMES
+                    and gait.valid_right_ankle_frames >= MIN_ANKLE_FRAMES
+                )
+            else:
+                low_confidence = True
 
     signal_quality, signal_note = _assess_signal(pipeline, measurements)
+    if low_confidence and signal_quality != "unusable":
+        signal_quality = "limited"
+        signal_note = (
+            "Pose landmarks were found, but confidence was too low to measure the legs. "
+            "Try a clearer clip, filmed from the side with the whole body in frame."
+        )
+
+    notes = quality_notes(
+        frames_read=signal.frames_read,
+        fps=signal.fps,
+        duration_seconds=signal.duration_seconds,
+        width=signal.width,
+        height=signal.height,
+        brightness=signal.brightness,
+        motion_mean=motion_mean,
+        motion_coverage=motion_coverage,
+    )
 
     if signal_quality == "unusable":
         # Refuse to publish scores that were built from nothing.
@@ -251,6 +322,12 @@ def analyze_clip(
         "concerningChange": concerning,
         "usedLlm": False,
         "weightsUsed": weights_used(factors),
+        "modelInfo": _model_info(pipeline, model_url),
+        "modelConfidence": model_confidence,
+        "framesUsed": frames_used,
+        "framesTotal": frames_total,
+        "lowConfidence": low_confidence,
+        "qualityNotes": notes,
         "diagnostics": {
             "fps": signal.fps,
             "framePairs": len(signal.frame_motion),

@@ -46,6 +46,31 @@ export interface AnalysisFactors {
   historicalChange?: number | null;
 }
 
+export type ModelInfoPipeline = typeof ModelInfoPipeline[keyof typeof ModelInfoPipeline];
+
+
+export const ModelInfoPipeline = {
+  movenet: 'movenet',
+  'opencv-motion': 'opencv-motion',
+} as const;
+
+export type ModelInfoRunsOn = typeof ModelInfoRunsOn[keyof typeof ModelInfoRunsOn];
+
+
+export const ModelInfoRunsOn = {
+  server: 'server',
+} as const;
+
+/**
+ * Which model produced this result. The app does not swap models silently.
+ */
+export interface ModelInfo {
+  pipeline: ModelInfoPipeline;
+  modelName: string;
+  modelVersion: string;
+  runsOn: ModelInfoRunsOn;
+}
+
 /**
  * Weights used to blend the available factors into overallScore.
  */
@@ -107,6 +132,17 @@ export interface AnalyzeResult {
   /** True when a validated model rewrite replaced the rule-based text. */
   usedLlm: boolean;
   weightsUsed?: AnalysisWeights;
+  modelInfo: ModelInfo;
+  /** Mean keypoint confidence from 0 to 1 when pose landmarks were used. Null when pose was not run. Null is not zero. The older confidence field remains this value on a 0-100 scale for existing screens. */
+  modelConfidence: number | null;
+  /** Pose frames whose mean keypoint confidence met the trust threshold. Null when pose was not run. A count of zero means no frame passed, which is different from null. */
+  framesUsed: number | null;
+  /** Pose frames the model actually ran on. Null when pose was not run. */
+  framesTotal: number | null;
+  /** True when pose ran but confidence was below the trust threshold. Clients show "Low confidence — try a clearer clip" and treat limb values as not measured. */
+  lowConfidence: boolean;
+  /** Plain, actionable notes from the clip-quality pre-check. Empty when the clip did not trip a check. These are filming tips, not a diagnosis. */
+  qualityNotes: string[];
   /** Pipeline-specific debug values. Keys are not part of the stable contract and should not be shown to users. */
   diagnostics?: AnalyzeResultDiagnostics;
 }

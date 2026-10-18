@@ -125,6 +125,15 @@ function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
   addText(lines, `Stride symmetry score: ${formatMeasurement(analysis.strideSymmetryScore, '/100')}`, { size: 10, gapAfter: 2 });
   addText(lines, `Estimated asymmetry: ${formatMeasurement(analysis.asymmetryPercent, '%')}`, { size: 10, gapAfter: 2 });
   addText(lines, `Detection confidence: ${formatMeasurement(analysis.confidence, '%')}`, { size: 10, gapAfter: 2 });
+  if (analysis.lowConfidence) {
+    addText(lines, 'Low confidence — try a clearer clip. Limb values that were not measured are not zeros.', { size: 10, gapAfter: 2 });
+  }
+  if (analysis.modelInfo) {
+    addText(lines, `Model: ${analysis.modelInfo.modelName} ${analysis.modelInfo.modelVersion} (runs on the server)`, { size: 10, gapAfter: 2 });
+  }
+  for (const note of analysis.qualityNotes ?? []) {
+    addText(lines, note, { size: 10, gapAfter: 2 });
+  }
   if (analysis.measurements) {
     addText(lines, `Frames read: ${formatMeasurement(analysis.measurements.frameCount)}`, { size: 10, gapAfter: 2 });
     addText(lines, `Mean frame motion: ${formatMeasurement(analysis.measurements.motionMean)}`, { size: 10, gapAfter: 2 });

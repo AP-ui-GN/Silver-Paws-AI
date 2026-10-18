@@ -80,14 +80,21 @@ pnpm install
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
-pip install opencv-python numpy
+pip install -r requirements-opencv.txt
 ```
 
-For pose landmarks as well (Python 3.10 or 3.11):
+`requirements-opencv.txt` pins OpenCV and NumPy for Python 3.10–3.12. That
+path measures picture motion only and labels the result `opencv-motion`.
+
+For pose landmarks, use Python 3.10 or 3.11 (TensorFlow 2.15 does not support
+3.12) and warm the model cache so the first request does not download it:
 
 ```bash
 pip install -r requirements.txt
+python scripts/cache_movenet.py
 ```
+
+See `docs/MODEL_CARD.md` for what each model is and what it cannot do.
 
 Start both services (two terminals):
 

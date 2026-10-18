@@ -25,6 +25,12 @@ export function formatMeasure(value: number | null | undefined, suffix = '', dig
   return `${Number(value.toFixed(digits))}${suffix}`;
 }
 
+/** Pose frames that cleared the confidence gate. Null on either side stays "Not measured". */
+export function formatPoseFrames(used: number | null | undefined, total: number | null | undefined) {
+  if (typeof used !== 'number' || typeof total !== 'number') return 'Not measured';
+  return `${used} of ${total}`;
+}
+
 export function formatScore(value: number | null | undefined) {
   return typeof value === 'number' ? `${Math.round(value)}` : '—';
 }

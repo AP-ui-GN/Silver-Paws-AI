@@ -7,6 +7,7 @@ backend is introduced.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +15,20 @@ import cv2
 import numpy as np
 
 DEFAULT_MODEL_URL = "https://tfhub.dev/google/movenet/singlepose/thunder/4"
+MOVENET_MODEL_NAME = "MoveNet Thunder"
+MOVENET_MODEL_VERSION = "4"
 MODEL_INPUT_SIZE = 256
+
+# Populated by scripts/cache_movenet.py at build or deploy time. The loader
+# points TensorFlow Hub at this directory so a warmed cache is reused instead
+# of downloading on the first request.
+def cache_directory() -> Path:
+    """Directory that holds the MoveNet Hub cache."""
+
+    configured = os.environ.get("SILVERPAWS_MOVENET_CACHE")
+    if configured:
+        return Path(configured)
+    return Path(__file__).resolve().parents[1] / "models" / "tfhub"
 
 # MoveNet's output order. The model was trained on human pose data; these
 # labels are retained because they are part of the pretrained model contract.
@@ -54,6 +68,12 @@ def load_movenet(model_url: str = DEFAULT_MODEL_URL) -> Any:
             "MoveNet dependencies are missing. Install requirements.txt with "
             "Python 3.10 or 3.11 before running validation."
         ) from exc
+
+    cache = cache_directory()
+    cache.mkdir(parents=True, exist_ok=True)
+    # A deploy can set TFHUB_CACHE_DIR itself. Otherwise use the repo cache,
+    # which scripts/cache_movenet.py fills before the first request.
+    os.environ.setdefault("TFHUB_CACHE_DIR", str(cache))
 
     loaded_model = hub.load(model_url)
     if hasattr(loaded_model, "signatures") and "serving_default" in loaded_model.signatures:

@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, CalendarDays, CircleAlert, Download, FileVideo, 
 import { Link, useParams } from 'wouter';
 import { displayScore, type Analysis, type Pet } from '@/lib/storage';
 import { SAFETY_DISCLAIMER } from '@/lib/disclaimers';
-import { formatDate, formatDuration, formatRelative } from '@/lib/format';
+import { formatDate, formatDuration, formatPoseFrames, formatRelative } from '@/lib/format';
 import { downloadAnalysisReport } from '@/lib/report';
 import { TrendPanel } from '@/components/trend-panel';
 
@@ -83,6 +83,25 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
        </div>
     </div>
 
+    {analysis.lowConfidence && (
+      <section className="alert-note p-5 mt-7 flex gap-3 items-start" role="alert" data-testid="text-low-confidence">
+        <CircleAlert size={19} style={{ flexShrink: 0 }} />
+        <div>
+          <h2 className="font-bold text-sm">Low confidence — try a clearer clip</h2>
+          <p className="text-sm leading-relaxed mt-2">The pose model could not see the body clearly enough to measure the legs. Film from the side with the whole body in frame. Values that were not measured are shown as “Not measured”, not as zero.</p>
+        </div>
+      </section>
+    )}
+
+    {analysis.qualityNotes && analysis.qualityNotes.length > 0 && (
+      <section className="soft-note p-5 mt-5" data-testid="text-quality-notes">
+        <h2 className="font-bold text-sm">Before the next clip</h2>
+        <ul className="text-sm leading-relaxed mt-2 list-disc pl-5">
+          {analysis.qualityNotes.map((note) => <li key={note}>{note}</li>)}
+        </ul>
+      </section>
+    )}
+
     {analysis.concerningChange && (
       <section className="alert-note p-5 mt-7 flex gap-3 items-start stagger" data-testid="text-vet-recommendation">
         <Stethoscope size={19} style={{ flexShrink: 0 }} />
@@ -106,9 +125,11 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
         <div className="flex flex-wrap gap-2 mt-7">
           {analysis.signalQuality && <span className="tag">{SIGNAL_LABELS[analysis.signalQuality] ?? analysis.signalQuality}</span>}
           {analysis.pipeline && <span className="tag">{PIPELINE_LABELS[analysis.pipeline] ?? analysis.pipeline}</span>}
+          {analysis.modelInfo && <span className="tag">{analysis.modelInfo.modelName}</span>}
           {analysis.usedLlm && <span className="tag">Model-written summary</span>}
         </div>
         {analysis.signalNote && <p className="body-muted text-xs leading-relaxed mt-4">{analysis.signalNote}</p>}
+        {analysis.modelInfo && <p className="body-muted text-xs leading-relaxed mt-2">Measured on the server with {analysis.modelInfo.modelName}, version {analysis.modelInfo.modelVersion}.</p>}
       </div>
       <div className="panel panel-padded">
         <div className="flex items-center gap-2"><Gauge size={18} style={{ color: '#b9684d' }} /><div className="eyebrow">What we noticed</div></div>
@@ -149,6 +170,7 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Asymmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.asymmetryPercent, '%', 2)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Hip stability</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Pose confidence</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.confidence, '%', 1)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Confident frames</div><div className="font-bold text-lg mt-1">{formatPoseFrames(analysis.framesUsed, analysis.framesTotal)}</div></div>
         </div>
       </section>
     )}

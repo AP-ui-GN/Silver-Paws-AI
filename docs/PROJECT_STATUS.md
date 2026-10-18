@@ -429,4 +429,52 @@ The repo won in each case.
 - Head-bob measurement, cognitive log, accessibility pass, and a phone test
   on a real device
 - Copy review in the product/research task (`TEAM_TASKS.md`)
-- Phases 2–6, including the Expo/EAS build configuration
+- Phases 2–6 were not started in the Phase 1 commit. Phase 2 is recorded below.
+
+---
+
+## 10. Phase 2 (October 18, 2026)
+
+Pose confidence, clip-quality notes, model identity, pinned Python deps, and
+a warmed MoveNet cache. Phase 3 was not started.
+
+### What landed
+
+- Pose frames are summarized as `modelConfidence` (0–1), `framesUsed`, and
+  `framesTotal`. Below the existing 0.3 mean, limb measurements stay unset and
+  `lowConfidence` is true. Web history and the phone result screens show
+  **Low confidence — try a clearer clip**. A missing confidence is not shown
+  as zero.
+- `modelInfo` names the pipeline, model, version, and `runsOn: "server"`.
+  MoveNet Thunder stays primary. OpenCV frame difference stays the fallback.
+  A non-Thunder URL is not labeled as Thunder.
+- `qualityNotes` covers a short clip, a long clip, a tiny frame, a dark or
+  blown-out frame, and a clip with little movement. Unknown duration is not
+  described as 0 seconds.
+- `requirements.txt` and `requirements-opencv.txt` pin versions. TensorFlow
+  stays on Python 3.10–3.11. `scripts/cache_movenet.py` fills `models/tfhub`
+  so a deploy can warm the weights before the first request.
+- `docs/MODEL_CARD.md` records intended use, the human-training limit, failure
+  modes, and measured versus interpreted values.
+- `tests/upload-cleanup.test.ts` posts a clip and checks the upload directory
+  is empty afterward. Python tests: 54 passed. API tests: 23 passed.
+
+### Where this prompt disagreed with the repo
+
+1. **`confidence` is already 0–100.** The prompt asks for `modelConfidence`
+   from 0 to 1. Both are returned. `confidence` stays the percent so the
+   existing history grid and PDF do not change meaning. `modelConfidence` is
+   the 0–1 value.
+2. **Thresholds already existed.** Per-keypoint gating is 0.2 and the mean
+   trust line is 0.3 (`POSE_CONFIDENCE_THRESHOLD`, `MIN_POSE_CONFIDENCE`).
+   Those were reused instead of adding a third cutoff.
+3. **Dependencies were already pinned** in `requirements.txt`. A separate
+   `requirements-opencv.txt` now pins the fallback install, which the README
+   previously installed without versions.
+4. **There is no deploy image yet** (that is a later phase). The weight cache
+   is a script plus `TFHUB_CACHE_DIR`, not a Docker build step. If the script
+   was not run and TensorFlow is installed, the first pose request still
+   downloads Thunder once. The fallback path never downloads it.
+5. **Quality notes do not reject the HTTP request** when the clip can still
+   be measured. Unreadable files stay a 400. The prompt asked for messages
+   the owner can act on; those messages travel on the result.

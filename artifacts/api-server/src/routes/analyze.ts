@@ -51,6 +51,11 @@ function readPreviousPipeline(value: string | undefined): string | undefined {
   return value && KNOWN_PIPELINES.includes(value) ? value : undefined;
 }
 
+/** Directory that holds one upload at a time. Tests point this at a throwaway folder. */
+export function uploadRoot(): string {
+  return process.env["SILVERPAWS_UPLOAD_DIR"] || tmpdir();
+}
+
 function looksLikeVideo(contentType: string, fileName: string): boolean {
   if (contentType.toLowerCase().startsWith("video/")) return true;
   // Some browsers send an empty or generic type for less common containers.
@@ -93,7 +98,7 @@ router.post(
       return;
     }
 
-    const workingDirectory = await mkdtemp(path.join(tmpdir(), "silverpaws-clip-"));
+    const workingDirectory = await mkdtemp(path.join(uploadRoot(), "silverpaws-clip-"));
     // The original name is never reused as a path, so a crafted filename cannot
     // escape this directory.
     const videoPath = path.join(workingDirectory, "clip");

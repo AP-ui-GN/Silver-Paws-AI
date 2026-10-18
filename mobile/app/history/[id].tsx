@@ -17,6 +17,7 @@ import {
   formatDateTime,
   formatDuration,
   formatMeasure,
+  formatPoseFrames,
   PIPELINE_LABELS,
   SIGNAL_LABELS,
 } from '../../src/lib/format';
@@ -103,7 +104,25 @@ export default function WalkDetailScreen() {
           {analysis.usedLlm && <Tag tone="accent">Model-written summary</Tag>}
         </View>
         {analysis.signalNote ? <Muted>{analysis.signalNote}</Muted> : null}
+        {analysis.modelInfo ? (
+          <Muted>
+            Measured on the server with {analysis.modelInfo.modelName}, version {analysis.modelInfo.modelVersion}.
+          </Muted>
+        ) : null}
       </Card>
+
+      {analysis.lowConfidence && (
+        <Note tone="warn" title="Low confidence — try a clearer clip">
+          The pose model could not see the body clearly enough to measure the legs. Film from the side with the whole
+          body in frame. Values that were not measured are shown as “Not measured”, not as zero.
+        </Note>
+      )}
+
+      {analysis.qualityNotes && analysis.qualityNotes.length > 0 && (
+        <Note tone="info" title="Before the next clip">
+          {analysis.qualityNotes.join(' ')}
+        </Note>
+      )}
 
       {analysis.concerningChange && (
         <Note tone="warn" title="Worth asking a veterinarian">
@@ -148,6 +167,7 @@ export default function WalkDetailScreen() {
           <Measure label="Left ankle motion" value={formatMeasure(measurements.leftAnkleMotion)} />
           <Measure label="Right ankle motion" value={formatMeasure(measurements.rightAnkleMotion)} />
           <Measure label="Keypoint confidence" value={formatMeasure(measurements.meanKeypointConfidence)} />
+          <Measure label="Confident frames" value={formatPoseFrames(analysis.framesUsed, analysis.framesTotal)} />
           <Measure label="Symmetry reliable" value={measurements.symmetryReliable ? 'Yes' : 'No'} />
         </View>
       </Card>

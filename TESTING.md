@@ -18,7 +18,10 @@ What those cover:
 - Multipart parsing and explanation validation, including a mock language-model
   provider (22 Node tests)
 - Motion statistics, consistency, hip stability, symmetry, mobility,
-  historical change, and observation text (47 Python tests)
+  historical change, observation text, confidence gating, and clip-quality
+  notes (54 Python tests)
+- Uploaded clips are deleted after `POST /api/analyze`, including when the
+  file is rejected (`tests/upload-cleanup.test.ts`)
 - Pet-form validation and trend grouping, from the web package:
 
 ```bash

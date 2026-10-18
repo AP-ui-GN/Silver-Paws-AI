@@ -60,6 +60,17 @@ export const AnalyzeMovementClipResponse = zod.object({
   "activity": zod.number().optional(),
   "historicalChange": zod.number().optional()
 }).optional().describe('Weights used to blend the available factors into overallScore.'),
+  "modelInfo": zod.object({
+  "pipeline": zod.enum(['movenet', 'opencv-motion']),
+  "modelName": zod.string(),
+  "modelVersion": zod.string(),
+  "runsOn": zod.enum(['server'])
+}).describe('Which model produced this result. The app does not swap models silently.'),
+  "modelConfidence": zod.number().nullable().describe('Mean keypoint confidence from 0 to 1 when pose landmarks were used. Null when pose was not run. Null is not zero. The older confidence field remains this value on a 0-100 scale for existing screens.'),
+  "framesUsed": zod.number().nullable().describe('Pose frames whose mean keypoint confidence met the trust threshold. Null when pose was not run. A count of zero means no frame passed, which is different from null.'),
+  "framesTotal": zod.number().nullable().describe('Pose frames the model actually ran on. Null when pose was not run.'),
+  "lowConfidence": zod.boolean().describe('True when pose ran but confidence was below the trust threshold. Clients show \"Low confidence — try a clearer clip\" and treat limb values as not measured.'),
+  "qualityNotes": zod.array(zod.string()).describe('Plain, actionable notes from the clip-quality pre-check. Empty when the clip did not trip a check. These are filming tips, not a diagnosis.'),
   "diagnostics": zod.record(zod.string(), zod.unknown()).optional().describe('Pipeline-specific debug values. Keys are not part of the stable contract and should not be shown to users.')
 })
 

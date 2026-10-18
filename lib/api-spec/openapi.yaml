@@ -171,6 +171,28 @@ components:
         historicalChange:
           type: number
           nullable: true
+    ModelInfo:
+      type: object
+      description: Which model produced this result. The app does not swap models silently.
+      properties:
+        pipeline:
+          type: string
+          enum:
+            - movenet
+            - opencv-motion
+        modelName:
+          type: string
+        modelVersion:
+          type: string
+        runsOn:
+          type: string
+          enum:
+            - server
+      required:
+        - pipeline
+        - modelName
+        - modelVersion
+        - runsOn
     AnalysisWeights:
       type: object
       description: Weights used to blend the available factors into overallScore.
@@ -239,6 +261,39 @@ components:
           description: True when a validated model rewrite replaced the rule-based text.
         weightsUsed:
           $ref: "#/components/schemas/AnalysisWeights"
+        modelInfo:
+          $ref: "#/components/schemas/ModelInfo"
+        modelConfidence:
+          type: number
+          nullable: true
+          description: >-
+            Mean keypoint confidence from 0 to 1 when pose landmarks were used.
+            Null when pose was not run. Null is not zero. The older confidence
+            field remains this value on a 0-100 scale for existing screens.
+        framesUsed:
+          type: number
+          nullable: true
+          description: >-
+            Pose frames whose mean keypoint confidence met the trust threshold.
+            Null when pose was not run. A count of zero means no frame passed,
+            which is different from null.
+        framesTotal:
+          type: number
+          nullable: true
+          description: Pose frames the model actually ran on. Null when pose was not run.
+        lowConfidence:
+          type: boolean
+          description: >-
+            True when pose ran but confidence was below the trust threshold.
+            Clients show "Low confidence — try a clearer clip" and treat limb
+            values as not measured.
+        qualityNotes:
+          type: array
+          description: >-
+            Plain, actionable notes from the clip-quality pre-check. Empty when
+            the clip did not trip a check. These are filming tips, not a diagnosis.
+          items:
+            type: string
         diagnostics:
           type: object
           additionalProperties: true
@@ -256,4 +311,10 @@ components:
         - limitations
         - concerningChange
         - usedLlm
+        - modelInfo
+        - modelConfidence
+        - framesUsed
+        - framesTotal
+        - lowConfidence
+        - qualityNotes
 

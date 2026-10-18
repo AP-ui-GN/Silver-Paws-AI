@@ -16,3 +16,6 @@ export * from './analyzeResultDiagnostics';
 export * from './analyzeResultPipeline';
 export * from './analyzeResultSignalQuality';
 export * from './healthStatus';
+export * from './modelInfo';
+export * from './modelInfoPipeline';
+export * from './modelInfoRunsOn';

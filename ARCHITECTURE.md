@@ -82,6 +82,8 @@ browser produce the same record shape.
 - `features.py` — consistency, coverage, hip stability
 - `wellness.py` — factor scores, including mobility and historical change
 - `pipeline.py` — chooses `movenet` or `opencv-motion`, builds `AnalyzeResult`
+- `confidence.py` — pose confidence gate (`modelConfidence`, frames used)
+- `clip_quality.py` — duration, resolution, brightness, and motion notes
 
 ### Contracts — `lib/`
 

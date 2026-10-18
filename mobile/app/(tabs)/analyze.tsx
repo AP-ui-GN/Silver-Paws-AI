@@ -260,6 +260,11 @@ export default function AnalyzeScreen() {
                 </View>
               </View>
             </View>
+            {saved.lowConfidence && (
+              <Note tone="warn" title="Low confidence — try a clearer clip">
+                Film from the side with the whole body in frame. Limb values that were not measured are not zeros.
+              </Note>
+            )}
             <Text style={styles.observation}>{saved.observation}</Text>
             <Button label="See the full breakdown" icon="arrow-forward" onPress={() => router.push({ pathname: '/history/[id]', params: { id: saved.id } })} />
           </View>

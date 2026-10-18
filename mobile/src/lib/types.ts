@@ -36,6 +36,13 @@ export type AnalysisMeasurements = {
   symmetryReliable: boolean;
 };
 
+export type ModelInfo = {
+  pipeline: Pipeline;
+  modelName: string;
+  modelVersion: string;
+  runsOn: 'server';
+};
+
 export type AnalyzeResult = {
   ok: boolean;
   pipeline: Pipeline;
@@ -52,6 +59,13 @@ export type AnalyzeResult = {
   concerningChange: boolean;
   usedLlm: boolean;
   weightsUsed?: AnalysisWeights;
+  modelInfo: ModelInfo;
+  /** 0–1. Null when pose was not run. Null is not zero. */
+  modelConfidence: number | null;
+  framesUsed: number | null;
+  framesTotal: number | null;
+  lowConfidence: boolean;
+  qualityNotes: string[];
 };
 
 export type Pet = {
@@ -88,4 +102,10 @@ export type Analysis = {
   limitations: string;
   concerningChange: boolean;
   usedLlm: boolean;
+  modelInfo?: ModelInfo;
+  modelConfidence?: number | null;
+  framesUsed?: number | null;
+  framesTotal?: number | null;
+  lowConfidence?: boolean;
+  qualityNotes?: string[];
 };
