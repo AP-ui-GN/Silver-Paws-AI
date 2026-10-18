@@ -161,12 +161,15 @@ export function checkClip(clip: ClipAsset): ClipProblem | null {
   if (clip.durationSeconds !== null && clip.durationSeconds > MAX_CLIP_SECONDS) {
     return {
       field: 'duration',
-      message: `That clip is ${Math.round(clip.durationSeconds)} seconds long. Please use ${MAX_CLIP_SECONDS} seconds or less.`,
+      message: `That clip is ${Math.round(clip.durationSeconds)} seconds long. The server accepts up to ${MAX_CLIP_SECONDS} seconds. A useful walk is about 5 to 15 seconds.`,
     };
   }
 
   if (clip.durationSeconds !== null && clip.durationSeconds > 0 && clip.durationSeconds < MIN_CLIP_SECONDS) {
-    return { field: 'duration', message: 'That clip is too short to compare frames. Aim for 5 to 60 seconds.' };
+    return {
+      field: 'duration',
+      message: `That clip is too short to compare frames. A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to ${MAX_CLIP_SECONDS} seconds.`,
+    };
   }
 
   return null;

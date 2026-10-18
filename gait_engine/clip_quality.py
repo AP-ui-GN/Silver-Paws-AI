@@ -11,9 +11,11 @@ from .features import MOTION_FLOOR
 # A handful of frames is not enough to describe a walk. Matches the pipeline.
 MIN_COMPARABLE_FRAMES = 5
 
-# Guidance range. The API also rejects clips longer than 120 seconds in the UI.
+# A useful walk is about 5 to 15 seconds. The server still accepts up to 120.
 MIN_DURATION_SECONDS = 2.0
 LONG_CLIP_SECONDS = 120.0
+USEFUL_WALK = "A useful walk is about 5 to 15 seconds."
+SERVER_ACCEPTS = "The server accepts a longer clip, up to 120 seconds."
 
 # Below this short side, limbs are too few pixels to trust.
 MIN_SHORT_SIDE = 240
@@ -50,17 +52,17 @@ def quality_notes(
         if duration_known:
             notes.append(
                 f"This clip is {duration_seconds} seconds long, which is too short to "
-                f"compare steps. Film 5 to 60 seconds of walking. {SIDE_ON}"
+                f"compare steps. {USEFUL_WALK} {SERVER_ACCEPTS} {SIDE_ON}"
             )
         else:
             notes.append(
                 "This clip did not include enough frames to compare steps. "
-                f"Film 5 to 60 seconds of walking. {SIDE_ON}"
+                f"{USEFUL_WALK} {SERVER_ACCEPTS} {SIDE_ON}"
             )
     elif duration_known and duration_seconds > LONG_CLIP_SECONDS:
         notes.append(
-            f"This clip is {duration_seconds} seconds long. Only the opening is measured. "
-            f"A 5 to 60 second walk is easier to read. {SIDE_ON}"
+            f"This clip is {duration_seconds} seconds long, past the 120 second limit. "
+            f"Only the opening is measured. {USEFUL_WALK} {SIDE_ON}"
         )
 
     if width > 0 and height > 0 and min(width, height) < MIN_SHORT_SIDE:

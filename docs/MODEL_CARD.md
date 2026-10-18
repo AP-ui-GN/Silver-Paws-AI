@@ -53,8 +53,7 @@ labeled `opencv-motion` and no download is attempted.
 
 ## Intended use
 
-- A pet owner films one pet, from the side, for about 5 to 60 seconds, with
-  the whole body in frame and enough light to see the legs.
+- A pet owner films one pet, from the side, with the whole body in frame and enough light to see the legs. A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds.
 - The note is something to compare with an earlier walk and, if the change is
   large, to take to a veterinarian.
 - It is educational observation software.

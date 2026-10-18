@@ -13,6 +13,8 @@ import {
   isDemoWalk,
   realWalks,
   recentWalks,
+  applyWeightUnitChange,
+  legacyWeightNote,
   weightUnitForPet,
 } from "../../../mobile/src/lib/walks.ts";
 import type { Analysis } from "../../../mobile/src/lib/types.ts";
@@ -59,4 +61,14 @@ test("new pets use the chosen unit and older phone profiles stay labeled lb", ()
   assert.equal(weightUnitForPet(undefined, "kg", true), "kg");
   assert.equal(weightUnitForPet(undefined, "kg", false), "lb");
   assert.equal(weightUnitForPet("lb", "kg", false), "lb");
+  assert.match(legacyWeightNote(undefined, "62") ?? "", /pounds/);
+  assert.equal(legacyWeightNote("kg", "28"), null);
+  const converted = applyWeightUnitChange("62", "lb", "kg");
+  assert.equal(converted.ok, true);
+  if (converted.ok) {
+    assert.equal(converted.value, "28.1");
+    assert.match(converted.note ?? "", /62 lb is now 28.1 kg/);
+  }
+  const refused = applyWeightUnitChange("heavy", "lb", "kg");
+  assert.equal(refused.ok, false);
 });

@@ -17,12 +17,13 @@ import { checkHealth, getSavedApiUrl, guessApiUrl, normalizeApiUrl, resolveApiUr
 import { EMERGENCY_NOTE, SAFETY_DISCLAIMER } from '../../src/lib/disclaimers';
 import type { ThemeChoice, WeightUnit } from '../../src/lib/preferences';
 import { disableWalkReminder, enableWalkReminder } from '../../src/lib/reminder';
-import { colors, radius, spacing } from '../../src/theme';
+import { radius, spacing } from '../../src/theme';
 import { useColors } from '../../src/theme-context';
 
 type Status = { kind: 'idle' } | { kind: 'checking' } | { kind: 'ok'; url: string } | { kind: 'fail'; message: string };
 
 export default function SettingsScreen() {
+  const colors = useColors();
   const router = useRouter();
   const { pets, analyses, resetAll } = useLocalData();
   const { preferences, update } = usePreferences();
@@ -208,7 +209,7 @@ export default function SettingsScreen() {
           keyboardType="url"
           placeholder="192.168.1.20:8080"
           placeholderTextColor={colors.muted}
-          style={styles.input}
+          style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
         />
         <View style={styles.row}>
           <Button label="Test connection" icon="pulse-outline" variant="secondary" onPress={() => void test()} busy={status.kind === 'checking'} style={{ flex: 1 }} />
@@ -247,8 +248,8 @@ export default function SettingsScreen() {
 
       <Card>
         <Eyebrow>About</Eyebrow>
-        <Text style={styles.body}>{SAFETY_DISCLAIMER}</Text>
-        <Text style={styles.body}>{EMERGENCY_NOTE}</Text>
+        <Text style={[styles.body, { color: colors.text }]}>{SAFETY_DISCLAIMER}</Text>
+        <Text style={[styles.body, { color: colors.text }]}>{EMERGENCY_NOTE}</Text>
         <Muted>
           SilverPaws AI mobile beta {Constants.expoConfig?.version ?? ''} · built for the Congressional App Challenge by Abhi, Sudarshan, and Kavin.
         </Muted>
@@ -292,14 +293,11 @@ const styles = StyleSheet.create({
   page: { padding: spacing.lg, gap: spacing.lg },
   input: {
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
     fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.background,
   },
   row: { flexDirection: 'row', gap: spacing.sm },
-  body: { fontSize: 14, lineHeight: 21, color: colors.text },
+  body: { fontSize: 14, lineHeight: 21 },
 });

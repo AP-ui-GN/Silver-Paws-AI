@@ -16,10 +16,10 @@ What those cover:
 - TypeScript across libs, API, and the app
 - Production builds of the API and the frontend
 - Multipart parsing and explanation validation, including a mock language-model
-  provider (22 Node tests)
+  provider (35 Node tests as of October 18, 2026)
 - Motion statistics, consistency, hip stability, symmetry, mobility,
   historical change, observation text, confidence gating, and clip-quality
-  notes (54 Python tests)
+  notes (55 Python tests as of October 18, 2026)
 - Uploaded clips are deleted after `POST /api/analyze`, including when the
   file is rejected (`tests/upload-cleanup.test.ts`)
 - Pet-form validation and trend grouping, from the web package:
@@ -156,3 +156,36 @@ That test expects `CHROMIUM_PATH` and is not required for a local Windows run.
 - Live TensorFlow Hub download of MoveNet (this environment has OpenCV only)
 - Live LLM provider (the request is unit-tested with a mock; no live endpoint was configured)
 - `lib/db` — unused in the beta
+
+## Phase 6 record (October 18, 2026)
+
+Checks that passed in this environment:
+
+- `python -m unittest discover -s tests -t .` — 55 passed
+- `pnpm --filter @workspace/api-server run test` — 35 passed
+- `pnpm --filter @workspace/silverpaws-beta run test` — 9 passed
+- `pnpm run typecheck` — passed
+- `npx tsc --noEmit` in `mobile/` — passed
+- `npx expo-doctor` in `mobile/` — 21/21 passed
+- GitHub checks on pull request 1 — `gh pr checks` reported no checks on this branch. None were failing because none were reported.
+- Workspace lint — there is no lint script and no ESLint config. That command was not run, and it is not recorded as passed. Typecheck is the static check this repo has.
+- No `SILVERPAWS_LLM_*` variables were set. `POST /api/analyze` of a synthetic clip returned `usedLlm: false`.
+- Mock provider, from `artifacts/api-server/tests/explanation.test.ts`: a valid rewrite sets `usedLlm: true`; an invalid rewrite is discarded and the rule-based note stays (`usedLlm: false`).
+- Low-confidence keypoints, from `tests/test_model_phase.py`: confidence 0.1 is not trusted, `framesUsed` is 0, and the summary is not treated as missing. A missing score is the words "Not measured" or "Not scored", not zero (`mobile/src/lib/format.ts`, trend tests, report test).
+- Non-video upload: `POST /api/analyze` with `notes.txt` returned 400, "That file is not a video SilverPaws can read. MP4, MOV, and WebM work best."
+- Oversized upload: the server was started with `MAX_UPLOAD_MB=1` (the default in code is 60). A body over that cap returned 413, "That clip is larger than the 1 MB beta limit. Try a shorter clip."
+- OpenCV was attempted. A generated moving rectangle (not a pet, and not a file from the repo) was analyzed with `analyze_clip(..., use_pose=False)` and again through `POST /api/analyze`. Both returned `pipeline: "opencv-motion"`, `aiUse: ["motion-fallback", "scoring", "observation-rules"]`, and null stride symmetry. The same file with pose requested also returned `opencv-motion`, because TensorFlow is not installed.
+- The screen lines for that `aiUse` list, from `aiUseResultLines`, are the registry sentences for motion, scoring, and rules. `development` is not included. The phone screen was not opened, so the pixels were not compared.
+
+Checks that were not run, and are not passed:
+
+- UI → API → pipeline with a real walking clip. The repository has no `.mp4`, `.mov`, or `.webm`. No phone or browser was used.
+- MoveNet on a real clip. `import tensorflow` fails with `ModuleNotFoundError`. Pose was not measured.
+- The low-confidence banner on a phone. The banner code is in the Analyze and walk-detail screens. It was not shown, because MoveNet did not run.
+- Server down → the phone's offline note, Retry, and the kept clip. The API process was stopped and `curl` to it failed. The phone UI was not opened. The Analyze screen keeps `clip` on error and shows Try again; that path was not exercised on a device.
+- Demo mode on a phone. Unit tests drop the sample from history, trends helpers, and the vet summary. The Demo screen was not opened.
+- A live language-model provider. No endpoint was configured.
+- `node artifacts/silverpaws-beta/tests/report-download.browser.mjs` — needs `CHROMIUM_PATH`.
+- Docker image build. The `docker` command is still not installed.
+
+Copy scan, not a sign-off of the product task: user-facing strings deny diagnosis and point a concerning change to a veterinarian. The emergency note names pain as a reason to call a clinic, not as something the app detects. The product/research card in `TEAM_TASKS.md` stays open. Abhi's live provider walk-through stays open.

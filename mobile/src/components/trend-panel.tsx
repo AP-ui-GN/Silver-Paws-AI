@@ -11,13 +11,15 @@ import {
   type TrendPoint,
   type TrendSeries,
 } from '../lib/trends';
-import { colors, spacing } from '../theme';
+import { spacing } from '../theme';
+import { useColors } from '../theme-context';
 import { Card, Eyebrow, Muted } from './ui';
 
 const CHART_WIDTH = 280;
 const CHART_HEIGHT = 64;
 
 function Sparkline({ points }: { points: TrendPoint[] }) {
+  const colors = useColors();
   const scores = points.map((point) => point.overallScore);
   const layout = sparklineLayout(scores, CHART_WIDTH, CHART_HEIGHT);
   if (layout.dots.length === 0) return null;
@@ -56,25 +58,27 @@ function seriesNote(series: TrendSeries): string {
 }
 
 function ScoreCell({ value }: { value: number | null }) {
+  const colors = useColors();
   const label = formatTrendScore(value);
-  return <Text style={[styles.cell, value === null && styles.unscored]}>{label}</Text>;
+  return <Text style={[styles.cell, { color: value === null ? colors.muted : colors.text }]}>{label}</Text>;
 }
 
 function TrendGroup({ series }: { series: TrendSeries }) {
+  const colors = useColors();
   return (
-    <View style={styles.group} accessibilityLabel={pipelineLabel(series.pipeline)}>
-      <Text style={styles.groupTitle}>{pipelineLabel(series.pipeline)}</Text>
+    <View style={[styles.group, { borderTopColor: colors.border }]} accessibilityLabel={pipelineLabel(series.pipeline)}>
+      <Text style={[styles.groupTitle, { color: colors.text }]}>{pipelineLabel(series.pipeline)}</Text>
       <Muted>{seriesNote(series)}</Muted>
       <Sparkline points={series.points} />
       <View style={styles.headerRow}>
-        <Text style={[styles.headerCell, styles.dateCell]}>Date</Text>
-        <Text style={styles.headerCell}>Overall</Text>
-        <Text style={styles.headerCell}>Consistency</Text>
-        <Text style={styles.headerCell}>Symmetry</Text>
+        <Text style={[styles.headerCell, styles.dateCell, { color: colors.muted }]}>Date</Text>
+        <Text style={[styles.headerCell, { color: colors.muted }]}>Overall</Text>
+        <Text style={[styles.headerCell, { color: colors.muted }]}>Consistency</Text>
+        <Text style={[styles.headerCell, { color: colors.muted }]}>Symmetry</Text>
       </View>
       {series.points.map((point) => (
-        <View key={point.id} style={styles.row}>
-          <Text style={[styles.cell, styles.dateCell]}>{formatDate(point.createdAt)}</Text>
+        <View key={point.id} style={[styles.row, { borderTopColor: colors.border }]}>
+          <Text style={[styles.cell, styles.dateCell, { color: colors.text }]}>{formatDate(point.createdAt)}</Text>
           <ScoreCell value={point.overallScore} />
           <ScoreCell value={point.movementConsistency} />
           <ScoreCell value={point.symmetry} />
@@ -85,12 +89,13 @@ function TrendGroup({ series }: { series: TrendSeries }) {
 }
 
 export function TrendPanel({ analyses }: { analyses: Analysis[] }) {
+  const colors = useColors();
   const series = trendSeries(analyses);
 
   return (
     <Card>
       <Eyebrow>Saved walks</Eyebrow>
-      <Text style={styles.title}>How the scores moved</Text>
+      <Text style={[styles.title, { color: colors.text }]}>How the scores moved</Text>
       {series.length === 0 ? (
         <Muted>Trends appear after the first scored walk is saved. Nothing is filled in before that.</Muted>
       ) : (
@@ -110,19 +115,17 @@ export function TrendPanel({ analyses }: { analyses: Analysis[] }) {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 16, fontWeight: '700', color: colors.text },
+  title: { fontSize: 16, fontWeight: '700' },
   group: { gap: spacing.sm, marginTop: spacing.md },
-  groupTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  groupTitle: { fontSize: 14, fontWeight: '700' },
   headerRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
   row: {
     flexDirection: 'row',
     gap: spacing.xs,
     paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
   },
-  headerCell: { flex: 1, fontSize: 11, fontWeight: '700', color: colors.muted },
-  cell: { flex: 1, fontSize: 12, color: colors.text },
+  headerCell: { flex: 1, fontSize: 11, fontWeight: '700' },
+  cell: { flex: 1, fontSize: 12 },
   dateCell: { flex: 1.3 },
-  unscored: { color: colors.muted },
 });

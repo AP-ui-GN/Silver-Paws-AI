@@ -26,13 +26,15 @@ import {
   SIGNAL_LABELS,
 } from '../../src/lib/format';
 import type { Analysis, Pet } from '../../src/lib/types';
-import { colors, spacing } from '../../src/theme';
+import { spacing } from '../../src/theme';
+import { useColors } from '../../src/theme-context';
 
 function Measure({ label, value }: { label: string; value: string }) {
+  const colors = useColors();
   return (
-    <View style={styles.measure}>
-      <Text style={styles.measureLabel}>{label}</Text>
-      <Text style={styles.measureValue}>{value}</Text>
+    <View style={[styles.measure, { backgroundColor: colors.background }]}>
+      <Text style={[styles.measureLabel, { color: colors.muted }]}>{label}</Text>
+      <Text style={[styles.measureValue, { color: colors.text }]}>{value}</Text>
     </View>
   );
 }
@@ -55,6 +57,7 @@ function buildShareText(analysis: Analysis, pet?: Pet) {
 }
 
 export default function WalkDetailScreen() {
+  const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { pets, analyses, deleteAnalysis } = useLocalData();
   const router = useRouter();
@@ -108,7 +111,7 @@ export default function WalkDetailScreen() {
           <ScoreBadge score={analysis.overallScore} />
           <View style={{ flex: 1, gap: 6 }}>
             <Eyebrow>Overall wellness indicator</Eyebrow>
-            <Text style={styles.petName}>{pet?.name ?? 'Pet'}</Text>
+            <Text style={[styles.petName, { color: colors.text }]}>{pet?.name ?? 'Pet'}</Text>
             <Muted>
               {formatDateTime(analysis.createdAt)} · {formatDuration(analysis.durationSeconds)}
             </Muted>
@@ -152,7 +155,7 @@ export default function WalkDetailScreen() {
 
       <Card>
         <Eyebrow>What we noticed</Eyebrow>
-        <Text style={styles.observation}>{analysis.observation}</Text>
+        <Text style={[styles.observation, { color: colors.text }]}>{analysis.observation}</Text>
       </Card>
 
       <Card>
@@ -193,7 +196,7 @@ export default function WalkDetailScreen() {
 
       <Card>
         <Eyebrow>Limitations</Eyebrow>
-        <Text style={styles.body}>{analysis.limitations}</Text>
+        <Text style={[styles.body, { color: colors.text }]}>{analysis.limitations}</Text>
       </Card>
 
       <View style={styles.actions}>
@@ -217,19 +220,18 @@ export default function WalkDetailScreen() {
 const styles = StyleSheet.create({
   page: { padding: spacing.lg, gap: spacing.lg },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  petName: { fontSize: 22, fontWeight: '700', color: colors.text },
+  petName: { fontSize: 22, fontWeight: '700' },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
-  observation: { fontSize: 16, lineHeight: 24, color: colors.text },
-  body: { fontSize: 14, lineHeight: 21, color: colors.text },
+  observation: { fontSize: 16, lineHeight: 24 },
+  body: { fontSize: 14, lineHeight: 21 },
   measureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
   measure: {
     width: '48%',
-    backgroundColor: colors.background,
     borderRadius: 10,
     padding: spacing.md,
     gap: 2,
   },
-  measureLabel: { fontSize: 11, color: colors.muted, fontWeight: '600' },
-  measureValue: { fontSize: 15, color: colors.text, fontWeight: '700' },
+  measureLabel: { fontSize: 11, fontWeight: '600' },
+  measureValue: { fontSize: 15, fontWeight: '700' },
   actions: { flexDirection: 'row', gap: spacing.sm },
 });

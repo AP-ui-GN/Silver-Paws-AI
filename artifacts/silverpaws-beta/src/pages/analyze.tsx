@@ -179,7 +179,7 @@ export default function Analyze({ pets, analyses, addAnalysis }: Props) {
               <div className="dotted-drop mt-6 min-h-[245px] flex flex-col items-center justify-center text-center p-7">
                 <div className="empty-art"><UploadCloud size={27} /></div>
                 <h2 className="font-bold text-lg mt-5">Drop a walking video here</h2>
-                <p className="body-muted text-sm mt-2">Side view, steady camera, 5–60 seconds</p>
+                <p className="body-muted text-sm mt-2">Side view, steady camera. A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds.</p>
                 <button type="button" className="btn-secondary mt-5" onClick={() => inputRef.current?.click()} disabled={!pets.length} data-testid="button-choose-video"><Film size={16} /> Choose video</button>
                 <input ref={inputRef} className="hidden" type="file" accept="video/*" onChange={(event) => selectFile(event.target.files?.[0])} data-testid="input-walking-video" />
               </div>

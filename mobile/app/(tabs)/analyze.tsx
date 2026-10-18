@@ -31,14 +31,15 @@ import { PRIVACY_LINE } from '../../src/lib/disclaimers';
 import { formatBytes, formatDuration, SIGNAL_LABELS } from '../../src/lib/format';
 import { findBaseline, toAnalysisRecord } from '../../src/lib/storage';
 import type { Analysis } from '../../src/lib/types';
-import { colors, radius, spacing } from '../../src/theme';
+import { radius, spacing } from '../../src/theme';
+import { useColors } from '../../src/theme-context';
 
 type Phase = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error';
 
 const FILMING_GUIDE = [
   'Side angle, so the legs are visible',
   'Flat ground',
-  'About 5 to 15 seconds of walking',
+  'A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds.',
   'Whole body in frame',
   'Good light',
 ];
@@ -56,6 +57,7 @@ function toClipAsset(asset: ImagePicker.ImagePickerAsset): ClipAsset {
 }
 
 export default function AnalyzeScreen() {
+  const colors = useColors();
   const { loading, pets, analyses, addAnalysis } = useLocalData();
   const { preferences } = usePreferences();
   const { state: connection, retry: retryConnection } = useConnection(true);
@@ -238,8 +240,8 @@ export default function AnalyzeScreen() {
       <Card>
         <Eyebrow>2 · The walk</Eyebrow>
         <Muted>
-          Film from the side while your pet walks in a straight line, 5 to 60 seconds, in good light. Clips up to{' '}
-          {MAX_CLIP_SECONDS} seconds and {MAX_UPLOAD_MB} MB are accepted.
+          Film from the side while your pet walks in a straight line, in good light. A useful walk is about 5 to 15
+          seconds. The server accepts a longer clip, up to {MAX_CLIP_SECONDS} seconds and {MAX_UPLOAD_MB} MB.
         </Muted>
         <View style={styles.row}>
           <Button label="Record" icon="videocam-outline" onPress={() => pickClip('camera')} disabled={busy} style={{ flex: 1 }} />
@@ -250,7 +252,7 @@ export default function AnalyzeScreen() {
 
         {clip && (
           <View style={styles.clipMeta}>
-            <Text style={styles.clipName} numberOfLines={1}>
+            <Text style={[styles.clipName, { color: colors.text }]} numberOfLines={1}>
               {clip.name}
             </Text>
             <Muted>
@@ -276,11 +278,11 @@ export default function AnalyzeScreen() {
 
         {busy && (
           <View style={{ gap: spacing.sm }}>
-            <Text style={styles.stage}>
+            <Text style={[styles.stage, { color: colors.text }]}>
               {phase === 'uploading' ? `Uploading clip · ${Math.round(uploadFraction * 100)}%` : 'Measuring movement…'}
             </Text>
-            <View style={styles.track} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(uploadFraction * 100) }}>
-              <View style={[styles.fill, { width: `${Math.max(3, uploadFraction * 100)}%` }, phase === 'analyzing' && styles.fillIndeterminate]} />
+            <View style={[styles.track, { backgroundColor: colors.track }]} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(uploadFraction * 100) }}>
+              <View style={[styles.fill, { width: `${Math.max(3, uploadFraction * 100)}%`, backgroundColor: colors.accent }, phase === 'analyzing' && styles.fillIndeterminate]} />
             </View>
             <Muted>
               {phase === 'analyzing'
@@ -303,7 +305,7 @@ export default function AnalyzeScreen() {
             <View style={styles.resultRow}>
               <ScoreBadge score={saved.overallScore} />
               <View style={{ flex: 1, gap: 6 }}>
-                <Text style={styles.resultTitle}>Saved to history</Text>
+                <Text style={[styles.resultTitle, { color: colors.text }]}>Saved to history</Text>
                 <View style={styles.chips}>
                   <Tag>{SIGNAL_LABELS[saved.signalQuality] ?? saved.signalQuality}</Tag>
                   {saved.concerningChange && <Tag tone="warn">Worth asking a vet</Tag>}
@@ -315,7 +317,7 @@ export default function AnalyzeScreen() {
                 Film from the side with the whole body in frame. Limb values that were not measured are not zeros.
               </Note>
             )}
-            <Text style={styles.observation}>{saved.observation}</Text>
+            <Text style={[styles.observation, { color: colors.text }]}>{saved.observation}</Text>
             {aiUseResultLines(saved.aiUse).map((line) => (
               <Muted key={line}>{line}</Muted>
             ))}
@@ -376,12 +378,12 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   clipMeta: { marginTop: spacing.xs, gap: 2 },
-  clipName: { fontWeight: '600', color: colors.text, fontSize: 14 },
-  stage: { fontWeight: '700', color: colors.text, fontSize: 15 },
-  track: { height: 8, borderRadius: radius.pill, backgroundColor: colors.track, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: colors.accent, borderRadius: radius.pill },
+  clipName: { fontWeight: '600', fontSize: 14 },
+  stage: { fontWeight: '700', fontSize: 15 },
+  track: { height: 8, borderRadius: radius.pill, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: radius.pill },
   fillIndeterminate: { opacity: 0.6 },
   resultRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  resultTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-  observation: { fontSize: 15, lineHeight: 22, color: colors.text },
+  resultTitle: { fontSize: 18, fontWeight: '700' },
+  observation: { fontSize: 15, lineHeight: 22 },
 });

@@ -259,7 +259,9 @@ def build_observation(
         )
         sentences.append(signal_note)
         sentences.append(
-            "Try a steady side-on clip of 5 to 60 seconds where the whole body stays in frame."
+            "Try a steady side-on clip with the whole body in frame. "
+            "A useful walk is about 5 to 15 seconds. "
+            "The server accepts a longer clip, up to 120 seconds."
         )
         return " ".join(sentences)
 

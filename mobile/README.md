@@ -89,7 +89,7 @@ npm run export:check     # full Metro bundle for iOS without a device
 
 ## Limits worth knowing
 
-- Clips must be under 60 MB and 120 seconds (same as the API). A 10-second
+- A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds and 60 MB. A 10-second
   1080p phone clip is usually 15–30 MB; the picker asks for medium quality.
 - Expo Go allows plain `http://` to the laptop. A store build would need
   HTTPS or an explicit cleartext exception.

@@ -9,22 +9,28 @@ import { useLocalData } from '../../src/hooks/use-local-data';
 import { usePreferences } from '../../src/hooks/use-preferences';
 import { formatDate } from '../../src/lib/format';
 import type { Analysis, Pet } from '../../src/lib/types';
-import { colors, spacing } from '../../src/theme';
+import { weightUnitForPet } from '../../src/lib/walks';
+import { spacing } from '../../src/theme';
+import { useColors } from '../../src/theme-context';
 
 function describePet(pet: Pet) {
   const parts = [pet.species, pet.breed].filter((part) => part.trim());
   const age = pet.age.trim();
   if (age) parts.push(/^\d+(\.\d+)?$/.test(age) ? `${age} yrs` : age);
+  if (pet.weight.trim()) {
+    parts.push(`${pet.weight.trim()} ${weightUnitForPet(pet.weightUnit, 'kg', false)}`);
+  }
   return parts.join(' · ') || 'No details yet';
 }
 
 function PetCard({ pet, latest }: { pet: Pet; latest?: Analysis }) {
+  const colors = useColors();
   const router = useRouter();
   return (
     <Card>
       <View style={styles.petRow}>
         <View style={{ flex: 1, gap: 4 }}>
-          <Text style={styles.petName}>{pet.name}</Text>
+          <Text style={[styles.petName, { color: colors.text }]}>{pet.name}</Text>
           <Muted>{describePet(pet)}</Muted>
           <Muted>{latest ? `Last walk ${formatDate(latest.createdAt)}` : 'No walks recorded yet'}</Muted>
         </View>
@@ -41,7 +47,7 @@ function PetCard({ pet, latest }: { pet: Pet; latest?: Analysis }) {
           accessibilityRole="button"
           accessibilityLabel={`Edit ${pet.name}`}
           onPress={() => router.push({ pathname: '/pet/[id]', params: { id: pet.id } })}
-          style={styles.iconButton}
+          style={[styles.iconButton, { borderColor: colors.border, backgroundColor: colors.card }]}
         >
           <Ionicons name="create-outline" size={20} color={colors.text} />
         </Pressable>
@@ -51,6 +57,7 @@ function PetCard({ pet, latest }: { pet: Pet; latest?: Analysis }) {
 }
 
 export default function HomeScreen() {
+  const colors = useColors();
   const { loading, pets, analyses } = useLocalData();
   const { ready, preferences } = usePreferences();
   const router = useRouter();
@@ -102,7 +109,7 @@ export default function HomeScreen() {
         <Link href="/history" asChild>
           <Pressable accessibilityRole="link" style={styles.historyLink}>
             <Ionicons name="time-outline" size={18} color={colors.accent} />
-            <Text style={styles.historyText}>
+            <Text style={[styles.historyText, { color: colors.accent }]}>
               {analyses.length} saved {analyses.length === 1 ? 'walk' : 'walks'} · open history
             </Text>
           </Pressable>
@@ -118,18 +125,16 @@ const styles = StyleSheet.create({
   page: { padding: spacing.lg, gap: spacing.lg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   petRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  petName: { fontSize: 20, fontWeight: '700', color: colors.text },
+  petName: { fontSize: 20, fontWeight: '700' },
   petActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   iconButton: {
     width: 48,
     height: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.card,
   },
   historyLink: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
-  historyText: { color: colors.accent, fontWeight: '600', fontSize: 14 },
+  historyText: { fontWeight: '600', fontSize: 14 },
 });

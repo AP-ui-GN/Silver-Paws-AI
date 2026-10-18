@@ -12,9 +12,11 @@ import { formatDateTime, formatDuration, SIGNAL_LABELS } from '../../src/lib/for
 import { sharePdf } from '../../src/lib/print-report';
 import { vetSummaryHtml } from '../../src/lib/report-html';
 import { recentWalks } from '../../src/lib/walks';
-import { colors, spacing } from '../../src/theme';
+import { spacing } from '../../src/theme';
+import { useColors } from '../../src/theme-context';
 
 export default function HistoryScreen() {
+  const colors = useColors();
   const { loading, pets, analyses } = useLocalData();
   const router = useRouter();
   const [petFilter, setPetFilter] = useState<string | null>(null);
@@ -80,11 +82,15 @@ export default function HistoryScreen() {
               key={analysis.id}
               accessibilityRole="button"
               onPress={() => router.push({ pathname: '/history/[id]', params: { id: analysis.id } })}
-              style={({ pressed }) => [styles.item, pressed && { opacity: 0.8 }]}
+              style={({ pressed }) => [
+                styles.item,
+                { backgroundColor: colors.card, borderColor: colors.border },
+                pressed && { opacity: 0.8 },
+              ]}
             >
               <ScoreBadge score={analysis.overallScore} size="small" />
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={styles.itemTitle}>{pet?.name ?? 'Pet'}</Text>
+                <Text style={[styles.itemTitle, { color: colors.text }]}>{pet?.name ?? 'Pet'}</Text>
                 <Muted>
                   {formatDateTime(analysis.createdAt)} · {formatDuration(analysis.durationSeconds)}
                 </Muted>
@@ -93,7 +99,7 @@ export default function HistoryScreen() {
                   {analysis.concerningChange ? ' · worth asking a vet' : ''}
                 </Muted>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} accessibilityElementsHidden />
             </Pressable>
           );
         })}
@@ -113,12 +119,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 14,
     minHeight: 44,
     padding: spacing.md,
   },
-  itemTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  itemTitle: { fontSize: 16, fontWeight: '700' },
 });

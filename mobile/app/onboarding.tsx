@@ -26,7 +26,7 @@ const STEPS = [
   {
     eyebrow: 'How to film',
     title: 'One clear clip',
-    body: 'Film from the side, on flat ground, for 5 to 15 seconds, with the whole body in frame and enough light to see the legs.',
+    body: 'Film from the side, on flat ground, with the whole body in frame and enough light to see the legs. A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds.',
   },
 ];
 

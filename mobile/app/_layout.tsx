@@ -36,15 +36,15 @@ function Navigation() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
-        <PreferencesProvider>
-          <ThemeProvider>
+      <PreferencesProvider>
+        <ThemeProvider>
+          <ErrorBoundary>
             <LocalDataProvider>
               <Navigation />
             </LocalDataProvider>
-          </ThemeProvider>
-        </PreferencesProvider>
-      </ErrorBoundary>
+          </ErrorBoundary>
+        </ThemeProvider>
+      </PreferencesProvider>
     </SafeAreaProvider>
   );
 }

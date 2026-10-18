@@ -620,3 +620,34 @@ Do not treat the Dockerfile as a finished image.
    versions doctor asked for (`expo` ~57.0.30 and matching patches). The SDK
    stayed 57. The legacy `splash` field is not allowed, so the placeholder
    splash image is set with the `expo-splash-screen` plugin instead.
+
+---
+
+## 14. Phase 6 (October 18, 2026)
+
+The three Phase 3 gaps are closed. No deploy, no `eas build`, and no login.
+The testing record is in `TESTING.md`.
+
+### What changed
+
+- Dark mode: labels on Home, Analyze, History, the walk detail, the pet form,
+  Settings, trends, and the error screen take their text color from the active
+  palette. The surfaces those labels sit on do too. A missing score is the
+  words "Not scored" or "Not measured", and a selected chip includes a check
+  mark, so meaning is not color alone.
+- Units: an older phone profile with no stored unit stays labeled pounds.
+  Switching kg/lb converts the number and shows both values ("62 lb is now
+  28.1 kg"). A value that is not a positive number is not relabeled. New pets
+  still default to kilograms. The web form still says kilograms only, because
+  that form never stored a separate unit.
+- Filming: the phone guide, the web upload line, the client errors, and the
+  pipeline notes say a useful walk is about 5 to 15 seconds and that the
+  server accepts a longer clip up to 120 seconds. The cap in code is still 120.
+
+### Where this prompt disagreed with the repo
+
+There is no walking clip in the repository, and TensorFlow is not installed,
+so MoveNet was not run. OpenCV ran on a generated rectangle, recorded in
+`TESTING.md` as not a real walk. There is no lint script. GitHub reported no
+checks on the pull request. The product/research card and Abhi's live provider
+walk-through stay open in `TEAM_TASKS.md`.

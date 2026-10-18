@@ -10,9 +10,10 @@ import { useLocalData } from '../../src/hooks/use-local-data';
 import { usePreferences } from '../../src/hooks/use-preferences';
 import { petFormIsValid, validatePetForm, type PetFormErrors } from '../../src/lib/pet-form';
 import type { WeightUnit } from '../../src/lib/preferences';
-import { weightUnitForPet } from '../../src/lib/walks';
+import { applyWeightUnitChange, legacyWeightNote, weightUnitForPet } from '../../src/lib/walks';
 import type { PetInput } from '../../src/lib/types';
-import { colors, radius, spacing } from '../../src/theme';
+import { radius, spacing } from '../../src/theme';
+import { useColors } from '../../src/theme-context';
 
 const SPECIES = ['Dog', 'Cat', 'Other'];
 
@@ -35,9 +36,10 @@ function Field({
   multiline?: boolean;
   error?: string;
 }) {
+  const colors = useColors();
   return (
     <View style={{ gap: 6 }}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
         value={value}
@@ -47,10 +49,14 @@ function Field({
         keyboardType={keyboardType}
         multiline={multiline}
         aria-invalid={error ? true : undefined}
-        style={[styles.input, multiline && styles.inputMultiline, error && styles.inputError]}
+        style={[
+          styles.input,
+          { color: colors.text, borderColor: error ? colors.error : colors.border, backgroundColor: colors.background },
+          multiline && styles.inputMultiline,
+        ]}
       />
       {error ? (
-        <Text accessibilityRole="alert" style={styles.error}>
+        <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>
           {error}
         </Text>
       ) : null}
@@ -75,6 +81,16 @@ export default function PetScreen() {
   );
 
   const [attempted, setAttempted] = useState(false);
+  const [unitNote, setUnitNote] = useState<string | null>(null);
+  const colors = useColors();
+
+  function chooseUnit(next: WeightUnit) {
+    const result = applyWeightUnitChange(form.weight, weightUnit, next);
+    setUnitNote(result.note);
+    if (!result.ok) return;
+    setWeightUnit(next);
+    setForm((current) => ({ ...current, weight: result.value }));
+  }
   const set = (key: keyof PetInput) => (value: string) => setForm((current) => ({ ...current, [key]: value }));
   const validated = validatePetForm(form);
   const errors: PetFormErrors = {
@@ -123,7 +139,7 @@ export default function PetScreen() {
           <Field label="Name" value={form.name} onChange={set('name')} placeholder="Mabel" error={errors.name} />
 
           <View style={{ gap: 6 }}>
-            <Text style={styles.label}>Species</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Species</Text>
             <View style={styles.chips}>
               {SPECIES.map((species) => (
                 <Chip key={species} label={species} selected={form.species === species} onPress={() => set('species')(species)} />
@@ -140,10 +156,13 @@ export default function PetScreen() {
               <Field label={`Weight (${weightUnit})`} value={form.weight} onChange={set('weight')} placeholder={weightUnit === 'kg' ? '28' : '62'} keyboardType="decimal-pad" error={errors.weight} />
             </View>
           </View>
-          <Muted>Changing kg or lb does not convert the number already typed.</Muted>
+          {legacyWeightNote(existing?.weightUnit, form.weight) && !unitNote ? (
+            <Muted>{legacyWeightNote(existing?.weightUnit, form.weight)}</Muted>
+          ) : null}
+          {unitNote ? <Muted>{unitNote}</Muted> : null}
           <View style={styles.chips}>
             {(['kg', 'lb'] as WeightUnit[]).map((unit) => (
-              <Chip key={unit} label={unit} selected={weightUnit === unit} onPress={() => setWeightUnit(unit)} />
+              <Chip key={unit} label={weightUnit === unit ? `${unit} selected` : unit} selected={weightUnit === unit} onPress={() => chooseUnit(unit)} />
             ))}
           </View>
           <Field
@@ -165,20 +184,16 @@ export default function PetScreen() {
 
 const styles = StyleSheet.create({
   page: { padding: spacing.lg, gap: spacing.lg },
-  label: { fontSize: 13, fontWeight: '600', color: colors.text },
+  label: { fontSize: 13, fontWeight: '600' },
   input: {
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
     fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.background,
   },
   inputMultiline: { minHeight: 90, textAlignVertical: 'top' },
-  inputError: { borderColor: colors.error },
-  error: { fontSize: 13, lineHeight: 18, color: colors.error },
+  error: { fontSize: 13, lineHeight: 18 },
   chips: { flexDirection: 'row', gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.md },
 });
