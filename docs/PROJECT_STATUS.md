@@ -651,3 +651,7 @@ so MoveNet was not run. OpenCV ran on a generated rectangle, recorded in
 `TESTING.md` as not a real walk. There is no lint script. GitHub reported no
 checks on the pull request. The product/research card and Abhi's live provider
 walk-through stay open in `TEAM_TASKS.md`.
+
+A later browser pass on the web app is recorded in `TESTING.md`. The web pet
+form still says kilograms. The web app still has no demo mode and no theme
+control.

@@ -156,7 +156,7 @@ export default function Analyze({ pets, analyses, addAnalysis }: Props) {
       <Link href="/" className="btn-quiet -ml-3" data-testid="link-back-home"><ArrowLeft size={15} /> Overview</Link>
       <div className="mt-6 stagger">
         <div className="eyebrow">New mobility observation</div>
-        <h1 className="display-title text-5xl mt-3">One walk.<br /><span style={{ color: '#b9684d' }}>A little more context.</span></h1>
+        <h1 className="display-title text-5xl mt-3">One walk.<br /><span className="accent-label">A little more context.</span></h1>
         <p className="body-muted mt-4 max-w-lg leading-relaxed">Choose a short video and the analysis service will measure the movement it can see, then save an educational observation.</p>
       </div>
 

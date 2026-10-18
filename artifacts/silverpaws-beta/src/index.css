@@ -112,6 +112,7 @@
 .content-wrap { margin-left: 248px; min-height: 100dvh; }
 .page-frame { max-width: 1160px; margin: 0 auto; padding: 38px 42px 70px; }
 .eyebrow { color: hsl(var(--primary)); text-transform: uppercase; font-family: var(--app-font-mono); letter-spacing: .14em; font-size: 10px; font-weight: 700; }
+.accent-label { color: hsl(var(--accent)); }
 .display-title { font-family: var(--app-font-display); letter-spacing: -.065em; font-weight: 800; line-height: .98; color: hsl(var(--foreground)); }
 .body-muted { color: hsl(var(--muted-foreground)); }
 .panel { background: hsl(var(--card)); border: 1px solid hsl(var(--card-border)); border-radius: 22px; box-shadow: var(--shadow-card); }

@@ -77,7 +77,7 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
   return <div className="page-frame max-w-5xl">
     <Link href="/history" className="btn-quiet -ml-3" data-testid="link-back-history"><ArrowLeft size={15} /> All observations</Link>
     <div className="flex flex-wrap items-end justify-between gap-5 mt-6 stagger">
-      <div><div className="eyebrow">Saved observation · {formatDate(analysis.createdAt)}</div><h1 className="display-title text-5xl mt-3">A closer look at<br /><span style={{ color: '#b9684d' }}>{pet?.name ?? 'your pet'}’s walk.</span></h1></div>
+      <div><div className="eyebrow">Saved observation · {formatDate(analysis.createdAt)}</div><h1 className="display-title text-5xl mt-3">A closer look at<br /><span className="accent-label">{pet?.name ?? 'your pet'}’s walk.</span></h1></div>
        <div className="flex flex-wrap gap-2">
          <button type="button" className="btn-secondary" onClick={() => downloadAnalysisReport(analysis, pet)} data-testid={`button-download-report-${analysis.id}`}><Download size={15} /> Download report</button>
          <button className="btn-quiet" onClick={() => { if (window.confirm('Remove this saved observation from this device?')) onDelete(); }} data-testid={`button-delete-analysis-${analysis.id}`}><Trash2 size={15} /> Remove</button>
@@ -118,7 +118,7 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
         <div className="flex flex-wrap justify-between items-center gap-5">
           <div>
             <div className="eyebrow">Overall wellness indicator</div>
-            <div className="metric-number mt-4" data-testid="text-overall-score">{score === null ? '—' : score}<span className="text-2xl tracking-normal">/100</span></div>
+            <div className="metric-number mt-4" data-testid="text-overall-score">{score === null ? 'Not scored' : <>{score}<span className="text-2xl tracking-normal">/100</span></>}</div>
             <p className="body-muted text-sm mt-3">A blend of the factors below. It describes this clip, not your pet’s health.</p>
           </div>
           {score !== null && <div className="score-ring" style={{ '--score': `${score * 3.6}deg` } as CSSProperties}><div><div className="metric-number text-3xl">{score}</div><div className="mono text-[9px] body-muted mt-1">SCORE</div></div></div>}

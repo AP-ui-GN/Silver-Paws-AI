@@ -189,3 +189,19 @@ Checks that were not run, and are not passed:
 - Docker image build. The `docker` command is still not installed.
 
 Copy scan, not a sign-off of the product task: user-facing strings deny diagnosis and point a concerning change to a veterinarian. The emergency note names pain as a reason to call a clinic, not as something the app detects. The product/research card in `TEAM_TASKS.md` stays open. Abhi's live provider walk-through stays open.
+
+## Browser checks (October 18, 2026)
+
+Chrome opened `http://127.0.0.1:4173/` (the Vite dev server for the web app). No phone, no TensorFlow, and no walking clip from the repo. A 3-second generated MP4 was used only for the upload control. Saved results below were written into this browser's local storage as fixtures, not measured from a clip.
+
+1. **Dark mode — passed for the labels that were checked, with a limit.** The web app has no theme control, and it does not follow the system preference. The active palette on a normal load is the light one: the title was `rgb(34, 61, 63)` and muted labels were `rgb(98, 125, 127)`. Adding the stylesheet's `dark` class on the page (the only hook the CSS has) changed the title to `rgb(245, 242, 234)`, muted labels to `rgb(161, 180, 181)`, and the companion card to the dark card color. The pet name uses the accent token, which is the same peach in both palettes. Before this pass, that name and the companion-card labels were hardcoded light colors and did not change. A missing score on the home trail, the history list, the trend table, and the overall indicator reads **Not scored**. Factor rows read **Not scored**. Unset measurements read **Not measured**. None of those was `0`.
+
+2. **Demo mode — not run, not passed.** The web app has no demo screen and no "Sample data — not your pet" label. Overview, Analyze, History, AI use, and Pet profile were opened. None of them contained that sentence or the word demo. History and trends showed only the fixture walk. There is no vet-summary control on the web app, so that part was not opened.
+
+3. **Server down — passed as observed.** The API was not running. Choosing `walk.mp4` and clicking Run analysis showed "The analysis service could not finish this clip. Please try again in a moment." The file name stayed `walk.mp4`, the preview stayed, and clicking Run analysis again showed the same message with the same file. There is no button labeled Retry. Vite answered the dead proxy with HTTP 500, so the message is the service-failure sentence, not a network-offline sentence.
+
+4. **AI lines — passed.** The fixture listed `pose-model`, `motion-fallback`, `scoring`, `observation-rules`, and `development`. The result screen showed only the four registry sentences for the clip steps. The development sentence was not on that screen.
+
+5. **Low confidence — passed with a fixture.** The banner heading was "Low confidence — try a clearer clip". Stride symmetry, asymmetry, hip stability, and pose confidence read "Not measured". Confident frames read "0 of 40" because the fixture stored zero frames past the gate. That is a count, not an unset limb.
+
+6. **Concerning change and diagnosis — passed.** The same fixture showed "Worth asking a veterinarian about" and said the change is not a diagnosis. Every page that was opened uses "does not diagnose" or "not diagnosing". No screen claimed a diagnosis.
