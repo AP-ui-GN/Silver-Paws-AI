@@ -20,10 +20,11 @@ over time and, if needed, take to a veterinarian.
   TensorFlow is installed
 - Gait measurements (left/right ankle motion, stride symmetry) kept separate
   from interpretation
-- Transparent factor scores (consistency, symmetry, activity) blended into an
-  overall 0–100 indicator
+- Transparent factor scores (consistency, symmetry, mobility, activity, and
+  change from the previous walk) blended into an overall 0–100 indicator
 - Rule-based observation text that only quotes measured values
-- Optional language-model rewrite (not wired yet — see `TEAM_TASKS.md`)
+- Optional language-model rewrite when `SILVERPAWS_LLM_URL` and
+  `SILVERPAWS_LLM_MODEL` are set; otherwise the rule-based note is shown
 - History of saved observations, PDF report, and a veterinarian prompt when
   a change looks concerning
 
@@ -125,9 +126,9 @@ Optional environment variables:
 | `SILVERPAWS_REPO_ROOT` | API | inferred | Repo root so the CLI can be found |
 | `MAX_UPLOAD_MB` | API | `60` | Upload size cap |
 | `ANALYSIS_TIMEOUT_MS` | API | `120000` | Pipeline timeout |
-| `SILVERPAWS_LLM_URL` | API | unset | Optional rewrite endpoint (Abhi) |
-| `SILVERPAWS_LLM_KEY` | API | unset | Bearer token (Abhi) |
-| `SILVERPAWS_LLM_MODEL` | API | unset | Model name (Abhi) |
+| `SILVERPAWS_LLM_URL` | API | unset | Optional chat-completions endpoint |
+| `SILVERPAWS_LLM_KEY` | API | unset | Bearer token for that endpoint; never logged |
+| `SILVERPAWS_LLM_MODEL` | API | unset | Model name. Required, with the URL, before a rewrite is attempted |
 | `EXPO_PUBLIC_API_URL` | mobile | derived from the Expo dev server | API address baked into the phone app |
 
 No API keys are required for the app to analyze a clip.

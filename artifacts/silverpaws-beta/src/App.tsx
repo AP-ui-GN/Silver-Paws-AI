@@ -28,7 +28,9 @@ function Router() {
           <Route path="/analyze" component={() => <Analyze pets={data.pets} analyses={data.analyses} addAnalysis={data.addAnalysis} />} />
           <Route path="/history" component={() => <History pets={data.pets} analyses={data.analyses} deleteAnalysis={data.deleteAnalysis} />} />
           <Route path="/history/:id" component={() => <History pets={data.pets} analyses={data.analyses} deleteAnalysis={data.deleteAnalysis} />} />
-          <Route path="/pet" component={() => <PetProfile pets={data.pets} addPet={data.addPet} updatePet={data.updatePet} />} />
+          <Route path="/pet">
+            <PetProfile pets={data.pets} addPet={data.addPet} updatePet={data.updatePet} />
+          </Route>
           <Route component={NotFound} />
         </Switch>
       </RoutedErrorBoundary>

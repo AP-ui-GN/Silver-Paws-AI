@@ -162,6 +162,11 @@ app cannot show a measurement it did not take.
 
 ## 5. Remaining work by member
 
+Phase 1 (section 9) finished the marked scoring, trend, pet-form, and rewrite
+request. The cards below are the September handoff. Still open from this list:
+head-bob measurement, a live provider walk-through, the cognitive log, the
+accessibility pass, a phone test on a real device, and the copy review.
+
 Each item lists: file, what to do, how to check it. Do not start by rewriting
 what already works — extend the marked function or component.
 
@@ -329,7 +334,9 @@ No API keys are required. Optional variables are listed in `README.md`.
 - Data is per-browser (`localStorage`); no accounts, no sync
 - Cognitive tracking, happiness slider, and the multi-day QoL trend from the
   planning doc are not yet built
-- The language-model rewrite is scaffolded and validated but not connected
+- The language-model rewrite is connected when `SILVERPAWS_LLM_URL` and
+  `SILVERPAWS_LLM_MODEL` are set. With those unset, the app still shows the
+  rule-based observation (`usedLlm: false`). See section 9.
 
 ---
 
@@ -355,3 +362,71 @@ No API keys are required. Optional variables are listed in `README.md`.
 **Removed**
 `artifacts/silverpaws-beta/src/lib/{analyze-client,local-motion-probe,wellness}.ts`,
 `gait_engine/{explain,motion_fallback,test_engine}.py`
+
+---
+
+## 9. Phase 1 (October 18, 2026)
+
+Scoring, trends, pet-form checks, and the optional rewrite request. Phases 2–6
+were not started.
+
+### What landed
+
+- `mobility_factor` averages measured stride symmetry with hip stability when
+  the pose is reliable and both ankle motions were measured. A missing hip is
+  left out. A missing ankle, or an unreliable pose, returns `None`.
+- `historical_change_factor` is 100 when this walk is at or above the previous
+  overall score, drops one point per point of decline, floors at 0, and returns
+  `None` on a first walk.
+- `DEFAULT_WEIGHTS` now includes `mobility` 0.20 and `historicalChange` 0.10.
+  The original consistency / symmetry / activity weights are unchanged.
+  `CONCERNING_DROP` stays 10 and `CONCERNING_ASYMMETRY` stays 20.
+- Web and phone trend panels list date, overall score, movement consistency,
+  and symmetry from saved walks only. Different `pipeline` values are separate
+  series. The phone draws the overall scores with `react-native-svg`.
+- Pet forms on web and phone show a message for a blank name, and for an age
+  or weight that is filled in but is not a positive number. Save does not run
+  until those checks pass. The web `/pet` route now renders `PetProfile` as a
+  child element. The previous inline `component` function was a new component
+  type on every render, so the “Saved locally” note was cleared as soon as the
+  profile was written.
+- `requestModelRewrite` posts `buildExplanationPrompt` to a chat-completions
+  endpoint and aborts after 8 seconds. Any failure returns `null`. The key is
+  not logged. `validateExplanation` is unchanged.
+
+### Where this prompt disagreed with the repo
+
+The repo won in each case.
+
+1. **Error style class.** `docs/PROJECT_STATUS.md` section 5.2 said to reuse a
+   `text-analysis-error` class. That class is not in the stylesheet. The analyze
+   page uses `role="alert"`, the color `#a54339`, and a `data-testid`. Pet
+   validation follows that page.
+2. **Planning-doc weights.** Section 5.1 compared the score with a QoL formula
+   of mobility 0.40, cognitive 0.35, and happiness 0.25. This pipeline does not
+   measure cognition or happiness. Those weights were not copied. The three
+   existing weights stayed, and mobility plus historical change were added as
+   extra relative weights. `overall_score()` already renormalizes over the
+   factors a clip actually scored.
+3. **Live rewrite walk-through.** `TEAM_TASKS.md` asks for a live clip after
+   the rewrite works, recorded in `TESTING.md`. This environment has no
+   provider and no sample walk was sent through UI → API → pipeline. Mock
+   tests cover the three outcomes (no env, valid rewrite, invalid rewrite).
+   The live check stays open.
+4. **Weight units.** The prompt did not mention units. The web form labels
+   weight in kilograms and the phone form labels it in pounds. Both were left
+   as they are.
+5. **`react-native-svg` was not installed.** The phone trend view needs it.
+   `15.15.4` was added because that is the version Expo SDK 57 pins in
+   `bundledNativeModules.json`. The Expo SDK was not upgraded.
+6. **History copy.** The factor help text said mobility and change from
+   baseline were “Not scored in this release.” That sentence was updated so
+   the breakdown matches the scores the pipeline now returns.
+
+### Still open after Phase 1
+
+- Live language-model walk-through (Abhi)
+- Head-bob measurement, cognitive log, accessibility pass, and a phone test
+  on a real device
+- Copy review in the product/research task (`TEAM_TASKS.md`)
+- Phases 2–6, including the Expo/EAS build configuration

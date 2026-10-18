@@ -49,7 +49,7 @@ run `npm run start:tunnel` instead and set the API address by hand.
 | --- | --- |
 | Home | See each pet with its latest overall score; add or edit pets |
 | Analyze | Pick a pet, **Record** a walk with the camera or **Choose video**, watch upload progress, get the saved result |
-| History | Every saved walk, filterable by pet, with a trend area (Kavin's task) |
+| History | Every saved walk, filterable by pet, with a trend comparison |
 | Walk details | Overall score, five factors with bars, **raw measurements** grid, observation text, limitations, share sheet, delete |
 | Settings | API address + connection test, delete local data, full safety text |
 
@@ -71,7 +71,7 @@ mobile/
     lib/format.ts           labels and number formatting
     lib/disclaimers.ts      same text as the web app
     hooks/use-local-data.tsx  one in-memory copy of pets + walks
-    components/             ui.tsx, score.tsx, trend-panel.tsx (Kavin), disclaimer-footer.tsx
+    components/             ui.tsx, score.tsx, trend-panel.tsx, disclaimer-footer.tsx
   metro.config.js           keeps Metro inside this folder (pnpm monorepo above)
 ```
 
@@ -93,5 +93,5 @@ npm run export:check     # full Metro bundle for iOS without a device
   1080p phone clip is usually 15–30 MB; the picker asks for medium quality.
 - Expo Go allows plain `http://` to the laptop. A store build would need
   HTTPS or an explicit cleartext exception.
-- The trend view and the pet-form validation messages are team tasks; see
-  `TEAM_TASKS.md` at the repo root.
+- The trend view only compares walks that share a pipeline (`movenet` or
+  `opencv-motion`). A missing score is shown as “Not scored”, not as zero.

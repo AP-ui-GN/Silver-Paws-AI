@@ -15,9 +15,15 @@ What those cover:
 
 - TypeScript across libs, API, and the app
 - Production builds of the API and the frontend
-- Multipart parsing and explanation validation (18 Node tests)
-- Motion statistics, consistency, hip stability, symmetry, scoring, and
-  observation text (32 Python tests)
+- Multipart parsing and explanation validation, including a mock language-model
+  provider (22 Node tests)
+- Motion statistics, consistency, hip stability, symmetry, mobility,
+  historical change, and observation text (47 Python tests)
+- Pet-form validation and trend grouping, from the web package:
+
+```bash
+pnpm --filter @workspace/silverpaws-beta run test
+```
 
 Standalone pipeline (no API):
 
@@ -100,13 +106,35 @@ pnpm --filter @workspace/silverpaws-beta run dev
 - [ ] Confirm MoveNet path (`pipeline: "movenet"`) on a machine with
       TensorFlow 2.15 + Python 3.10/3.11
 
-## Kavin — selected automated tests
+## Pet form and trends (automated)
 
-Add at least one of:
+```bash
+pnpm --filter @workspace/silverpaws-beta run test
+```
 
-- pet form: blank name does not save
-- analyze page: non-video file shows `text-upload-error`
-- history: empty state link to `/analyze`
+That command covers:
+
+- pet form: a blank name is not valid, so the page does not save
+- pet form: age or weight that is present but not a positive number is rejected
+- pet form: a blank age and weight, with a name, can be saved
+- history trends: an empty list produces no series
+- history trends: walks from `movenet` and `opencv-motion` stay in separate series
+- history trends: a missing score stays null and is not drawn as zero
+
+The history page still shows the empty-state “Record a walk” link when no
+walks are saved (`data-testid="link-history-start-analysis"`). That screen is
+not browser-automated here.
+
+## Optional language-model rewrite
+
+`pnpm --filter @workspace/api-server run test` covers three provider cases with
+a mock `fetch`:
+
+- no `SILVERPAWS_LLM_*` variables → rule-based text, `usedLlm: false`
+- a rewrite that only quotes measured values → that text, `usedLlm: true`
+- a rewrite that invents a number → discarded, rule-based text shown, `usedLlm: false`
+
+A live clip with a real provider was not run. No endpoint was configured.
 
 Existing browser test (Chromium on Replit):
 
@@ -119,5 +147,5 @@ That test expects `CHROMIUM_PATH` and is not required for a local Windows run.
 ## What is not tested here
 
 - Live TensorFlow Hub download of MoveNet (this environment has OpenCV only)
-- Live LLM provider (Abhi’s task; validation is unit-tested without a network)
+- Live LLM provider (the request is unit-tested with a mock; no live endpoint was configured)
 - `lib/db` — unused in the beta

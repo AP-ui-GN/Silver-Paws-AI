@@ -1,7 +1,9 @@
 # TEAM TASKS
 
-These workstreams are left unfinished on purpose so each teammate can write
-real code. Do not replace them with dummy implementations.
+Sudarshan, Kavin, and the explanation-request part of Abhi's card were finished
+on October 18, 2026. The markers in those files were removed. The copy review
+below is still open, and Abhi's live provider walk-through has not been run.
+Optional follow-ups stay in `docs/PROJECT_STATUS.md`.
 
 The markers in the listed files look like:
 
@@ -15,10 +17,15 @@ The markers in the listed files look like:
 ---
 
 # ==================================================
-# TEAM TASK: SUDARSHAN
+# TEAM TASK: SUDARSHAN — done October 18, 2026
 # PURPOSE:
 # Finish the quality-of-life scoring model.
 # ==================================================
+
+STATUS: Done. `mobility_factor` and `historical_change_factor` return real
+scores or `None`. `DEFAULT_WEIGHTS` includes both. `CONCERNING_DROP` (10) and
+`CONCERNING_ASYMMETRY` (20) were reviewed and kept. Head-bob measurement was
+not part of this pass.
 
 TEAM MEMBER: Sudarshan
 TASK: Score mobility and historical change, then calibrate the weights
@@ -43,10 +50,15 @@ COMPLETION CRITERIA:
 ---
 
 # ==================================================
-# TEAM TASK: KAVIN
+# TEAM TASK: KAVIN — done October 18, 2026
 # PURPOSE:
 # Finish the trend view, form validation, and selected tests.
 # ==================================================
+
+STATUS: Done. The web and phone trend panels compare saved walks and keep
+`movenet` and `opencv-motion` apart. Pet forms block a blank name and an
+age or weight that is present but not a positive number. Automated checks:
+`pnpm --filter @workspace/silverpaws-beta run test`.
 
 TEAM MEMBER: Kavin
 TASK: Historical trends, validation messages, and a testing checklist
@@ -71,10 +83,15 @@ COMPLETION CRITERIA:
 ---
 
 # ==================================================
-# TEAM TASK: ABHI
+# TEAM TASK: ABHI — request done October 18, 2026; live clip still open
 # PURPOSE:
 # Connect the optional language-model rewrite, then harden the live path.
 # ==================================================
+
+STATUS: `requestModelRewrite` is implemented and covered by mock-provider
+tests. A live clip through UI → API → pipeline with the env vars set has not
+been run, because this environment has no provider. Do not mark that line done
+until someone records the result in `TESTING.md`.
 
 TEAM MEMBER: Abhi
 TASK: Provider request for the explanation rewrite, plus integration checks

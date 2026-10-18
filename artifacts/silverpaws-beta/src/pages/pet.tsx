@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Check, ChevronDown, Edit3, PawPrint, Plus, Save, ShieldCheck, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, ChevronDown, CircleAlert, Edit3, PawPrint, Plus, Save, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link } from 'wouter';
+import { petFormIsValid, validatePetForm, type PetFormErrors } from '@/lib/pet-form';
 import { type Pet } from '@/lib/storage';
 
 type Props = { pets: Pet[]; addPet: (pet: Omit<Pet, 'id' | 'createdAt'>) => Pet; updatePet: (id: string, pet: Omit<Pet, 'id' | 'createdAt'>) => void };
@@ -11,11 +12,26 @@ export default function PetProfile({ pets, addPet, updatePet }: Props) {
   const [selectedId, setSelectedId] = useState(pets[0]?.id ?? 'new');
   const [form, setForm] = useState<FormState>(pets[0] ? { ...pets[0] } : blank);
   const [saved, setSaved] = useState(false);
+  const [attempted, setAttempted] = useState(false);
+  const skipReset = useRef(false);
   const selectedPet = pets.find((pet) => pet.id === selectedId);
+  const validated = validatePetForm(form);
+  const errors: PetFormErrors = {
+    ...(attempted ? validated : {}),
+    ...(validated.age ? { age: validated.age } : {}),
+    ...(validated.weight ? { weight: validated.weight } : {}),
+  };
 
   useEffect(() => {
+    // Creating a pet changes the selection. Keep the form and the saved note
+    // from that submit instead of clearing them.
+    if (skipReset.current) {
+      skipReset.current = false;
+      return;
+    }
     setForm(selectedPet ? { ...selectedPet } : blank);
     setSaved(false);
+    setAttempted(false);
   }, [selectedId]); // selection is the intentional edit boundary
 
   const update = (key: keyof FormState, value: string) => {
@@ -25,16 +41,16 @@ export default function PetProfile({ pets, addPet, updatePet }: Props) {
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    // ==================================================
-    // TEAM TASK: KAVIN
-    // PURPOSE:
-    // Show a visible message when name is blank, and when age or weight is
-    // present but not a positive number. Do not save until those checks pass.
-    // ==================================================
-    if (!form.name.trim()) return;
+    const next = validatePetForm(form);
+    setAttempted(true);
+    if (!petFormIsValid(next)) {
+      setSaved(false);
+      return;
+    }
     if (selectedPet) updatePet(selectedPet.id, form);
     else {
       const created = addPet(form);
+      skipReset.current = true;
       setSelectedId(created.id);
       setForm({ ...form });
     }
@@ -60,7 +76,7 @@ export default function PetProfile({ pets, addPet, updatePet }: Props) {
         </div>
       )}
 
-      <form onSubmit={submit} className="grid lg:grid-cols-[.85fr_1.15fr] gap-5 mt-5 stagger-3">
+      <form onSubmit={submit} noValidate className="grid lg:grid-cols-[.85fr_1.15fr] gap-5 mt-5 stagger-3">
         <div className="panel panel-padded" style={{ background: '#e5eee2' }}>
           <div className="pet-orb"><PawPrint size={28} /></div>
           <div className="eyebrow mt-7">{selectedPet ? 'Editing profile' : 'New profile'}</div>
@@ -70,11 +86,23 @@ export default function PetProfile({ pets, addPet, updatePet }: Props) {
         </div>
         <div className="panel panel-padded">
           <div className="grid sm:grid-cols-2 gap-5">
-            <div className="sm:col-span-2"><label className="field-label" htmlFor="pet-name">Name <span style={{ color: '#b9684d' }}>*</span></label><input id="pet-name" className="field-input" value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="e.g. Mabel" required data-testid="input-pet-name" /></div>
+            <div className="sm:col-span-2">
+              <label className="field-label" htmlFor="pet-name">Name <span style={{ color: '#b9684d' }}>*</span></label>
+              <input id="pet-name" className="field-input" value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="e.g. Mabel" aria-invalid={errors.name ? true : undefined} aria-describedby={errors.name ? 'pet-name-error' : undefined} data-testid="input-pet-name" />
+              {errors.name && <p id="pet-name-error" className="text-sm mt-2 flex items-center gap-2" style={{ color: '#a54339' }} role="alert" data-testid="text-pet-name-error"><CircleAlert size={15} />{errors.name}</p>}
+            </div>
             <div><label className="field-label" htmlFor="pet-species">Species</label><select id="pet-species" className="field-input" value={form.species} onChange={(event) => update('species', event.target.value)} data-testid="select-pet-species"><option>Dog</option><option>Cat</option><option>Other</option></select></div>
             <div><label className="field-label" htmlFor="pet-breed">Breed</label><input id="pet-breed" className="field-input" value={form.breed} onChange={(event) => update('breed', event.target.value)} placeholder="Optional" data-testid="input-pet-breed" /></div>
-            <div><label className="field-label" htmlFor="pet-age">Age <span className="body-muted font-normal">(years)</span></label><input id="pet-age" className="field-input" inputMode="decimal" value={form.age} onChange={(event) => update('age', event.target.value)} placeholder="e.g. 7" data-testid="input-pet-age" /></div>
-            <div><label className="field-label" htmlFor="pet-weight">Weight <span className="body-muted font-normal">(kg)</span></label><input id="pet-weight" className="field-input" inputMode="decimal" value={form.weight} onChange={(event) => update('weight', event.target.value)} placeholder="Optional" data-testid="input-pet-weight" /></div>
+            <div>
+              <label className="field-label" htmlFor="pet-age">Age <span className="body-muted font-normal">(years)</span></label>
+              <input id="pet-age" className="field-input" inputMode="decimal" value={form.age} onChange={(event) => update('age', event.target.value)} placeholder="e.g. 7" aria-invalid={errors.age ? true : undefined} aria-describedby={errors.age ? 'pet-age-error' : undefined} data-testid="input-pet-age" />
+              {errors.age && <p id="pet-age-error" className="text-sm mt-2 flex items-center gap-2" style={{ color: '#a54339' }} role="alert" data-testid="text-pet-age-error"><CircleAlert size={15} />{errors.age}</p>}
+            </div>
+            <div>
+              <label className="field-label" htmlFor="pet-weight">Weight <span className="body-muted font-normal">(kg)</span></label>
+              <input id="pet-weight" className="field-input" inputMode="decimal" value={form.weight} onChange={(event) => update('weight', event.target.value)} placeholder="Optional" aria-invalid={errors.weight ? true : undefined} aria-describedby={errors.weight ? 'pet-weight-error' : undefined} data-testid="input-pet-weight" />
+              {errors.weight && <p id="pet-weight-error" className="text-sm mt-2 flex items-center gap-2" style={{ color: '#a54339' }} role="alert" data-testid="text-pet-weight-error"><CircleAlert size={15} />{errors.weight}</p>}
+            </div>
             <div className="sm:col-span-2"><label className="field-label" htmlFor="pet-notes">Notes</label><textarea id="pet-notes" className="field-input min-h-28 resize-y" value={form.notes} onChange={(event) => update('notes', event.target.value)} placeholder="Anything that may help you interpret a clip later…" data-testid="textarea-pet-notes" /></div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 mt-7 pt-5 border-t">

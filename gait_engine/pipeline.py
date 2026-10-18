@@ -210,9 +210,8 @@ def analyze_clip(
         else None
     )
 
-    # Sudarshan owns this factor. Once it returns a score AND a weight is added
-    # to DEFAULT_WEIGHTS, the overall indicator is recomputed so the new factor
-    # actually counts.
+    # historical_change_factor returns None on a first walk. When that factor
+    # has a weight, the overall indicator is recomputed so the comparison counts.
     if signal_quality != "unusable":
         factors["historicalChange"] = historical_change_factor(
             overall, comparable_previous

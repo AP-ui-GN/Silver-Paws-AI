@@ -6,9 +6,11 @@ import unittest
 from gait_engine.wellness import (
     CONCERNING_ASYMMETRY,
     CONCERNING_DROP,
+    DEFAULT_WEIGHTS,
     build_observation,
     concerning_change,
     historical_change_factor,
+    mobility_factor,
     overall_score,
     score_factors,
     weights_used,
@@ -58,12 +60,12 @@ class ScoreFactorsTests(unittest.TestCase):
 
         self.assertEqual(factors["symmetry"], 90.0)
 
-    def test_mobility_and_historical_change_are_left_for_the_model_owner(self):
+    def test_motion_only_clips_do_not_invent_a_mobility_score(self):
         factors = score_factors(measurements())
 
         self.assertIsNone(factors["mobility"])
+        # The pipeline fills this in after the overall score exists.
         self.assertIsNone(factors["historicalChange"])
-        self.assertIsNone(historical_change_factor(80.0, 70.0))
 
 
 class OverallScoreTests(unittest.TestCase):
@@ -101,14 +103,88 @@ class OverallScoreTests(unittest.TestCase):
         self.assertAlmostEqual(sum(used.values()), 1.0, places=3)
 
     def test_a_factor_without_a_weight_cannot_affect_the_score(self):
-        # mobility has no entry in DEFAULT_WEIGHTS yet, so a value must be ignored
-        # until the weight is added. This is the guard for that contract.
-        without = overall_score({"movementConsistency": 80.0, "activity": 80.0})
-        with_mobility = overall_score(
-            {"movementConsistency": 80.0, "activity": 80.0, "mobility": 10.0}
+        weights = {"movementConsistency": 0.45, "activity": 0.20}
+        without = overall_score({"movementConsistency": 80.0, "activity": 80.0}, weights)
+        with_extra = overall_score(
+            {"movementConsistency": 80.0, "activity": 80.0, "mobility": 10.0},
+            weights,
         )
 
-        self.assertEqual(without, with_mobility)
+        self.assertEqual(without, with_extra)
+
+    def test_configured_weights_include_mobility_and_historical_change(self):
+        self.assertIn("mobility", DEFAULT_WEIGHTS)
+        self.assertIn("historicalChange", DEFAULT_WEIGHTS)
+        self.assertGreater(DEFAULT_WEIGHTS["mobility"], 0)
+        self.assertGreater(DEFAULT_WEIGHTS["historicalChange"], 0)
+
+    def test_a_low_mobility_score_lowers_the_overall_and_none_does_not(self):
+        base = {"movementConsistency": 80.0, "activity": 80.0}
+        skipped = overall_score({**base, "mobility": None})
+        low = overall_score({**base, "mobility": 10.0})
+
+        self.assertGreater(skipped, low)
+
+
+class MobilityFactorTests(unittest.TestCase):
+    def pose(self, **overrides):
+        base = measurements(
+            symmetryReliable=True,
+            strideSymmetry=0.8,
+            leftAnkleMotion=0.4,
+            rightAnkleMotion=0.35,
+            hipStability=0.6,
+        )
+        base.update(overrides)
+        return base
+
+    def test_unreliable_pose_is_not_scored_even_when_numbers_are_present(self):
+        self.assertIsNone(mobility_factor(self.pose(symmetryReliable=False)))
+
+    def test_a_missing_ankle_is_not_treated_as_zero_motion(self):
+        self.assertIsNone(mobility_factor(self.pose(leftAnkleMotion=None)))
+        self.assertIsNone(mobility_factor(self.pose(rightAnkleMotion=None)))
+
+    def test_hip_and_symmetry_are_averaged_onto_the_0_to_100_scale(self):
+        # (0.8 symmetry + 0.6 hip) / 2 * 100
+        self.assertEqual(mobility_factor(self.pose()), 70.0)
+
+    def test_a_missing_hip_is_left_out_rather_than_scored_as_zero(self):
+        scored = mobility_factor(self.pose(hipStability=None))
+
+        self.assertEqual(scored, 80.0)
+
+    def test_measured_zero_ankle_motion_can_still_be_scored(self):
+        scored = mobility_factor(
+            self.pose(leftAnkleMotion=0.0, rightAnkleMotion=0.0, hipStability=None)
+        )
+
+        self.assertEqual(scored, 80.0)
+
+    def test_score_factors_uses_the_mobility_factor(self):
+        factors = score_factors(self.pose())
+
+        self.assertEqual(factors["mobility"], 70.0)
+
+
+class HistoricalChangeFactorTests(unittest.TestCase):
+    def test_a_first_walk_is_not_scored(self):
+        self.assertIsNone(historical_change_factor(80.0, None))
+        self.assertIsNone(historical_change_factor(None, 80.0))
+
+    def test_no_change_or_an_improvement_scores_100(self):
+        self.assertEqual(historical_change_factor(80.0, 80.0), 100.0)
+        self.assertEqual(historical_change_factor(90.0, 80.0), 100.0)
+
+    def test_each_point_of_drop_removes_one_point(self):
+        self.assertEqual(historical_change_factor(70.0, 80.0), 90.0)
+
+    def test_a_drop_larger_than_the_scale_floors_at_zero(self):
+        self.assertEqual(historical_change_factor(0.0, 150.0), 0.0)
+
+    def test_non_finite_scores_are_not_scored(self):
+        self.assertIsNone(historical_change_factor(float("nan"), 80.0))
+        self.assertIsNone(historical_change_factor(80.0, float("inf")))
 
 
 class ConcerningChangeTests(unittest.TestCase):
@@ -195,6 +271,34 @@ class ObservationTextTests(unittest.TestCase):
 
         for banned in ("diagnos", "arthritis", "disease", "certainly"):
             self.assertNotIn(banned, text.lower())
+
+    def test_scored_mobility_is_quoted_and_a_missing_hip_is_not_written_as_zero(self):
+        text = self.observation(
+            factors={
+                "movementConsistency": 87.6,
+                "symmetry": 80.0,
+                "mobility": 80.0,
+                "activity": 100.0,
+                "historicalChange": None,
+            },
+            measurements=measurements(
+                symmetryReliable=True,
+                strideSymmetry=0.8,
+                leftAnkleMotion=0.4,
+                rightAnkleMotion=0.35,
+                hipStability=None,
+            ),
+        )
+
+        self.assertIn("mobility 80.0 out of 100", text)
+        self.assertNotIn("hip", text.lower())
+
+    def test_a_first_walk_does_not_describe_historical_change_as_zero(self):
+        text = self.observation()
+
+        self.assertIn("change from baseline", text)
+        self.assertIn("Not scored in this clip", text)
+        self.assertNotIn("change from baseline 0", text)
 
 
 if __name__ == "__main__":
