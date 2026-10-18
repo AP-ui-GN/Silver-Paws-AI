@@ -14,6 +14,7 @@ import {
   savePets,
 } from '../lib/storage';
 import type { Analysis, Pet, PetInput } from '../lib/types';
+import { isDemoWalk, realWalks } from '../lib/walks';
 
 type LocalData = {
   loading: boolean;
@@ -39,8 +40,10 @@ export function LocalDataProvider({ children }: { children: ReactNode }) {
     Promise.all([loadPets(), loadAnalyses()]).then(([storedPets, storedAnalyses]) => {
       if (cancelled) return;
       setPets(storedPets);
-      // Newest first everywhere in the app.
-      setAnalyses([...storedAnalyses].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      // Newest first. Sample rows are never part of real history.
+      const real = realWalks(storedAnalyses).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      setAnalyses(real);
+      if (real.length !== storedAnalyses.length) void saveAnalyses(real);
       setLoading(false);
     });
     return () => {
@@ -85,6 +88,7 @@ export function LocalDataProvider({ children }: { children: ReactNode }) {
 
   const addAnalysis = useCallback(
     (analysis: Analysis) => {
+      if (isDemoWalk(analysis)) return;
       commitAnalyses([analysis, ...analyses]);
     },
     [analyses, commitAnalyses],

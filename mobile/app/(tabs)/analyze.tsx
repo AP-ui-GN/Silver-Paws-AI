@@ -13,7 +13,9 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DisclaimerFooter } from '../../src/components/disclaimer-footer';
 import { ScoreBadge } from '../../src/components/score';
 import { Button, Card, Chip, EmptyState, Eyebrow, Muted, Note, Tag } from '../../src/components/ui';
+import { useConnection } from '../../src/hooks/use-connection';
 import { useLocalData } from '../../src/hooks/use-local-data';
+import { usePreferences } from '../../src/hooks/use-preferences';
 import {
   checkClip,
   describeAnalysisError,
@@ -23,12 +25,21 @@ import {
   resolveApiUrl,
   type ClipAsset,
 } from '../../src/lib/api';
+import { PRIVACY_LINE } from '../../src/lib/disclaimers';
 import { formatBytes, formatDuration, SIGNAL_LABELS } from '../../src/lib/format';
 import { findBaseline, toAnalysisRecord } from '../../src/lib/storage';
 import type { Analysis } from '../../src/lib/types';
 import { colors, radius, spacing } from '../../src/theme';
 
 type Phase = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error';
+
+const FILMING_GUIDE = [
+  'Side angle, so the legs are visible',
+  'Flat ground',
+  'About 5 to 15 seconds of walking',
+  'Whole body in frame',
+  'Good light',
+];
 
 /** Map what the picker returns onto the fields the API client needs. */
 function toClipAsset(asset: ImagePicker.ImagePickerAsset): ClipAsset {
@@ -43,7 +54,9 @@ function toClipAsset(asset: ImagePicker.ImagePickerAsset): ClipAsset {
 }
 
 export default function AnalyzeScreen() {
-  const { pets, analyses, addAnalysis } = useLocalData();
+  const { loading, pets, analyses, addAnalysis } = useLocalData();
+  const { preferences } = usePreferences();
+  const { state: connection, retry: retryConnection } = useConnection(true);
   const router = useRouter();
   const params = useLocalSearchParams<{ petId?: string }>();
 
@@ -118,6 +131,10 @@ export default function AnalyzeScreen() {
   }
 
   async function run() {
+    if (!preferences.consentAccepted) {
+      router.push('/onboarding');
+      return;
+    }
     if (!clip || !pet) return;
 
     const controller = new AbortController();
@@ -166,13 +183,23 @@ export default function AnalyzeScreen() {
     abortRef.current?.abort();
   }
 
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <Muted>Loading pets…</Muted>
+      </View>
+    );
+  }
+
   if (pets.length === 0) {
     return (
       <ScrollView contentContainerStyle={styles.page}>
+        <ConnectionChip state={connection} onRetry={retryConnection} />
         <Card>
           <EmptyState icon="paw-outline" title="Add a pet first" body="Walks are saved against a pet profile so they can be compared over time." />
           <Button label="Create a pet profile" icon="add" onPress={() => router.push('/pet/new')} />
         </Card>
+        <Muted>{PRIVACY_LINE}</Muted>
         <DisclaimerFooter />
       </ScrollView>
     );
@@ -180,6 +207,18 @@ export default function AnalyzeScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+      <ConnectionChip state={connection} onRetry={retryConnection} />
+      {!preferences.consentAccepted && (
+        <Note tone="info" title="Before the first analysis">
+          Read the three short notes and acknowledge that this is a wellness note, not a diagnosis.
+        </Note>
+      )}
+      <Card>
+        <Eyebrow>How to film</Eyebrow>
+        {FILMING_GUIDE.map((item) => (
+          <Muted key={item}>• {item}</Muted>
+        ))}
+      </Card>
       <Card>
         <Eyebrow>1 · Which pet?</Eyebrow>
         <View style={styles.chips}>
@@ -216,7 +255,10 @@ export default function AnalyzeScreen() {
 
       <Card>
         <Eyebrow>3 · Analyze</Eyebrow>
-        {!busy && (
+        {!busy && !preferences.consentAccepted && (
+          <Button label="Read the notes first" onPress={() => router.push('/onboarding')} />
+        )}
+        {!busy && preferences.consentAccepted && (
           <Button
             label={pet ? `Analyze ${pet.name}'s walk` : 'Analyze walk'}
             icon="analytics-outline"
@@ -244,9 +286,10 @@ export default function AnalyzeScreen() {
 
         {phase === 'error' && errorMessage && (
           <Note tone="error" title="Analysis did not finish">
-            {errorMessage}
+            {errorMessage} {clip ? 'The clip is still selected, so you can try again without choosing it again.' : ''}
           </Note>
         )}
+        {phase === 'error' && clip && <Button label="Try again" icon="refresh" onPress={() => void run()} />}
 
         {phase === 'done' && saved && (
           <View style={{ gap: spacing.md }}>
@@ -271,13 +314,55 @@ export default function AnalyzeScreen() {
         )}
       </Card>
 
+      {preferences.demoMode && (
+        <Card>
+          <Eyebrow>Demo</Eyebrow>
+          <Muted>Sample data stays on this screen. It is not saved to history and does not appear in trends.</Muted>
+          <Button label="View sample result" variant="secondary" onPress={() => router.push('/demo')} />
+        </Card>
+      )}
+
+      <Muted>{PRIVACY_LINE}</Muted>
       <DisclaimerFooter />
     </ScrollView>
   );
 }
 
+function ConnectionChip({
+  state,
+  onRetry,
+}: {
+  state: { kind: 'checking' } | { kind: 'online'; url: string } | { kind: 'offline'; message: string };
+  onRetry: () => void;
+}) {
+  if (state.kind === 'checking') {
+    return (
+      <Note tone="info" title="Checking the server">
+        Looking for the analysis server.
+      </Note>
+    );
+  }
+  if (state.kind === 'online') {
+    return (
+      <Note tone="info" title="Connected">
+        The analysis server answered.
+      </Note>
+    );
+  }
+  return (
+    <Note tone="error" title="Offline">
+      {state.message} You can keep the clip you already chose and try again.
+      <Text onPress={onRetry} accessibilityRole="button" style={{ fontWeight: '700' }}>
+        {' '}
+        Retry
+      </Text>
+    </Note>
+  );
+}
+
 const styles = StyleSheet.create({
   page: { padding: spacing.lg, gap: spacing.lg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   clipMeta: { marginTop: spacing.xs, gap: 2 },

@@ -7,7 +7,10 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, Te
 import { DisclaimerFooter } from '../../src/components/disclaimer-footer';
 import { Button, Card, Chip, Eyebrow, Muted } from '../../src/components/ui';
 import { useLocalData } from '../../src/hooks/use-local-data';
+import { usePreferences } from '../../src/hooks/use-preferences';
 import { petFormIsValid, validatePetForm, type PetFormErrors } from '../../src/lib/pet-form';
+import type { WeightUnit } from '../../src/lib/preferences';
+import { weightUnitForPet } from '../../src/lib/walks';
 import type { PetInput } from '../../src/lib/types';
 import { colors, radius, spacing } from '../../src/theme';
 
@@ -58,9 +61,13 @@ function Field({
 export default function PetScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { pets, addPet, updatePet, deletePet } = useLocalData();
+  const { preferences } = usePreferences();
   const router = useRouter();
 
   const existing = id === 'new' ? undefined : pets.find((pet) => pet.id === id);
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(
+    weightUnitForPet(existing?.weightUnit, preferences.weightUnit, id === 'new'),
+  );
   const [form, setForm] = useState<PetInput>(
     existing
       ? { name: existing.name, species: existing.species, breed: existing.breed, age: existing.age, weight: existing.weight, notes: existing.notes }
@@ -81,11 +88,12 @@ export default function PetScreen() {
     setAttempted(true);
     if (!petFormIsValid(next)) return;
 
+    const payload = { ...form, weightUnit };
     if (existing) {
-      updatePet(existing.id, form);
+      updatePet(existing.id, payload);
       router.back();
     } else {
-      const created = addPet(form);
+      const created = addPet(payload);
       router.replace({ pathname: '/analyze', params: { petId: created.id } });
     }
   }
@@ -129,8 +137,14 @@ export default function PetScreen() {
               <Field label="Age (years)" value={form.age} onChange={set('age')} placeholder="9" keyboardType="decimal-pad" error={errors.age} />
             </View>
             <View style={{ flex: 1 }}>
-              <Field label="Weight (lb)" value={form.weight} onChange={set('weight')} placeholder="62" keyboardType="decimal-pad" error={errors.weight} />
+              <Field label={`Weight (${weightUnit})`} value={form.weight} onChange={set('weight')} placeholder={weightUnit === 'kg' ? '28' : '62'} keyboardType="decimal-pad" error={errors.weight} />
             </View>
+          </View>
+          <Muted>Changing kg or lb does not convert the number already typed.</Muted>
+          <View style={styles.chips}>
+            {(['kg', 'lb'] as WeightUnit[]).map((unit) => (
+              <Chip key={unit} label={unit} selected={weightUnit === unit} onPress={() => setWeightUnit(unit)} />
+            ))}
           </View>
           <Field
             label="Baseline notes"

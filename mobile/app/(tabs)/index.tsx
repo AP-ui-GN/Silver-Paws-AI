@@ -4,8 +4,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { DisclaimerFooter } from '../../src/components/disclaimer-footer';
 import { ScoreBadge } from '../../src/components/score';
-import { Button, Card, EmptyState, Eyebrow, Muted, Title } from '../../src/components/ui';
+import { Button, Card, EmptyState, Eyebrow, Muted, Note, Title } from '../../src/components/ui';
 import { useLocalData } from '../../src/hooks/use-local-data';
+import { usePreferences } from '../../src/hooks/use-preferences';
 import { formatDate } from '../../src/lib/format';
 import type { Analysis, Pet } from '../../src/lib/types';
 import { colors, spacing } from '../../src/theme';
@@ -51,6 +52,7 @@ function PetCard({ pet, latest }: { pet: Pet; latest?: Analysis }) {
 
 export default function HomeScreen() {
   const { loading, pets, analyses } = useLocalData();
+  const { ready, preferences } = usePreferences();
   const router = useRouter();
 
   if (loading) {
@@ -63,6 +65,13 @@ export default function HomeScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.page}>
+      {ready && !preferences.consentAccepted && (
+        <Note tone="info" title="Before the first analysis">
+          Three short notes explain what SilverPaws does and does not do. Analysis stays locked until you acknowledge that this is a wellness note, not a diagnosis.
+        </Note>
+      )}
+      {ready && !preferences.consentAccepted && <Button label="Read the notes" onPress={() => router.push('/onboarding')} />}
+
       <View style={{ gap: 4 }}>
         <Eyebrow>Observational wellness notes</Eyebrow>
         <Title>{pets.length ? 'Your pets' : 'Welcome'}</Title>

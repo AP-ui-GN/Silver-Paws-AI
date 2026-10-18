@@ -12,6 +12,9 @@ import { FactorRow, ScoreBadge } from '../../src/components/score';
 import { Button, Card, EmptyState, Eyebrow, Muted, Note, Tag } from '../../src/components/ui';
 import { useLocalData } from '../../src/hooks/use-local-data';
 import { EMERGENCY_NOTE, SAFETY_DISCLAIMER } from '../../src/lib/disclaimers';
+import { sharePdf } from '../../src/lib/print-report';
+import { vetSummaryHtml, walkReportHtml } from '../../src/lib/report-html';
+import { recentWalks, walksForPet } from '../../src/lib/walks';
 import {
   FACTOR_LABELS,
   formatDateTime,
@@ -70,6 +73,18 @@ export default function WalkDetailScreen() {
   }
 
   const measurements = analysis.measurements;
+  const walk = analysis;
+
+  async function savePdf() {
+    const outcome = await sharePdf(walkReportHtml(walk, pets), 'Walk report');
+    if (!outcome.ok) Alert.alert('Report not shared', outcome.message);
+  }
+
+  async function saveVetSummary() {
+    const rows = recentWalks(walksForPet(analyses, walk.petId));
+    const outcome = await sharePdf(vetSummaryHtml(rows, pets), 'Veterinarian summary');
+    if (!outcome.ok) Alert.alert('Summary not shared', outcome.message);
+  }
 
   function confirmDelete() {
     Alert.alert('Delete this walk?', 'The saved measurements and notes will be removed from this phone.', [
@@ -185,8 +200,10 @@ export default function WalkDetailScreen() {
           onPress={() => void Share.share({ message: buildShareText(analysis, pet) })}
           style={{ flex: 1 }}
         />
+        <Button label="PDF report" icon="document-outline" variant="secondary" onPress={() => void savePdf()} style={{ flex: 1 }} />
         <Button label="Delete" icon="trash-outline" variant="danger" onPress={confirmDelete} />
       </View>
+      <Button label="Vet summary of recent walks" variant="secondary" onPress={() => void saveVetSummary()} />
 
       <DisclaimerFooter />
     </ScrollView>

@@ -6,7 +6,7 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "org.silverpaws.mobile",
@@ -38,7 +38,13 @@
           "cameraPermission": "SilverPaws records a short walking clip so it can measure how steady the movement looks."
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#b9684d"
+        }
+      ]
     ]
   }
 }

@@ -478,3 +478,51 @@ a warmed MoveNet cache. Phase 3 was not started.
 5. **Quality notes do not reject the HTTP request** when the clip can still
    be measured. Unreadable files stay a 400. The prompt asked for messages
    the owner can act on; those messages travel on the result.
+
+---
+
+## 11. Phase 3 (October 18, 2026)
+
+Phone features around the existing screens. Phase 4 was not started.
+
+### What landed
+
+- Onboarding has three steps. Analysis stays locked until the owner
+  acknowledges "this is a wellness note, not a diagnosis". That flag is stored
+  on the phone.
+- The Analyze screen lists the filming guide, a connection chip for
+  `/api/healthz` that retries with backoff, and the privacy line. A failed
+  analysis keeps the chosen clip and offers Try again.
+- Demo mode shows one bundled sample labeled "Sample data — not your pet".
+  `addAnalysis` drops it, history helpers drop it, and it is not included in
+  trends or the vet summary.
+- History filters by pet and clears a filter if that pet was deleted. Compare
+  refuses two walks whose pipelines differ.
+- A walk can be shared as a PDF. A vet summary covers the latest saved walks,
+  grouped by pipeline, with the veterinarian pointer only when a change is
+  concerning. The PDF footer says the AI-use list arrives with the registry.
+- Settings adds kg/lb for new pets, theme, a weekly local reminder (permission
+  asked when the switch is turned on), an Advanced API address toggle around
+  the existing editor, JSON export, feedback without a video, version, and a
+  short How AI is used placeholder.
+- Shared controls use 44 pt targets, selected chips include a check mark, and
+  a root error boundary catches a thrown screen. History and Analyze show a
+  loading state.
+
+### Where this prompt disagreed with the repo
+
+1. **Clip length.** The filming guide recommends 5–15 seconds. The existing
+   Analyze copy and the API still allow up to 120 seconds. The guide was
+   added; the limit was not tightened.
+2. **Weight units.** New pets default to kg, matching the web form. A phone
+   profile saved before this change has no stored unit, so it stays labeled
+   lb. Changing the unit does not convert the number.
+3. **API address.** Settings already showed the address to every tester. It
+   now sits behind an Advanced switch. The editor itself was not removed.
+4. **Dark theme.** Navigation, cards, buttons, and notes follow the choice.
+   Some screen stylesheets still carry the original light-palette text color,
+   so a few labels do not recolor. That is unfinished polish, not a second
+   theme system.
+5. **No phone or simulator was available here.** Checks are typecheck and
+   unit tests. Expo Go, local notifications, and the PDF share sheet were
+   not run on a device.

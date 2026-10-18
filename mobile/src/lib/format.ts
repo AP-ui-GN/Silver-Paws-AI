@@ -1,4 +1,4 @@
-import type { AnalysisFactors } from './types';
+import type { AnalysisFactors } from './types.ts';
 
 export const FACTOR_LABELS: { key: keyof AnalysisFactors; label: string; help: string }[] = [
   { key: 'movementConsistency', label: 'Movement consistency', help: 'How steady the amount of movement stayed between frames.' },

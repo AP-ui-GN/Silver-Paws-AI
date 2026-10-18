@@ -75,6 +75,8 @@ export type Pet = {
   breed: string;
   age: string;
   weight: string;
+  /** Unit the weight number was entered in. Missing means an older phone profile labeled lb. */
+  weightUnit?: 'kg' | 'lb';
   notes: string;
   createdAt: string;
 };
@@ -108,4 +110,6 @@ export type Analysis = {
   framesTotal?: number | null;
   lowConfidence?: boolean;
   qualityNotes?: string[];
+  /** Sample layout only. Never written to real history. */
+  demo?: boolean;
 };
