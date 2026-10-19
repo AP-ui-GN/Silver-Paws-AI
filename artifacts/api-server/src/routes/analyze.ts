@@ -14,7 +14,13 @@ import express, { Router, type IRouter, type Request, type Response } from "expr
 
 import { AnalyzeMovementClipResponse, type AnalyzeError } from "@workspace/api-zod";
 
+import { aiUseForResult } from "../lib/ai-use";
 import { runAnalysis } from "../lib/analysis-runner";
+import {
+  analyzeRateLimitPerMinute,
+  clientAddress,
+  takeAnalyzeSlot,
+} from "../lib/hosting";
 import { explainObservation } from "../lib/explanation";
 import { logger } from "../lib/logger";
 import { MultipartError, parseBoundary, parseMultipart } from "../lib/multipart";
@@ -51,6 +57,11 @@ function readPreviousPipeline(value: string | undefined): string | undefined {
   return value && KNOWN_PIPELINES.includes(value) ? value : undefined;
 }
 
+/** Directory that holds one upload at a time. Tests point this at a throwaway folder. */
+export function uploadRoot(): string {
+  return process.env["SILVERPAWS_UPLOAD_DIR"] || tmpdir();
+}
+
 function looksLikeVideo(contentType: string, fileName: string): boolean {
   if (contentType.toLowerCase().startsWith("video/")) return true;
   // Some browsers send an empty or generic type for less common containers.
@@ -61,6 +72,16 @@ router.post(
   "/analyze",
   express.raw({ type: "multipart/form-data", limit: MAX_UPLOAD_BYTES }),
   async (req: Request, res: Response) => {
+    const allowed = takeAnalyzeSlot(
+      clientAddress(req.header("x-forwarded-for"), req.socket.remoteAddress),
+      Date.now(),
+      analyzeRateLimitPerMinute(),
+    );
+    if (!allowed) {
+      sendError(res, 429, "Too many analyses from this address. Wait a minute and try again.");
+      return;
+    }
+
     const boundary = parseBoundary(req.headers["content-type"]);
     if (!boundary || !Buffer.isBuffer(req.body)) {
       sendError(res, 400, "The upload was not sent as a video form submission.");
@@ -93,7 +114,7 @@ router.post(
       return;
     }
 
-    const workingDirectory = await mkdtemp(path.join(tmpdir(), "silverpaws-clip-"));
+    const workingDirectory = await mkdtemp(path.join(uploadRoot(), "silverpaws-clip-"));
     // The original name is never reused as a path, so a crafted filename cannot
     // escape this directory.
     const videoPath = path.join(workingDirectory, "clip");
@@ -135,6 +156,7 @@ router.post(
         ...outcome.result,
         observation: explanation.observation,
         usedLlm: explanation.usedLlm,
+        aiUse: aiUseForResult(outcome.result.aiUse, explanation.usedLlm),
       });
 
       if (!finalResult.success) {

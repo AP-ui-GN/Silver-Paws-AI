@@ -17,21 +17,30 @@ import {
 } from 'react-native';
 
 import { colors, radius, spacing } from '../theme';
+import { useColors } from '../theme-context';
 
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  const colors = useColors();
+  return <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }, style]}>{children}</View>;
 }
 
 export function Eyebrow({ children }: { children: ReactNode }) {
-  return <Text style={styles.eyebrow}>{children}</Text>;
+  const colors = useColors();
+  return <Text style={[styles.eyebrow, { color: colors.muted }]}>{children}</Text>;
 }
 
 export function Title({ children }: { children: ReactNode }) {
-  return <Text style={styles.title}>{children}</Text>;
+  const colors = useColors();
+  return (
+    <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
+      {children}
+    </Text>
+  );
 }
 
 export function Muted({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[styles.muted, style]}>{children}</Text>;
+  const colors = useColors();
+  return <Text style={[styles.muted, { color: colors.muted }, style]}>{children}</Text>;
 }
 
 type ButtonProps = {
@@ -45,6 +54,7 @@ type ButtonProps = {
 };
 
 export function Button({ label, onPress, icon, variant = 'primary', disabled, busy, style }: ButtonProps) {
+  const colors = useColors();
   const inactive = disabled || busy;
   const textColor = variant === 'primary' ? '#fff' : variant === 'danger' ? colors.error : colors.text;
   return (
@@ -55,9 +65,9 @@ export function Button({ label, onPress, icon, variant = 'primary', disabled, bu
       disabled={inactive}
       style={({ pressed }) => [
         styles.button,
-        variant === 'primary' && styles.buttonPrimary,
-        variant === 'secondary' && styles.buttonSecondary,
-        variant === 'danger' && styles.buttonDanger,
+        variant === 'primary' && { backgroundColor: colors.accent },
+        variant === 'secondary' && { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+        variant === 'danger' && { backgroundColor: colors.errorSoft },
         inactive && styles.buttonDisabled,
         pressed && !inactive && { opacity: 0.85 },
         style,
@@ -74,32 +84,35 @@ export function Button({ label, onPress, icon, variant = 'primary', disabled, bu
 }
 
 export function Tag({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'accent' | 'warn' }) {
+  const colors = useColors();
   return (
     <View
       style={[
         styles.tag,
+        { backgroundColor: colors.track },
         tone === 'accent' && { backgroundColor: colors.accentSoft },
         tone === 'warn' && { backgroundColor: colors.warnSoft },
       ]}
     >
-      <Text style={styles.tagText}>{children}</Text>
+      <Text style={[styles.tagText, { color: colors.text }]}>{children}</Text>
     </View>
   );
 }
 
 /** Highlighted note: errors, warnings, and the vet-recommendation banner. */
 export function Note({ tone, title, children }: { tone: 'error' | 'warn' | 'info'; title?: string; children: ReactNode }) {
+  const colors = useColors();
   const palette = {
     error: { bg: colors.errorSoft, fg: colors.error, icon: 'alert-circle' as const },
     warn: { bg: colors.warnSoft, fg: colors.warn, icon: 'warning' as const },
     info: { bg: colors.accentSoft, fg: colors.accent, icon: 'information-circle' as const },
   }[tone];
   return (
-    <View accessibilityRole="alert" style={[styles.note, { backgroundColor: palette.bg }]}>
+    <View accessibilityRole={tone === 'info' ? undefined : 'alert'} style={[styles.note, { backgroundColor: palette.bg }]}>
       <Ionicons name={palette.icon} size={20} color={palette.fg} />
       <View style={{ flex: 1 }}>
         {title && <Text style={[styles.noteTitle, { color: palette.fg }]}>{title}</Text>}
-        <Text style={styles.noteText}>{children}</Text>
+        <Text style={[styles.noteText, { color: colors.text }]}>{children}</Text>
       </View>
     </View>
   );
@@ -107,24 +120,30 @@ export function Note({ tone, title, children }: { tone: 'error' | 'warn' | 'info
 
 /** Selectable chip, used for pet and species pickers. */
 export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const colors = useColors();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
+      accessibilityLabel={selected ? `${label}, selected` : label}
       onPress={onPress}
-      style={[styles.chip, selected && styles.chipSelected]}
+      style={[styles.chip, { borderColor: colors.border, backgroundColor: colors.card }, selected && { backgroundColor: colors.accent, borderColor: colors.accent }]}
     >
-      <Text style={[styles.chipText, selected && { color: '#fff' }]}>{label}</Text>
+      <Text style={[styles.chipText, { color: colors.text }, selected && { color: '#fff' }]}>
+        {selected ? '✓ ' : ''}
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 export function EmptyState({ icon, title, body }: { icon: ComponentProps<typeof Ionicons>['name']; title: string; body: string }) {
+  const palette = useColors();
   return (
     <View style={styles.empty}>
-      <Ionicons name={icon} size={36} color={colors.accent} />
-      <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.muted}>{body}</Text>
+      <Ionicons name={icon} size={36} color={palette.accent} />
+      <Text style={[styles.emptyTitle, { color: palette.text }]}>{title}</Text>
+      <Text style={[styles.muted, { color: palette.muted }]}>{body}</Text>
     </View>
   );
 }
@@ -179,8 +198,10 @@ const styles = StyleSheet.create({
   noteTitle: { fontWeight: '700', fontSize: 14, marginBottom: 2 },
   noteText: { fontSize: 13, lineHeight: 19, color: colors.text },
   chip: {
+    minHeight: 44,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 10,
+    justifyContent: 'center',
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,

@@ -36,6 +36,13 @@ export type AnalysisMeasurements = {
   symmetryReliable: boolean;
 };
 
+export type ModelInfo = {
+  pipeline: Pipeline;
+  modelName: string;
+  modelVersion: string;
+  runsOn: 'server';
+};
+
 export type AnalyzeResult = {
   ok: boolean;
   pipeline: Pipeline;
@@ -52,6 +59,14 @@ export type AnalyzeResult = {
   concerningChange: boolean;
   usedLlm: boolean;
   weightsUsed?: AnalysisWeights;
+  modelInfo: ModelInfo;
+  /** 0–1. Null when pose was not run. Null is not zero. */
+  modelConfidence: number | null;
+  framesUsed: number | null;
+  framesTotal: number | null;
+  lowConfidence: boolean;
+  qualityNotes: string[];
+  aiUse: string[];
 };
 
 export type Pet = {
@@ -61,6 +76,8 @@ export type Pet = {
   breed: string;
   age: string;
   weight: string;
+  /** Unit the weight number was entered in. Missing means an older phone profile labeled lb. */
+  weightUnit?: 'kg' | 'lb';
   notes: string;
   createdAt: string;
 };
@@ -88,4 +105,13 @@ export type Analysis = {
   limitations: string;
   concerningChange: boolean;
   usedLlm: boolean;
+  modelInfo?: ModelInfo;
+  modelConfidence?: number | null;
+  framesUsed?: number | null;
+  framesTotal?: number | null;
+  lowConfidence?: boolean;
+  qualityNotes?: string[];
+  /** Sample layout only. Never written to real history. */
+  demo?: boolean;
+  aiUse?: string[];
 };

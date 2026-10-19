@@ -6,6 +6,7 @@ import { AppShell } from '@/components/app-shell';
 import Home from '@/pages/home';
 import Analyze from '@/pages/analyze';
 import History from '@/pages/history';
+import AiUsePage from '@/pages/ai-use';
 import PetProfile from '@/pages/pet';
 import NotFound from '@/pages/not-found';
 import { useLocalData } from '@/hooks/use-local-data';
@@ -28,7 +29,10 @@ function Router() {
           <Route path="/analyze" component={() => <Analyze pets={data.pets} analyses={data.analyses} addAnalysis={data.addAnalysis} />} />
           <Route path="/history" component={() => <History pets={data.pets} analyses={data.analyses} deleteAnalysis={data.deleteAnalysis} />} />
           <Route path="/history/:id" component={() => <History pets={data.pets} analyses={data.analyses} deleteAnalysis={data.deleteAnalysis} />} />
-          <Route path="/pet" component={() => <PetProfile pets={data.pets} addPet={data.addPet} updatePet={data.updatePet} />} />
+          <Route path="/ai-use" component={AiUsePage} />
+          <Route path="/pet">
+            <PetProfile pets={data.pets} addPet={data.addPet} updatePet={data.updatePet} />
+          </Route>
           <Route component={NotFound} />
         </Switch>
       </RoutedErrorBoundary>

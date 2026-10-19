@@ -1,6 +1,22 @@
 /** Shared colours and spacing, matched to the warm palette of the web beta. */
 
-export const colors = {
+export type ThemeColors = {
+  background: string;
+  card: string;
+  border: string;
+  text: string;
+  muted: string;
+  accent: string;
+  accentSoft: string;
+  good: string;
+  warn: string;
+  warnSoft: string;
+  error: string;
+  errorSoft: string;
+  track: string;
+};
+
+export const colors: ThemeColors = {
   background: '#f7f2eb',
   card: '#ffffff',
   border: '#e6ddd2',

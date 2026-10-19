@@ -20,10 +20,11 @@ over time and, if needed, take to a veterinarian.
   TensorFlow is installed
 - Gait measurements (left/right ankle motion, stride symmetry) kept separate
   from interpretation
-- Transparent factor scores (consistency, symmetry, activity) blended into an
-  overall 0–100 indicator
+- Transparent factor scores (consistency, symmetry, mobility, activity, and
+  change from the previous walk) blended into an overall 0–100 indicator
 - Rule-based observation text that only quotes measured values
-- Optional language-model rewrite (not wired yet — see `TEAM_TASKS.md`)
+- Optional language-model rewrite when `SILVERPAWS_LLM_URL` and
+  `SILVERPAWS_LLM_MODEL` are set; otherwise the rule-based note is shown
 - History of saved observations, PDF report, and a veterinarian prompt when
   a change looks concerning
 
@@ -50,16 +51,26 @@ Pose detection, feature math, scoring, and explanation live behind the API.
 
 ## AI components
 
-- **MoveNet Thunder** (TensorFlow Hub) for 17-point pose landmarks, when
-  TensorFlow is available. This model was trained on human bodies, so pet
-  detections can be unreliable; low confidence is reported as “not measured”
-  rather than treated as a perfect score.
-- **OpenCV motion fallback** when TensorFlow is missing: frame-to-frame
-  picture change. The result is labeled `opencv-motion` so it is never mixed
-  with pose-based scores.
-- **Rule-based observation** in `gait_engine/wellness.py`.
-- **Optional LLM rewrite** in `artifacts/api-server/src/lib/explanation.ts`.
-  Invalid rewrites are rejected; the rule-based text is shown instead.
+The wording for each step lives in `lib/ai-use/registry.json` and is copied
+into the apps by `node scripts/sync-ai-use.mjs`. The generated page is
+`docs/AI_USE.md`. Pose limits are in `docs/MODEL_CARD.md`.
+
+- **MoveNet Thunder** finds 17 body keypoints on the analysis server when
+  TensorFlow is installed. It was trained on human bodies. Low confidence is
+  reported as “not measured”, not as a perfect score.
+- **OpenCV frame difference** runs on every clip. It is not a learned model.
+  When MoveNet is missing, it is the only movement measurement. When MoveNet
+  runs, it still supplies movement consistency and activity. Results from the
+  two pipelines are never mixed in a chart.
+- **Scores and the note** come from fixed formulas and templates in
+  `gait_engine/wellness.py`. They are not an AI model.
+- **Optional language-model rewrite** in
+  `artifacts/api-server/src/lib/explanation.ts`, only when
+  `SILVERPAWS_LLM_URL` and `SILVERPAWS_LLM_MODEL` are set. Invalid rewrites
+  are discarded. The rule-based note is shown instead.
+- **Development.** Parts of this app's code and documentation were written
+  with AI coding assistants and reviewed by the team. That fact is not a step
+  that runs on a clip.
 
 ## Limitations
 
@@ -79,14 +90,21 @@ pnpm install
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
-pip install opencv-python numpy
+pip install -r requirements-opencv.txt
 ```
 
-For pose landmarks as well (Python 3.10 or 3.11):
+`requirements-opencv.txt` pins OpenCV and NumPy for Python 3.10–3.12. That
+path measures picture motion only and labels the result `opencv-motion`.
+
+For pose landmarks, use Python 3.10 or 3.11 (TensorFlow 2.15 does not support
+3.12) and warm the model cache so the first request does not download it:
 
 ```bash
 pip install -r requirements.txt
+python scripts/cache_movenet.py
 ```
+
+See `docs/MODEL_CARD.md` for what each model is and what it cannot do.
 
 Start both services (two terminals):
 
@@ -99,6 +117,9 @@ pnpm --filter @workspace/silverpaws-beta run dev
 ```
 
 Open http://127.0.0.1:4173
+
+To run the API in Docker, see `docs/HOSTING.md`. The image was not built in
+this repository checkout.
 
 ### On a phone (Expo Go)
 
@@ -125,9 +146,9 @@ Optional environment variables:
 | `SILVERPAWS_REPO_ROOT` | API | inferred | Repo root so the CLI can be found |
 | `MAX_UPLOAD_MB` | API | `60` | Upload size cap |
 | `ANALYSIS_TIMEOUT_MS` | API | `120000` | Pipeline timeout |
-| `SILVERPAWS_LLM_URL` | API | unset | Optional rewrite endpoint (Abhi) |
-| `SILVERPAWS_LLM_KEY` | API | unset | Bearer token (Abhi) |
-| `SILVERPAWS_LLM_MODEL` | API | unset | Model name (Abhi) |
+| `SILVERPAWS_LLM_URL` | API | unset | Optional chat-completions endpoint |
+| `SILVERPAWS_LLM_KEY` | API | unset | Bearer token for that endpoint; never logged |
+| `SILVERPAWS_LLM_MODEL` | API | unset | Model name. Required, with the URL, before a rewrite is attempted |
 | `EXPO_PUBLIC_API_URL` | mobile | derived from the Expo dev server | API address baked into the phone app |
 
 No API keys are required for the app to analyze a clip.

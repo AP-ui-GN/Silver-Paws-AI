@@ -1,3 +1,4 @@
+import { aiUseResultLines } from '@/lib/ai-use';
 import { type Analysis, type Pet } from '@/lib/storage';
 
 type ReportLine = {
@@ -125,6 +126,15 @@ function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
   addText(lines, `Stride symmetry score: ${formatMeasurement(analysis.strideSymmetryScore, '/100')}`, { size: 10, gapAfter: 2 });
   addText(lines, `Estimated asymmetry: ${formatMeasurement(analysis.asymmetryPercent, '%')}`, { size: 10, gapAfter: 2 });
   addText(lines, `Detection confidence: ${formatMeasurement(analysis.confidence, '%')}`, { size: 10, gapAfter: 2 });
+  if (analysis.lowConfidence) {
+    addText(lines, 'Low confidence — try a clearer clip. Limb values that were not measured are not zeros.', { size: 10, gapAfter: 2 });
+  }
+  if (analysis.modelInfo) {
+    addText(lines, `Model: ${analysis.modelInfo.modelName} ${analysis.modelInfo.modelVersion} (runs on the server)`, { size: 10, gapAfter: 2 });
+  }
+  for (const note of analysis.qualityNotes ?? []) {
+    addText(lines, note, { size: 10, gapAfter: 2 });
+  }
   if (analysis.measurements) {
     addText(lines, `Frames read: ${formatMeasurement(analysis.measurements.frameCount)}`, { size: 10, gapAfter: 2 });
     addText(lines, `Mean frame motion: ${formatMeasurement(analysis.measurements.motionMean)}`, { size: 10, gapAfter: 2 });
@@ -155,6 +165,17 @@ function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
       color: MOSS_COLOR,
       gapAfter: 14,
     });
+  }
+
+  addText(lines, 'AI use in this report', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });
+  const useLines = aiUseResultLines(analysis.aiUse);
+  if (useLines.length === 0) {
+    addText(lines, 'This saved walk does not list which steps ran.', { size: 10, gapAfter: 14 });
+  } else {
+    for (const line of useLines) {
+      addText(lines, line, { size: 10, gapAfter: 2 });
+    }
+    addText(lines, '', { size: 10, gapAfter: 10 });
   }
 
   addText(lines, 'Sources and licensing', { size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6 });

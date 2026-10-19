@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
-import { colors } from '../../src/theme';
+import { useColors } from '../../src/theme-context';
 
 export default function TabsLayout() {
+  const colors = useColors();
   return (
     <Tabs
       screenOptions={{
@@ -13,7 +14,7 @@ export default function TabsLayout() {
         headerTitleStyle: { fontWeight: '700' },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border, minHeight: 56 },
         sceneStyle: { backgroundColor: colors.background },
       }}
     >

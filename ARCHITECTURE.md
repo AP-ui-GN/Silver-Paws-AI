@@ -49,7 +49,7 @@ browser produce the same record shape.
 - `pages/analyze.tsx` — upload, review, processing, errors
 - `pages/home.tsx` — overview
 - `pages/history.tsx` — list + detail (measurements vs interpretation)
-- `components/trend-panel.tsx` — **Kavin**: trend view (placeholder)
+- `components/trend-panel.tsx` — saved-walk comparison, split by pipeline
 - `lib/storage.ts` — pets and analyses in `localStorage`
 - `lib/analysis-api.ts` — upload checks and API error messages
 - `lib/report.ts` — browser PDF from a saved record
@@ -60,18 +60,18 @@ browser produce the same record shape.
 - `app/_layout.tsx` — providers and root stack
 - `app/(tabs)/` — Home, Analyze (record/choose clip, upload progress), History, Settings
 - `app/history/[id].tsx` — one walk: factors, raw measurements, share, delete
-- `app/pet/[id].tsx` — pet form (`new` creates); **Kavin**: validation messages
+- `app/pet/[id].tsx` — pet form (`new` creates), with name / age / weight checks
 - `src/lib/api.ts` — API address discovery from the Expo dev server, clip checks, XHR upload with progress, error text
 - `src/lib/storage.ts` — AsyncStorage version of the web storage module
 - `src/lib/types.ts` — hand-mirrored `AnalyzeResult` (source of truth: `lib/api-spec/openapi.yaml`)
-- `src/components/trend-panel.tsx` — **Kavin**: trend view (placeholder)
+- `src/components/trend-panel.tsx` — saved-walk comparison, with a sparkline
 - `metro.config.js` — pins Metro to `mobile/` so it ignores the pnpm workspace above
 
 ### API — `artifacts/api-server/src`
 
 - `routes/analyze.ts` — multipart parse, size cap, temp file, JSON reply
 - `lib/analysis-runner.ts` — spawn Python, validate against `@workspace/api-zod`
-- `lib/explanation.ts` — **Abhi**: provider rewrite; validation is done
+- `lib/explanation.ts` — optional provider rewrite; invalid text is rejected
 - `lib/multipart.ts` — small multipart reader (no extra npm dependency)
 
 ### Analysis — `gait_engine/`
@@ -80,8 +80,10 @@ browser produce the same record shape.
 - `movenet.py` — pose landmarks
 - `metrics.py` — left/right ankle symmetry
 - `features.py` — consistency, coverage, hip stability
-- `wellness.py` — **Sudarshan**: mobility + historical-change scoring
+- `wellness.py` — factor scores, including mobility and historical change
 - `pipeline.py` — chooses `movenet` or `opencv-motion`, builds `AnalyzeResult`
+- `confidence.py` — pose confidence gate (`modelConfidence`, frames used)
+- `clip_quality.py` — duration, resolution, brightness, and motion notes
 
 ### Contracts — `lib/`
 

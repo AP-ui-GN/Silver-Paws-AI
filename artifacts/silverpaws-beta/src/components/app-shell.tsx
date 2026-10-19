@@ -8,6 +8,7 @@ const items = [
   { href: '/analyze', label: 'New analysis', icon: Plus },
   { href: '/history', label: 'History', icon: ClipboardList },
   { href: '/pet', label: 'Pet profile', icon: UserRound },
+  { href: '/ai-use', label: 'AI use', icon: ShieldAlert },
 ];
 
 function NavItems({ mobile = false }: { mobile?: boolean }) {

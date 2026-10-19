@@ -9,18 +9,33 @@ names a condition, and it never claims certainty.
 
 from __future__ import annotations
 
+import math
+
 from .features import movement_consistency
 
 # Weight of each factor inside the overall indicator. Only factors that were
 # actually scored take part; the remaining weights are renormalized. A factor
 # without an entry here is never counted, so a new factor needs a new weight.
+# The numbers are relative — they do not have to sum to 1.
 #
-# These are the initial engineering values used to get the pipeline running
-# end to end. Calibrating them is Sudarshan's task (see TEAM_TASKS.md).
+# A planning note suggested mobility 0.40, cognitive 0.35, and happiness 0.25.
+# This pipeline does not measure cognition or happiness, so those weights are
+# not used. Copying them would score something the clip never produced.
+# The original three weights are unchanged, which keeps a motion-only clip on
+# the same overall score as before:
+#   movementConsistency — how steady frame-to-frame motion was
+#   symmetry — left/right balance, only when pose landmarks were reliable
+#   activity — how much of the clip actually contained movement
+# Mobility is weighted like activity: useful on a pose clip, never required.
+# Historical change is lighter on purpose. One previous walk should nudge the
+# indicator, not rewrite it. The point difference is already stated in the
+# observation, and CONCERNING_DROP raises a veterinarian prompt on its own.
 DEFAULT_WEIGHTS: dict[str, float] = {
     "movementConsistency": 0.45,
     "symmetry": 0.35,
     "activity": 0.20,
+    "mobility": 0.20,
+    "historicalChange": 0.10,
 }
 
 FACTOR_LABELS: dict[str, str] = {
@@ -32,12 +47,31 @@ FACTOR_LABELS: dict[str, str] = {
 }
 
 # An overall drop of at least this many points against the previous saved walk is
-# worth raising with a veterinarian. It is a prompt to ask, never a diagnosis.
+# worth raising with a veterinarian. Ten points is large enough to notice on a
+# 0–100 scale and small enough that the app does not wait for a collapse.
+# It is a prompt to ask, never a diagnosis. Kept after review.
 CONCERNING_DROP = 10.0
 
 # Measured left/right asymmetry (percent) that is worth raising, when the
-# symmetry measurement was reliable enough to report.
+# symmetry measurement was reliable enough to report. Twenty percent is a
+# stride-symmetry score of 0.80. concerning_change() ignores this unless
+# symmetryReliable is true, so a noisy pose cannot trigger the prompt.
+# Kept after review.
 CONCERNING_ASYMMETRY = 20.0
+
+
+def _is_number(value: object) -> bool:
+    """True for a finite int or float. Booleans and missing values are not numbers."""
+
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _unit(value: object) -> float | None:
+    """Clamp a measured 0-1 value, or return None when it was not measured."""
+
+    if not _is_number(value):
+        return None
+    return max(0.0, min(1.0, float(value)))
 
 
 def _to_score(value: float | None) -> float | None:
@@ -48,37 +82,60 @@ def _to_score(value: float | None) -> float | None:
     return round(max(0.0, min(1.0, value)) * 100, 1)
 
 
-# ==================================================
-# TEAM TASK: SUDARSHAN
-# PURPOSE:
-# Decide how mobility should be scored from the pose measurements the pipeline
-# already saves (hipStability, leftAnkleMotion, rightAnkleMotion, strideSymmetry)
-# and return a 0-100 score, or None when the clip has no usable pose signal.
-# Add a "mobility" weight to DEFAULT_WEIGHTS once the score is defined, otherwise
-# overall_score() will keep ignoring it.
-# ==================================================
 def mobility_factor(measurements: dict) -> float | None:
-    """Not scored yet. Returning None keeps mobility out of the overall score."""
+    """Score hip and ankle mobility from pose measurements, from 0 to 100.
 
-    return None
+    Uses hipStability, leftAnkleMotion, rightAnkleMotion, and strideSymmetry.
+    Returns None when the pose was not reliable, or when stride symmetry or
+    either ankle motion was not measured. A missing value is left out of the
+    average. It is never filled in as zero.
+
+    Ankle motion is a raw energy, not a 0-1 quality score, and it depends on
+    camera distance and clip length. Both sides must have been measured. Their
+    balance is already stored as strideSymmetry, so that balance is not scored
+    a second time. Hip stability is averaged with stride symmetry when it was
+    measured, and omitted when it was not.
+    """
+
+    if not measurements.get("symmetryReliable"):
+        return None
+
+    symmetry = _unit(measurements.get("strideSymmetry"))
+    left = measurements.get("leftAnkleMotion")
+    right = measurements.get("rightAnkleMotion")
+    if symmetry is None or not _is_number(left) or not _is_number(right):
+        return None
+
+    parts = [symmetry]
+    hip = _unit(measurements.get("hipStability"))
+    if hip is not None:
+        parts.append(hip)
+
+    return round(sum(parts) / len(parts) * 100, 1)
 
 
-# ==================================================
-# TEAM TASK: SUDARSHAN
-# PURPOSE:
-# Turn the change between this walk's overall score and the previous saved walk
-# into a 0-100 factor, then add a "historicalChange" weight to DEFAULT_WEIGHTS.
-# Decide how large a change should matter, and how to treat a first walk with no
-# baseline (return None). The plain delta is already reported in the observation
-# text, so this task is only about scoring it.
-# ==================================================
 def historical_change_factor(
     overall: float | None,
     previous_overall: float | None,
 ) -> float | None:
-    """Not scored yet. Returning None keeps baseline change out of the score."""
+    """Turn the change against the previous walk into a 0-100 factor.
 
-    return None
+    100 means this walk's overall score is at or above the previous one. Each
+    point of drop removes one point, floored at 0. A first walk — either score
+    missing — returns None. That is not a zero, and it is not averaged in.
+
+    The pipeline passes the overall score from the other factors, then blends
+    this result back in. The factor describes that comparison. It does not
+    include itself.
+    """
+
+    if not _is_number(overall) or not _is_number(previous_overall):
+        return None
+
+    drop = float(previous_overall) - float(overall)
+    if drop <= 0:
+        return 100.0
+    return round(max(0.0, 100.0 - drop), 1)
 
 
 def score_factors(measurements: dict) -> dict[str, float | None]:
@@ -202,7 +259,9 @@ def build_observation(
         )
         sentences.append(signal_note)
         sentences.append(
-            "Try a steady side-on clip of 5 to 60 seconds where the whole body stays in frame."
+            "Try a steady side-on clip with the whole body in frame. "
+            "A useful walk is about 5 to 15 seconds. "
+            "The server accepts a longer clip, up to 120 seconds."
         )
         return " ".join(sentences)
 

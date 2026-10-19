@@ -176,37 +176,63 @@ export function buildExplanationPrompt(context: ExplanationContext): string {
   ].join("\n");
 }
 
-// ==================================================
-// TEAM TASK: ABHI
-// PURPOSE:
-// Send buildExplanationPrompt(context) to the chosen model provider and return
-// the rewritten text, or null when no rewrite is available.
-//
-// Everything around this function is finished: the prompt is built above, the
-// response is checked by validateExplanation(), and explainObservation() falls
-// back to the rule-based text on any failure. Only the provider request is
-// missing.
-//
-// Expected environment variables (already read below):
-//   SILVERPAWS_LLM_URL    chat-completions style endpoint
-//   SILVERPAWS_LLM_KEY    bearer token
-//   SILVERPAWS_LLM_MODEL  model name
-//
-// Requirements for the implementation:
-//   - use an AbortSignal so a slow provider cannot hold the request open
-//   - return null instead of throwing when the provider errors
-//   - never log the key
-// ==================================================
+/** Give up on a provider that has not answered in about eight seconds. */
+export const REWRITE_TIMEOUT_MS = 8_000;
+
+/**
+ * Ask the configured chat-completions endpoint to rewrite the observation.
+ *
+ * Reads SILVERPAWS_LLM_URL, SILVERPAWS_LLM_KEY, and SILVERPAWS_LLM_MODEL.
+ * Returns null when no provider is configured, the call fails, the deadline
+ * passes, or the body is not a usable string. This function never throws and
+ * never logs the key.
+ */
 export async function requestModelRewrite(
   context: ExplanationContext,
 ): Promise<string | null> {
   const endpoint = process.env["SILVERPAWS_LLM_URL"];
-  if (!endpoint) {
+  const model = process.env["SILVERPAWS_LLM_MODEL"];
+  if (!endpoint || !model) {
     // No provider configured: the rule-based observation is used as-is.
     return null;
   }
 
-  return null;
+  const apiKey = process.env["SILVERPAWS_LLM_KEY"];
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REWRITE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        messages: [{ role: "user", content: buildExplanationPrompt(context) }],
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as {
+      choices?: { message?: { content?: unknown } }[];
+    };
+    const content = payload.choices?.[0]?.message?.content;
+    if (typeof content !== "string") return null;
+
+    const text = content.trim();
+    return text.length > 0 ? text : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**

@@ -30,14 +30,14 @@ export default function Home({ pets, analyses }: Props) {
       <div className="flex flex-wrap justify-between gap-5 items-end stagger">
         <div>
           <div className="eyebrow">A quiet read on movement</div>
-          <h1 className="display-title text-5xl md:text-6xl mt-3">Good morning,<br /><span style={{ color: '#b9684d' }}>{pet.name}.</span></h1>
+          <h1 className="display-title text-5xl md:text-6xl mt-3">Good morning,<br /><span className="accent-label">{pet.name}.</span></h1>
           <p className="body-muted mt-4 max-w-md leading-relaxed">One short walk can become a useful note to bring into a bigger conversation.</p>
         </div>
         <Link href="/analyze" className="btn-primary mb-1" data-testid="link-start-analysis"><Sparkles size={16} /> Start an analysis</Link>
       </div>
 
       <section className="grid md:grid-cols-[1.1fr_.9fr] gap-5 mt-10 stagger-2">
-        <div className="panel panel-padded relative overflow-hidden" style={{ background: '#e5eee2' }}>
+        <div className="panel panel-padded relative overflow-hidden">
           <div className="absolute -right-4 -top-8 text-[170px] leading-none opacity-10" style={{ color: '#174946' }}>◒</div>
           <div className="relative">
             <div className="flex items-center gap-4">
@@ -45,12 +45,12 @@ export default function Home({ pets, analyses }: Props) {
               <div>
                 <div className="eyebrow">Selected companion</div>
                 <h2 className="display-title text-3xl mt-1">{pet.name}</h2>
-                <p className="text-sm mt-1" style={{ color: '#4f6e66' }}>{pet.breed || pet.species}{pet.age ? ` · ${pet.age} years` : ''}</p>
+                <p className="body-muted text-sm mt-1">{pet.breed || pet.species}{pet.age ? ` · ${pet.age} years` : ''}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-8 max-w-sm">
-              <div><div className="mono text-[10px] uppercase tracking-wider" style={{ color: '#6d8c83' }}>Last read</div><div className="font-semibold text-sm mt-1">{latest ? formatRelative(latest.createdAt) : 'Not yet'}</div></div>
-              <div><div className="mono text-[10px] uppercase tracking-wider" style={{ color: '#6d8c83' }}>On device</div><div className="font-semibold text-sm mt-1">{analyses.length} observation{analyses.length === 1 ? '' : 's'}</div></div>
+              <div><div className="body-muted mono text-[10px] uppercase tracking-wider">Last read</div><div className="font-semibold text-sm mt-1">{latest ? formatRelative(latest.createdAt) : 'Not yet'}</div></div>
+              <div><div className="body-muted mono text-[10px] uppercase tracking-wider">On device</div><div className="font-semibold text-sm mt-1">{analyses.length} observation{analyses.length === 1 ? '' : 's'}</div></div>
             </div>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function Home({ pets, analyses }: Props) {
           {recent.length ? recent.map((analysis) => (
             <Link href={`/history/${analysis.id}`} key={analysis.id} className="analysis-row no-underline" data-testid={`link-analysis-${analysis.id}`}>
               <div className="flex gap-3 items-center min-w-0"><div className="video-icon"><FileVideo size={16} /></div><div className="min-w-0"><div className="font-semibold text-sm truncate">{analysis.fileName}</div><div className="body-muted text-xs mt-1"><span className={`status-dot status-${analysis.status}`} />{formatRelative(analysis.createdAt)} · {analysis.status === 'complete' ? 'Observation ready' : 'Processing'}</div></div></div>
-              <div className="text-right"><div className="font-bold text-sm">{displayScore(analysis) === null ? '—' : `${displayScore(analysis)}/100`}</div><div className="body-muted text-[10px] mt-1">overall</div></div>
+              <div className="text-right"><div className="font-bold text-sm">{displayScore(analysis) === null ? 'Not scored' : `${displayScore(analysis)}/100`}</div><div className="body-muted text-[10px] mt-1">overall</div></div>
             </Link>
           )) : <div className="body-muted text-sm py-8 text-center">Your completed observations will collect here.</div>}
         </div>

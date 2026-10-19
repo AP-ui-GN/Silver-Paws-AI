@@ -13,22 +13,36 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DisclaimerFooter } from '../../src/components/disclaimer-footer';
 import { ScoreBadge } from '../../src/components/score';
 import { Button, Card, Chip, EmptyState, Eyebrow, Muted, Note, Tag } from '../../src/components/ui';
+import { useConnection } from '../../src/hooks/use-connection';
 import { useLocalData } from '../../src/hooks/use-local-data';
+import { usePreferences } from '../../src/hooks/use-preferences';
 import {
   checkClip,
   describeAnalysisError,
   MAX_CLIP_SECONDS,
   MAX_UPLOAD_MB,
+  MISSING_API_URL_MESSAGE,
   requestAnalysis,
   resolveApiUrl,
   type ClipAsset,
 } from '../../src/lib/api';
+import { aiUseResultLines } from '../../src/lib/ai-use';
+import { PRIVACY_LINE } from '../../src/lib/disclaimers';
 import { formatBytes, formatDuration, SIGNAL_LABELS } from '../../src/lib/format';
 import { findBaseline, toAnalysisRecord } from '../../src/lib/storage';
 import type { Analysis } from '../../src/lib/types';
-import { colors, radius, spacing } from '../../src/theme';
+import { radius, spacing } from '../../src/theme';
+import { useColors } from '../../src/theme-context';
 
 type Phase = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error';
+
+const FILMING_GUIDE = [
+  'Side angle, so the legs are visible',
+  'Flat ground',
+  'A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds.',
+  'Whole body in frame',
+  'Good light',
+];
 
 /** Map what the picker returns onto the fields the API client needs. */
 function toClipAsset(asset: ImagePicker.ImagePickerAsset): ClipAsset {
@@ -43,7 +57,10 @@ function toClipAsset(asset: ImagePicker.ImagePickerAsset): ClipAsset {
 }
 
 export default function AnalyzeScreen() {
-  const { pets, analyses, addAnalysis } = useLocalData();
+  const colors = useColors();
+  const { loading, pets, analyses, addAnalysis } = useLocalData();
+  const { preferences } = usePreferences();
+  const { state: connection, retry: retryConnection } = useConnection(true);
   const router = useRouter();
   const params = useLocalSearchParams<{ petId?: string }>();
 
@@ -118,6 +135,10 @@ export default function AnalyzeScreen() {
   }
 
   async function run() {
+    if (!preferences.consentAccepted) {
+      router.push('/onboarding');
+      return;
+    }
     if (!clip || !pet) return;
 
     const controller = new AbortController();
@@ -130,6 +151,11 @@ export default function AnalyzeScreen() {
 
     try {
       const baseUrl = await resolveApiUrl();
+      if (!baseUrl) {
+        setErrorMessage(MISSING_API_URL_MESSAGE);
+        setPhase('error');
+        return;
+      }
       const baseline = findBaseline(analyses, pet.id);
 
       const result = await requestAnalysis({
@@ -166,13 +192,23 @@ export default function AnalyzeScreen() {
     abortRef.current?.abort();
   }
 
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <Muted>Loading pets…</Muted>
+      </View>
+    );
+  }
+
   if (pets.length === 0) {
     return (
       <ScrollView contentContainerStyle={styles.page}>
+        <ConnectionChip state={connection} onRetry={retryConnection} />
         <Card>
           <EmptyState icon="paw-outline" title="Add a pet first" body="Walks are saved against a pet profile so they can be compared over time." />
           <Button label="Create a pet profile" icon="add" onPress={() => router.push('/pet/new')} />
         </Card>
+        <Muted>{PRIVACY_LINE}</Muted>
         <DisclaimerFooter />
       </ScrollView>
     );
@@ -180,6 +216,18 @@ export default function AnalyzeScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+      <ConnectionChip state={connection} onRetry={retryConnection} />
+      {!preferences.consentAccepted && (
+        <Note tone="info" title="Before the first analysis">
+          Read the three short notes and acknowledge that this is a wellness note, not a diagnosis.
+        </Note>
+      )}
+      <Card>
+        <Eyebrow>How to film</Eyebrow>
+        {FILMING_GUIDE.map((item) => (
+          <Muted key={item}>• {item}</Muted>
+        ))}
+      </Card>
       <Card>
         <Eyebrow>1 · Which pet?</Eyebrow>
         <View style={styles.chips}>
@@ -192,8 +240,8 @@ export default function AnalyzeScreen() {
       <Card>
         <Eyebrow>2 · The walk</Eyebrow>
         <Muted>
-          Film from the side while your pet walks in a straight line, 5 to 60 seconds, in good light. Clips up to{' '}
-          {MAX_CLIP_SECONDS} seconds and {MAX_UPLOAD_MB} MB are accepted.
+          Film from the side while your pet walks in a straight line, in good light. A useful walk is about 5 to 15
+          seconds. The server accepts a longer clip, up to {MAX_CLIP_SECONDS} seconds and {MAX_UPLOAD_MB} MB.
         </Muted>
         <View style={styles.row}>
           <Button label="Record" icon="videocam-outline" onPress={() => pickClip('camera')} disabled={busy} style={{ flex: 1 }} />
@@ -204,7 +252,7 @@ export default function AnalyzeScreen() {
 
         {clip && (
           <View style={styles.clipMeta}>
-            <Text style={styles.clipName} numberOfLines={1}>
+            <Text style={[styles.clipName, { color: colors.text }]} numberOfLines={1}>
               {clip.name}
             </Text>
             <Muted>
@@ -216,7 +264,10 @@ export default function AnalyzeScreen() {
 
       <Card>
         <Eyebrow>3 · Analyze</Eyebrow>
-        {!busy && (
+        {!busy && !preferences.consentAccepted && (
+          <Button label="Read the notes first" onPress={() => router.push('/onboarding')} />
+        )}
+        {!busy && preferences.consentAccepted && (
           <Button
             label={pet ? `Analyze ${pet.name}'s walk` : 'Analyze walk'}
             icon="analytics-outline"
@@ -227,11 +278,11 @@ export default function AnalyzeScreen() {
 
         {busy && (
           <View style={{ gap: spacing.sm }}>
-            <Text style={styles.stage}>
+            <Text style={[styles.stage, { color: colors.text }]}>
               {phase === 'uploading' ? `Uploading clip · ${Math.round(uploadFraction * 100)}%` : 'Measuring movement…'}
             </Text>
-            <View style={styles.track} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(uploadFraction * 100) }}>
-              <View style={[styles.fill, { width: `${Math.max(3, uploadFraction * 100)}%` }, phase === 'analyzing' && styles.fillIndeterminate]} />
+            <View style={[styles.track, { backgroundColor: colors.track }]} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(uploadFraction * 100) }}>
+              <View style={[styles.fill, { width: `${Math.max(3, uploadFraction * 100)}%`, backgroundColor: colors.accent }, phase === 'analyzing' && styles.fillIndeterminate]} />
             </View>
             <Muted>
               {phase === 'analyzing'
@@ -244,44 +295,95 @@ export default function AnalyzeScreen() {
 
         {phase === 'error' && errorMessage && (
           <Note tone="error" title="Analysis did not finish">
-            {errorMessage}
+            {errorMessage} {clip ? 'The clip is still selected, so you can try again without choosing it again.' : ''}
           </Note>
         )}
+        {phase === 'error' && clip && <Button label="Try again" icon="refresh" onPress={() => void run()} />}
 
         {phase === 'done' && saved && (
           <View style={{ gap: spacing.md }}>
             <View style={styles.resultRow}>
               <ScoreBadge score={saved.overallScore} />
               <View style={{ flex: 1, gap: 6 }}>
-                <Text style={styles.resultTitle}>Saved to history</Text>
+                <Text style={[styles.resultTitle, { color: colors.text }]}>Saved to history</Text>
                 <View style={styles.chips}>
                   <Tag>{SIGNAL_LABELS[saved.signalQuality] ?? saved.signalQuality}</Tag>
                   {saved.concerningChange && <Tag tone="warn">Worth asking a vet</Tag>}
                 </View>
               </View>
             </View>
-            <Text style={styles.observation}>{saved.observation}</Text>
+            {saved.lowConfidence && (
+              <Note tone="warn" title="Low confidence — try a clearer clip">
+                Film from the side with the whole body in frame. Limb values that were not measured are not zeros.
+              </Note>
+            )}
+            <Text style={[styles.observation, { color: colors.text }]}>{saved.observation}</Text>
+            {aiUseResultLines(saved.aiUse).map((line) => (
+              <Muted key={line}>{line}</Muted>
+            ))}
             <Button label="See the full breakdown" icon="arrow-forward" onPress={() => router.push({ pathname: '/history/[id]', params: { id: saved.id } })} />
           </View>
         )}
       </Card>
 
+      {preferences.demoMode && (
+        <Card>
+          <Eyebrow>Demo</Eyebrow>
+          <Muted>Sample data stays on this screen. It is not saved to history and does not appear in trends.</Muted>
+          <Button label="View sample result" variant="secondary" onPress={() => router.push('/demo')} />
+        </Card>
+      )}
+
+      <Muted>{PRIVACY_LINE}</Muted>
       <DisclaimerFooter />
     </ScrollView>
   );
 }
 
+function ConnectionChip({
+  state,
+  onRetry,
+}: {
+  state: { kind: 'checking' } | { kind: 'online'; url: string } | { kind: 'offline'; message: string };
+  onRetry: () => void;
+}) {
+  if (state.kind === 'checking') {
+    return (
+      <Note tone="info" title="Checking the server">
+        Looking for the analysis server.
+      </Note>
+    );
+  }
+  if (state.kind === 'online') {
+    return (
+      <Note tone="info" title="Connected">
+        The analysis server answered.
+      </Note>
+    );
+  }
+  return (
+    <Note tone="error" title="Offline">
+      {state.message} You can keep the clip you already chose and try again.
+      <Text onPress={onRetry} accessibilityRole="button" style={{ fontWeight: '700' }}>
+        {' '}
+        Retry
+      </Text>
+    </Note>
+  );
+}
+
 const styles = StyleSheet.create({
   page: { padding: spacing.lg, gap: spacing.lg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   clipMeta: { marginTop: spacing.xs, gap: 2 },
-  clipName: { fontWeight: '600', color: colors.text, fontSize: 14 },
-  stage: { fontWeight: '700', color: colors.text, fontSize: 15 },
-  track: { height: 8, borderRadius: radius.pill, backgroundColor: colors.track, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: colors.accent, borderRadius: radius.pill },
+  clipName: { fontWeight: '600', fontSize: 14 },
+  stage: { fontWeight: '700', fontSize: 15 },
+  track: { height: 8, borderRadius: radius.pill, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: radius.pill },
   fillIndeterminate: { opacity: 0.6 },
   resultRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  resultTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-  observation: { fontSize: 15, lineHeight: 22, color: colors.text },
+  resultTitle: { fontSize: 18, fontWeight: '700' },
+  observation: { fontSize: 15, lineHeight: 22 },
 });

@@ -3,7 +3,8 @@ import { ArrowLeft, ArrowRight, CalendarDays, CircleAlert, Download, FileVideo, 
 import { Link, useParams } from 'wouter';
 import { displayScore, type Analysis, type Pet } from '@/lib/storage';
 import { SAFETY_DISCLAIMER } from '@/lib/disclaimers';
-import { formatDate, formatDuration, formatRelative } from '@/lib/format';
+import { aiUseResultLines } from '@/lib/ai-use';
+import { formatDate, formatDuration, formatPoseFrames, formatRelative } from '@/lib/format';
 import { downloadAnalysisReport } from '@/lib/report';
 import { TrendPanel } from '@/components/trend-panel';
 
@@ -12,9 +13,9 @@ type Props = { pets: Pet[]; analyses: Analysis[]; deleteAnalysis: (id: string) =
 const FACTOR_LABELS: { key: keyof NonNullable<Analysis['factors']>; label: string; help: string }[] = [
   { key: 'movementConsistency', label: 'Movement consistency', help: 'How steady the amount of movement stayed between frames.' },
   { key: 'symmetry', label: 'Stride symmetry', help: 'How similar the left and right leg movement looked.' },
-  { key: 'mobility', label: 'Mobility', help: 'Not scored in this release.' },
+  { key: 'mobility', label: 'Mobility', help: 'Hip steadiness and stride balance, when pose landmarks were reliable enough to measure.' },
   { key: 'activity', label: 'Activity', help: 'Share of the clip that contained visible movement.' },
-  { key: 'historicalChange', label: 'Change from baseline', help: 'Not scored in this release.' },
+  { key: 'historicalChange', label: 'Change from baseline', help: 'How this walk compares with the previous walk measured the same way. A first walk is not scored.' },
 ];
 
 const SIGNAL_LABELS: Record<string, string> = {
@@ -76,12 +77,31 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
   return <div className="page-frame max-w-5xl">
     <Link href="/history" className="btn-quiet -ml-3" data-testid="link-back-history"><ArrowLeft size={15} /> All observations</Link>
     <div className="flex flex-wrap items-end justify-between gap-5 mt-6 stagger">
-      <div><div className="eyebrow">Saved observation · {formatDate(analysis.createdAt)}</div><h1 className="display-title text-5xl mt-3">A closer look at<br /><span style={{ color: '#b9684d' }}>{pet?.name ?? 'your pet'}’s walk.</span></h1></div>
+      <div><div className="eyebrow">Saved observation · {formatDate(analysis.createdAt)}</div><h1 className="display-title text-5xl mt-3">A closer look at<br /><span className="accent-label">{pet?.name ?? 'your pet'}’s walk.</span></h1></div>
        <div className="flex flex-wrap gap-2">
          <button type="button" className="btn-secondary" onClick={() => downloadAnalysisReport(analysis, pet)} data-testid={`button-download-report-${analysis.id}`}><Download size={15} /> Download report</button>
          <button className="btn-quiet" onClick={() => { if (window.confirm('Remove this saved observation from this device?')) onDelete(); }} data-testid={`button-delete-analysis-${analysis.id}`}><Trash2 size={15} /> Remove</button>
        </div>
     </div>
+
+    {analysis.lowConfidence && (
+      <section className="alert-note p-5 mt-7 flex gap-3 items-start" role="alert" data-testid="text-low-confidence">
+        <CircleAlert size={19} style={{ flexShrink: 0 }} />
+        <div>
+          <h2 className="font-bold text-sm">Low confidence — try a clearer clip</h2>
+          <p className="text-sm leading-relaxed mt-2">The pose model could not see the body clearly enough to measure the legs. Film from the side with the whole body in frame. Values that were not measured are shown as “Not measured”, not as zero.</p>
+        </div>
+      </section>
+    )}
+
+    {analysis.qualityNotes && analysis.qualityNotes.length > 0 && (
+      <section className="soft-note p-5 mt-5" data-testid="text-quality-notes">
+        <h2 className="font-bold text-sm">Before the next clip</h2>
+        <ul className="text-sm leading-relaxed mt-2 list-disc pl-5">
+          {analysis.qualityNotes.map((note) => <li key={note}>{note}</li>)}
+        </ul>
+      </section>
+    )}
 
     {analysis.concerningChange && (
       <section className="alert-note p-5 mt-7 flex gap-3 items-start stagger" data-testid="text-vet-recommendation">
@@ -98,7 +118,7 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
         <div className="flex flex-wrap justify-between items-center gap-5">
           <div>
             <div className="eyebrow">Overall wellness indicator</div>
-            <div className="metric-number mt-4" data-testid="text-overall-score">{score === null ? '—' : score}<span className="text-2xl tracking-normal">/100</span></div>
+            <div className="metric-number mt-4" data-testid="text-overall-score">{score === null ? 'Not scored' : <>{score}<span className="text-2xl tracking-normal">/100</span></>}</div>
             <p className="body-muted text-sm mt-3">A blend of the factors below. It describes this clip, not your pet’s health.</p>
           </div>
           {score !== null && <div className="score-ring" style={{ '--score': `${score * 3.6}deg` } as CSSProperties}><div><div className="metric-number text-3xl">{score}</div><div className="mono text-[9px] body-muted mt-1">SCORE</div></div></div>}
@@ -106,9 +126,18 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
         <div className="flex flex-wrap gap-2 mt-7">
           {analysis.signalQuality && <span className="tag">{SIGNAL_LABELS[analysis.signalQuality] ?? analysis.signalQuality}</span>}
           {analysis.pipeline && <span className="tag">{PIPELINE_LABELS[analysis.pipeline] ?? analysis.pipeline}</span>}
+          {analysis.modelInfo && <span className="tag">{analysis.modelInfo.modelName}</span>}
           {analysis.usedLlm && <span className="tag">Model-written summary</span>}
         </div>
         {analysis.signalNote && <p className="body-muted text-xs leading-relaxed mt-4">{analysis.signalNote}</p>}
+        {analysis.modelInfo && <p className="body-muted text-xs leading-relaxed mt-2">Measured on the server with {analysis.modelInfo.modelName}, version {analysis.modelInfo.modelVersion}.</p>}
+        {aiUseResultLines(analysis.aiUse).length > 0 && (
+          <ul className="mt-3 flex flex-col gap-1" data-testid="text-ai-use-lines">
+            {aiUseResultLines(analysis.aiUse).map((line) => (
+              <li key={line} className="body-muted text-xs leading-relaxed">{line}</li>
+            ))}
+          </ul>
+        )}
       </div>
       <div className="panel panel-padded">
         <div className="flex items-center gap-2"><Gauge size={18} style={{ color: '#b9684d' }} /><div className="eyebrow">What we noticed</div></div>
@@ -149,6 +178,7 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Asymmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.asymmetryPercent, '%', 2)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Hip stability</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Pose confidence</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.confidence, '%', 1)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Confident frames</div><div className="font-bold text-lg mt-1">{formatPoseFrames(analysis.framesUsed, analysis.framesTotal)}</div></div>
         </div>
       </section>
     )}

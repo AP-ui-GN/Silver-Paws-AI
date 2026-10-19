@@ -162,6 +162,11 @@ app cannot show a measurement it did not take.
 
 ## 5. Remaining work by member
 
+Phase 1 (section 9) finished the marked scoring, trend, pet-form, and rewrite
+request. The cards below are the September handoff. Still open from this list:
+head-bob measurement, a live provider walk-through, the cognitive log, the
+accessibility pass, a phone test on a real device, and the copy review.
+
 Each item lists: file, what to do, how to check it. Do not start by rewriting
 what already works — extend the marked function or component.
 
@@ -329,7 +334,9 @@ No API keys are required. Optional variables are listed in `README.md`.
 - Data is per-browser (`localStorage`); no accounts, no sync
 - Cognitive tracking, happiness slider, and the multi-day QoL trend from the
   planning doc are not yet built
-- The language-model rewrite is scaffolded and validated but not connected
+- The language-model rewrite is connected when `SILVERPAWS_LLM_URL` and
+  `SILVERPAWS_LLM_MODEL` are set. With those unset, the app still shows the
+  rule-based observation (`usedLlm: false`). See section 9.
 
 ---
 
@@ -355,3 +362,296 @@ No API keys are required. Optional variables are listed in `README.md`.
 **Removed**
 `artifacts/silverpaws-beta/src/lib/{analyze-client,local-motion-probe,wellness}.ts`,
 `gait_engine/{explain,motion_fallback,test_engine}.py`
+
+---
+
+## 9. Phase 1 (October 18, 2026)
+
+Scoring, trends, pet-form checks, and the optional rewrite request. Phases 2–6
+were not started.
+
+### What landed
+
+- `mobility_factor` averages measured stride symmetry with hip stability when
+  the pose is reliable and both ankle motions were measured. A missing hip is
+  left out. A missing ankle, or an unreliable pose, returns `None`.
+- `historical_change_factor` is 100 when this walk is at or above the previous
+  overall score, drops one point per point of decline, floors at 0, and returns
+  `None` on a first walk.
+- `DEFAULT_WEIGHTS` now includes `mobility` 0.20 and `historicalChange` 0.10.
+  The original consistency / symmetry / activity weights are unchanged.
+  `CONCERNING_DROP` stays 10 and `CONCERNING_ASYMMETRY` stays 20.
+- Web and phone trend panels list date, overall score, movement consistency,
+  and symmetry from saved walks only. Different `pipeline` values are separate
+  series. The phone draws the overall scores with `react-native-svg`.
+- Pet forms on web and phone show a message for a blank name, and for an age
+  or weight that is filled in but is not a positive number. Save does not run
+  until those checks pass. The web `/pet` route now renders `PetProfile` as a
+  child element. The previous inline `component` function was a new component
+  type on every render, so the “Saved locally” note was cleared as soon as the
+  profile was written.
+- `requestModelRewrite` posts `buildExplanationPrompt` to a chat-completions
+  endpoint and aborts after 8 seconds. Any failure returns `null`. The key is
+  not logged. `validateExplanation` is unchanged.
+
+### Where this prompt disagreed with the repo
+
+The repo won in each case.
+
+1. **Error style class.** `docs/PROJECT_STATUS.md` section 5.2 said to reuse a
+   `text-analysis-error` class. That class is not in the stylesheet. The analyze
+   page uses `role="alert"`, the color `#a54339`, and a `data-testid`. Pet
+   validation follows that page.
+2. **Planning-doc weights.** Section 5.1 compared the score with a QoL formula
+   of mobility 0.40, cognitive 0.35, and happiness 0.25. This pipeline does not
+   measure cognition or happiness. Those weights were not copied. The three
+   existing weights stayed, and mobility plus historical change were added as
+   extra relative weights. `overall_score()` already renormalizes over the
+   factors a clip actually scored.
+3. **Live rewrite walk-through.** `TEAM_TASKS.md` asks for a live clip after
+   the rewrite works, recorded in `TESTING.md`. This environment has no
+   provider and no sample walk was sent through UI → API → pipeline. Mock
+   tests cover the three outcomes (no env, valid rewrite, invalid rewrite).
+   The live check stays open.
+4. **Weight units.** The prompt did not mention units. The web form labels
+   weight in kilograms and the phone form labels it in pounds. Both were left
+   as they are.
+5. **`react-native-svg` was not installed.** The phone trend view needs it.
+   `15.15.4` was added because that is the version Expo SDK 57 pins in
+   `bundledNativeModules.json`. The Expo SDK was not upgraded.
+6. **History copy.** The factor help text said mobility and change from
+   baseline were “Not scored in this release.” That sentence was updated so
+   the breakdown matches the scores the pipeline now returns.
+
+### Still open after Phase 1
+
+- Live language-model walk-through (Abhi)
+- Head-bob measurement, cognitive log, accessibility pass, and a phone test
+  on a real device
+- Copy review in the product/research task (`TEAM_TASKS.md`)
+- Phases 2–6 were not started in the Phase 1 commit. Phase 2 is recorded below.
+
+---
+
+## 10. Phase 2 (October 18, 2026)
+
+Pose confidence, clip-quality notes, model identity, pinned Python deps, and
+a warmed MoveNet cache. Phase 3 was not started.
+
+### What landed
+
+- Pose frames are summarized as `modelConfidence` (0–1), `framesUsed`, and
+  `framesTotal`. Below the existing 0.3 mean, limb measurements stay unset and
+  `lowConfidence` is true. Web history and the phone result screens show
+  **Low confidence — try a clearer clip**. A missing confidence is not shown
+  as zero.
+- `modelInfo` names the pipeline, model, version, and `runsOn: "server"`.
+  MoveNet Thunder stays primary. OpenCV frame difference stays the fallback.
+  A non-Thunder URL is not labeled as Thunder.
+- `qualityNotes` covers a short clip, a long clip, a tiny frame, a dark or
+  blown-out frame, and a clip with little movement. Unknown duration is not
+  described as 0 seconds.
+- `requirements.txt` and `requirements-opencv.txt` pin versions. TensorFlow
+  stays on Python 3.10–3.11. `scripts/cache_movenet.py` fills `models/tfhub`
+  so a deploy can warm the weights before the first request.
+- `docs/MODEL_CARD.md` records intended use, the human-training limit, failure
+  modes, and measured versus interpreted values.
+- `tests/upload-cleanup.test.ts` posts a clip and checks the upload directory
+  is empty afterward. Python tests: 54 passed. API tests: 23 passed.
+
+### Where this prompt disagreed with the repo
+
+1. **`confidence` is already 0–100.** The prompt asks for `modelConfidence`
+   from 0 to 1. Both are returned. `confidence` stays the percent so the
+   existing history grid and PDF do not change meaning. `modelConfidence` is
+   the 0–1 value.
+2. **Thresholds already existed.** Per-keypoint gating is 0.2 and the mean
+   trust line is 0.3 (`POSE_CONFIDENCE_THRESHOLD`, `MIN_POSE_CONFIDENCE`).
+   Those were reused instead of adding a third cutoff.
+3. **Dependencies were already pinned** in `requirements.txt`. A separate
+   `requirements-opencv.txt` now pins the fallback install, which the README
+   previously installed without versions.
+4. **There is no deploy image yet** (that is a later phase). The weight cache
+   is a script plus `TFHUB_CACHE_DIR`, not a Docker build step. If the script
+   was not run and TensorFlow is installed, the first pose request still
+   downloads Thunder once. The fallback path never downloads it.
+5. **Quality notes do not reject the HTTP request** when the clip can still
+   be measured. Unreadable files stay a 400. The prompt asked for messages
+   the owner can act on; those messages travel on the result.
+
+---
+
+## 11. Phase 3 (October 18, 2026)
+
+Phone features around the existing screens. Phase 4 was not started.
+
+### What landed
+
+- Onboarding has three steps. Analysis stays locked until the owner
+  acknowledges "this is a wellness note, not a diagnosis". That flag is stored
+  on the phone.
+- The Analyze screen lists the filming guide, a connection chip for
+  `/api/healthz` that retries with backoff, and the privacy line. A failed
+  analysis keeps the chosen clip and offers Try again.
+- Demo mode shows one bundled sample labeled "Sample data — not your pet".
+  `addAnalysis` drops it, history helpers drop it, and it is not included in
+  trends or the vet summary.
+- History filters by pet and clears a filter if that pet was deleted. Compare
+  refuses two walks whose pipelines differ.
+- A walk can be shared as a PDF. A vet summary covers the latest saved walks,
+  grouped by pipeline, with the veterinarian pointer only when a change is
+  concerning. The PDF footer says the AI-use list arrives with the registry.
+- Settings adds kg/lb for new pets, theme, a weekly local reminder (permission
+  asked when the switch is turned on), an Advanced API address toggle around
+  the existing editor, JSON export, feedback without a video, version, and a
+  short How AI is used placeholder.
+- Shared controls use 44 pt targets, selected chips include a check mark, and
+  a root error boundary catches a thrown screen. History and Analyze show a
+  loading state.
+
+### Where this prompt disagreed with the repo
+
+1. **Clip length.** The filming guide recommends 5–15 seconds. The existing
+   Analyze copy and the API still allow up to 120 seconds. The guide was
+   added; the limit was not tightened.
+2. **Weight units.** New pets default to kg, matching the web form. A phone
+   profile saved before this change has no stored unit, so it stays labeled
+   lb. Changing the unit does not convert the number.
+3. **API address.** Settings already showed the address to every tester. It
+   now sits behind an Advanced switch. The editor itself was not removed.
+4. **Dark theme.** Navigation, cards, buttons, and notes follow the choice.
+   Some screen stylesheets still carry the original light-palette text color,
+   so a few labels do not recolor. That is unfinished polish, not a second
+   theme system.
+5. **No phone or simulator was available here.** Checks are typecheck and
+   unit tests. Expo Go, local notifications, and the PDF share sheet were
+   not run on a device.
+
+The Phase 3 gaps above (dark-mode text colors, no unit conversion for older
+profiles, filming-guide 5–15 seconds versus the API's 120 second limit) are
+unchanged.
+
+---
+
+## 12. Phase 4 (October 18, 2026)
+
+One AI-use registry. Phase 5 was not started.
+
+### What landed
+
+- `lib/ai-use/registry.json` is the only wording source. `scripts/sync-ai-use.mjs`
+  copies it into the web app and `mobile/src/lib/`, and writes `docs/AI_USE.md`.
+- A clip's `aiUse` lists the steps that ran. MoveNet runs include `pose-model`.
+  Every successful clip includes `motion-fallback`, because OpenCV frame
+  difference always runs. `scoring` and `observation-rules` are always included.
+  `llm-rewrite` is added by the API only when a validated rewrite is kept.
+  `development` is never attached to a clip.
+- Result screens and both PDFs show one registry `resultLine` per id. Settings
+  → How AI is used (and the web AI-use page) show the summary and the full
+  list, including development.
+
+### Where this prompt disagreed with the repo
+
+The suggested MoveNet id list was pose-model, scoring, and observation-rules.
+`gait_engine/pipeline.py` calls `read_motion_signal` before it tries pose, and
+movement consistency and activity come from that signal even when MoveNet
+succeeds. `motion-fallback` is therefore included on pose runs as well. Its
+registry text says it runs on every clip, not only when pose is missing.
+
+The Phase 3 gaps (dark-mode label colors, no unit conversion for older
+profiles, filming-guide 5–15 seconds versus the API's 120 second limit) are
+still open. Phase 5 does not change them.
+
+---
+
+## 13. Phase 5 (October 18, 2026)
+
+Hosting config and an Expo tester guide. Phase 6 was not started. No deploy
+and no Expo build were run. There is no public URL and no store listing.
+
+### What landed
+
+- `Dockerfile` and `docker-compose.yml` for the API and the Python pipeline.
+  The image is Node 20 and Debian bookworm Python 3.11, with
+  `opencv-python-headless`, NumPy, TensorFlow, and a MoveNet cache filled by
+  `scripts/cache_movenet.py` at image build time.
+- Production requests other than `/api/healthz` require HTTPS. Uploads stay
+  capped (`MAX_UPLOAD_MB`, default 60). Analysis stops after
+  `ANALYSIS_TIMEOUT_MS` (default 120000). Each client address gets a small
+  per-minute analysis limit.
+- `docs/HOSTING.md` lists the environment variables, starts RAM at 2 GB, and
+  says how to read a real peak. The host steps are for Render. The service
+  was not created.
+- `mobile/app.config.ts` reads `EXPO_PUBLIC_API_URL`. Development still guesses
+  the laptop. A release build does not. Settings → Advanced remains the tester
+  override.
+- `mobile/eas.json` has `development`, `preview` (internal), and `production`,
+  each with its own update channel. The bundle id `com.silverpaws.app` is a
+  placeholder. The previous id was `org.silverpaws.mobile`.
+- Camera and photo-library strings say what is measured. Microphone permission
+  is turned off (`microphonePermission: false`) because the pipeline never
+  reads sound.
+- `docs/EXPO_TESTING.md` is the tester guide. Commands were checked against
+  docs.expo.dev for EAS Build, internal distribution, and EAS Update.
+
+### Docker
+
+The `docker` command is not installed in this environment, so the image was
+**not** built. About 246 GB of disk was free. Available RAM was about 4.6 GB,
+which is tight for a TensorFlow image build even if Docker were present.
+Do not treat the Dockerfile as a finished image.
+
+### Where this prompt disagreed with the repo
+
+1. **OpenCV wheel.** `requirements.txt` pins `opencv-python` for a laptop with
+   a display. The image uses `opencv-python-headless` at the same version
+   (`4.10.0.84`) because the container has no screen.
+2. **Bundle id.** The repo had `org.silverpaws.mobile`. Phase 5 sets the
+   placeholder `com.silverpaws.app` and flags it for a human to replace.
+3. **Icons.** `attached_assets/` has no images. `mobile/assets/` already holds
+   the Expo template icon and splash. They were left in place and flagged.
+   No new artwork was invented.
+4. **Updates URL.** `eas update:configure` writes the Expo project id and
+   `updates.url` after a person logs in. Those values are not in the repo,
+   because inventing a project id would be a fake deploy. `docs/EXPO_TESTING.md`
+   tells the human to run that command before the first preview build.
+5. **Expo patch pins.** `npx expo-doctor` failed on the previous SDK 57 patch
+   pins (`expo` 57.0.23 and three related packages). They were moved to the
+   versions doctor asked for (`expo` ~57.0.30 and matching patches). The SDK
+   stayed 57. The legacy `splash` field is not allowed, so the placeholder
+   splash image is set with the `expo-splash-screen` plugin instead.
+
+---
+
+## 14. Phase 6 (October 18, 2026)
+
+The three Phase 3 gaps are closed. No deploy, no `eas build`, and no login.
+The testing record is in `TESTING.md`.
+
+### What changed
+
+- Dark mode: labels on Home, Analyze, History, the walk detail, the pet form,
+  Settings, trends, and the error screen take their text color from the active
+  palette. The surfaces those labels sit on do too. A missing score is the
+  words "Not scored" or "Not measured", and a selected chip includes a check
+  mark, so meaning is not color alone.
+- Units: an older phone profile with no stored unit stays labeled pounds.
+  Switching kg/lb converts the number and shows both values ("62 lb is now
+  28.1 kg"). A value that is not a positive number is not relabeled. New pets
+  still default to kilograms. The web form still says kilograms only, because
+  that form never stored a separate unit.
+- Filming: the phone guide, the web upload line, the client errors, and the
+  pipeline notes say a useful walk is about 5 to 15 seconds and that the
+  server accepts a longer clip up to 120 seconds. The cap in code is still 120.
+
+### Where this prompt disagreed with the repo
+
+There is no walking clip in the repository, and TensorFlow is not installed,
+so MoveNet was not run. OpenCV ran on a generated rectangle, recorded in
+`TESTING.md` as not a real walk. There is no lint script. GitHub reported no
+checks on the pull request. The product/research card and Abhi's live provider
+walk-through stay open in `TEAM_TASKS.md`.
+
+A later browser pass on the web app is recorded in `TESTING.md`. The web pet
+form still says kilograms. The web app still has no demo mode and no theme
+control.

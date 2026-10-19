@@ -27,6 +27,11 @@ class MotionSignal:
     # One value per frame pair, so this is `frames_read - 1` long. Each value is
     # the mean absolute grayscale change between two frames, scaled to 0-1.
     frame_motion: list[float]
+    # Original pixel size of the first frame. 0 means the size was not read.
+    width: int = 0
+    height: int = 0
+    # Mean brightness of the analysis frames, 0-1. None means it was not measured.
+    brightness: float | None = None
 
 
 def _to_analysis_frame(frame_bgr):
@@ -68,6 +73,9 @@ def read_motion_signal(video_path: str | Path, *, max_frames: int = 600) -> Moti
     frame_motion: list[float] = []
     frames_read = 0
     previous = None
+    width = 0
+    height = 0
+    brightness_sum = 0.0
 
     try:
         while frames_read < max_frames:
@@ -75,7 +83,11 @@ def read_motion_signal(video_path: str | Path, *, max_frames: int = 600) -> Moti
             if not success:
                 break
 
+            if frames_read == 0:
+                height, width = frame.shape[:2]
+
             current = _to_analysis_frame(frame)
+            brightness_sum += float(current.mean()) / 255.0
             if previous is not None:
                 difference = cv2.absdiff(current, previous)
                 frame_motion.append(float(difference.mean()) / 255.0)
@@ -97,4 +109,7 @@ def read_motion_signal(video_path: str | Path, *, max_frames: int = 600) -> Moti
         frames_read=frames_read,
         duration_seconds=duration_seconds,
         frame_motion=frame_motion,
+        width=int(width),
+        height=int(height),
+        brightness=round(brightness_sum / frames_read, 4) if frames_read else None,
     )

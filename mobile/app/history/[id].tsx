@@ -11,23 +11,30 @@ import { DisclaimerFooter } from '../../src/components/disclaimer-footer';
 import { FactorRow, ScoreBadge } from '../../src/components/score';
 import { Button, Card, EmptyState, Eyebrow, Muted, Note, Tag } from '../../src/components/ui';
 import { useLocalData } from '../../src/hooks/use-local-data';
+import { aiUseResultLines } from '../../src/lib/ai-use';
 import { EMERGENCY_NOTE, SAFETY_DISCLAIMER } from '../../src/lib/disclaimers';
+import { sharePdf } from '../../src/lib/print-report';
+import { vetSummaryHtml, walkReportHtml } from '../../src/lib/report-html';
+import { recentWalks, walksForPet } from '../../src/lib/walks';
 import {
   FACTOR_LABELS,
   formatDateTime,
   formatDuration,
   formatMeasure,
+  formatPoseFrames,
   PIPELINE_LABELS,
   SIGNAL_LABELS,
 } from '../../src/lib/format';
 import type { Analysis, Pet } from '../../src/lib/types';
-import { colors, spacing } from '../../src/theme';
+import { spacing } from '../../src/theme';
+import { useColors } from '../../src/theme-context';
 
 function Measure({ label, value }: { label: string; value: string }) {
+  const colors = useColors();
   return (
-    <View style={styles.measure}>
-      <Text style={styles.measureLabel}>{label}</Text>
-      <Text style={styles.measureValue}>{value}</Text>
+    <View style={[styles.measure, { backgroundColor: colors.background }]}>
+      <Text style={[styles.measureLabel, { color: colors.muted }]}>{label}</Text>
+      <Text style={[styles.measureValue, { color: colors.text }]}>{value}</Text>
     </View>
   );
 }
@@ -50,6 +57,7 @@ function buildShareText(analysis: Analysis, pet?: Pet) {
 }
 
 export default function WalkDetailScreen() {
+  const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { pets, analyses, deleteAnalysis } = useLocalData();
   const router = useRouter();
@@ -69,6 +77,18 @@ export default function WalkDetailScreen() {
   }
 
   const measurements = analysis.measurements;
+  const walk = analysis;
+
+  async function savePdf() {
+    const outcome = await sharePdf(walkReportHtml(walk, pets), 'Walk report');
+    if (!outcome.ok) Alert.alert('Report not shared', outcome.message);
+  }
+
+  async function saveVetSummary() {
+    const rows = recentWalks(walksForPet(analyses, walk.petId));
+    const outcome = await sharePdf(vetSummaryHtml(rows, pets), 'Veterinarian summary');
+    if (!outcome.ok) Alert.alert('Summary not shared', outcome.message);
+  }
 
   function confirmDelete() {
     Alert.alert('Delete this walk?', 'The saved measurements and notes will be removed from this phone.', [
@@ -91,7 +111,7 @@ export default function WalkDetailScreen() {
           <ScoreBadge score={analysis.overallScore} />
           <View style={{ flex: 1, gap: 6 }}>
             <Eyebrow>Overall wellness indicator</Eyebrow>
-            <Text style={styles.petName}>{pet?.name ?? 'Pet'}</Text>
+            <Text style={[styles.petName, { color: colors.text }]}>{pet?.name ?? 'Pet'}</Text>
             <Muted>
               {formatDateTime(analysis.createdAt)} · {formatDuration(analysis.durationSeconds)}
             </Muted>
@@ -103,7 +123,28 @@ export default function WalkDetailScreen() {
           {analysis.usedLlm && <Tag tone="accent">Model-written summary</Tag>}
         </View>
         {analysis.signalNote ? <Muted>{analysis.signalNote}</Muted> : null}
+        {analysis.modelInfo ? (
+          <Muted>
+            Measured on the server with {analysis.modelInfo.modelName}, version {analysis.modelInfo.modelVersion}.
+          </Muted>
+        ) : null}
+        {aiUseResultLines(analysis.aiUse).map((line) => (
+          <Muted key={line}>{line}</Muted>
+        ))}
       </Card>
+
+      {analysis.lowConfidence && (
+        <Note tone="warn" title="Low confidence — try a clearer clip">
+          The pose model could not see the body clearly enough to measure the legs. Film from the side with the whole
+          body in frame. Values that were not measured are shown as “Not measured”, not as zero.
+        </Note>
+      )}
+
+      {analysis.qualityNotes && analysis.qualityNotes.length > 0 && (
+        <Note tone="info" title="Before the next clip">
+          {analysis.qualityNotes.join(' ')}
+        </Note>
+      )}
 
       {analysis.concerningChange && (
         <Note tone="warn" title="Worth asking a veterinarian">
@@ -114,7 +155,7 @@ export default function WalkDetailScreen() {
 
       <Card>
         <Eyebrow>What we noticed</Eyebrow>
-        <Text style={styles.observation}>{analysis.observation}</Text>
+        <Text style={[styles.observation, { color: colors.text }]}>{analysis.observation}</Text>
       </Card>
 
       <Card>
@@ -148,13 +189,14 @@ export default function WalkDetailScreen() {
           <Measure label="Left ankle motion" value={formatMeasure(measurements.leftAnkleMotion)} />
           <Measure label="Right ankle motion" value={formatMeasure(measurements.rightAnkleMotion)} />
           <Measure label="Keypoint confidence" value={formatMeasure(measurements.meanKeypointConfidence)} />
+          <Measure label="Confident frames" value={formatPoseFrames(analysis.framesUsed, analysis.framesTotal)} />
           <Measure label="Symmetry reliable" value={measurements.symmetryReliable ? 'Yes' : 'No'} />
         </View>
       </Card>
 
       <Card>
         <Eyebrow>Limitations</Eyebrow>
-        <Text style={styles.body}>{analysis.limitations}</Text>
+        <Text style={[styles.body, { color: colors.text }]}>{analysis.limitations}</Text>
       </Card>
 
       <View style={styles.actions}>
@@ -165,8 +207,10 @@ export default function WalkDetailScreen() {
           onPress={() => void Share.share({ message: buildShareText(analysis, pet) })}
           style={{ flex: 1 }}
         />
+        <Button label="PDF report" icon="document-outline" variant="secondary" onPress={() => void savePdf()} style={{ flex: 1 }} />
         <Button label="Delete" icon="trash-outline" variant="danger" onPress={confirmDelete} />
       </View>
+      <Button label="Vet summary of recent walks" variant="secondary" onPress={() => void saveVetSummary()} />
 
       <DisclaimerFooter />
     </ScrollView>
@@ -176,19 +220,18 @@ export default function WalkDetailScreen() {
 const styles = StyleSheet.create({
   page: { padding: spacing.lg, gap: spacing.lg },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  petName: { fontSize: 22, fontWeight: '700', color: colors.text },
+  petName: { fontSize: 22, fontWeight: '700' },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
-  observation: { fontSize: 16, lineHeight: 24, color: colors.text },
-  body: { fontSize: 14, lineHeight: 21, color: colors.text },
+  observation: { fontSize: 16, lineHeight: 24 },
+  body: { fontSize: 14, lineHeight: 21 },
   measureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
   measure: {
     width: '48%',
-    backgroundColor: colors.background,
     borderRadius: 10,
     padding: spacing.md,
     gap: 2,
   },
-  measureLabel: { fontSize: 11, color: colors.muted, fontWeight: '600' },
-  measureValue: { fontSize: 15, color: colors.text, fontWeight: '700' },
+  measureLabel: { fontSize: 11, fontWeight: '600' },
+  measureValue: { fontSize: 15, fontWeight: '700' },
   actions: { flexDirection: 'row', gap: spacing.sm },
 });

@@ -50,6 +50,20 @@ export type Analysis = {
   weightsUsed?: AnalysisWeights;
   concerningChange?: boolean;
   usedLlm?: boolean;
+  modelInfo?: {
+    pipeline: string;
+    modelName: string;
+    modelVersion: string;
+    runsOn: 'server';
+  };
+  /** Mean pose confidence from 0 to 1. Null means pose was not run, not zero. */
+  modelConfidence?: number | null;
+  framesUsed?: number | null;
+  framesTotal?: number | null;
+  lowConfidence?: boolean;
+  qualityNotes?: string[];
+  /** Registry ids for the steps that produced this walk. */
+  aiUse?: string[];
 };
 
 /** The fields the app supplies itself, alongside the analysis result. */
@@ -131,6 +145,13 @@ export function toAnalysisRecord(
     limitations: result.limitations,
     concerningChange: result.concerningChange,
     usedLlm: result.usedLlm,
+    modelInfo: result.modelInfo,
+    modelConfidence: result.modelConfidence,
+    framesUsed: result.framesUsed,
+    framesTotal: result.framesTotal,
+    lowConfidence: result.lowConfidence,
+    qualityNotes: result.qualityNotes,
+    aiUse: result.aiUse,
     source: details.source?.trim() || undefined,
     license: details.license?.trim() || undefined,
     sourceUrl: details.sourceUrl?.trim() || undefined,

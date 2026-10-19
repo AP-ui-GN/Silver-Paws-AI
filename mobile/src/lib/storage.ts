@@ -84,6 +84,13 @@ export function toAnalysisRecord(result: AnalyzeResult, details: ClipDetails): A
     limitations: result.limitations,
     concerningChange: result.concerningChange,
     usedLlm: result.usedLlm,
+    modelInfo: result.modelInfo,
+    modelConfidence: result.modelConfidence,
+    framesUsed: result.framesUsed,
+    framesTotal: result.framesTotal,
+    lowConfidence: result.lowConfidence,
+    qualityNotes: result.qualityNotes,
+    aiUse: result.aiUse,
   };
 }
 
