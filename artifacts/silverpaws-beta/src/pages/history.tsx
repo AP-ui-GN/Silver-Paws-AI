@@ -6,6 +6,7 @@ import { SAFETY_DISCLAIMER } from '@/lib/disclaimers';
 import { aiUseResultLines } from '@/lib/ai-use';
 import { formatDate, formatDuration, formatPoseFrames, formatRelative } from '@/lib/format';
 import { downloadAnalysisReport } from '@/lib/report';
+import { downloadTelemetryCsv, downloadTelemetryJson } from '@/lib/telemetry-export';
 import { TrendPanel } from '@/components/trend-panel';
 import { SAMPLE_DATA_LABEL } from '@/lib/sample-analysis';
 
@@ -253,16 +254,73 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
   const score = displayScore(analysis);
   const factors = analysis.factors;
   const measurements = analysis.measurements;
+  const [telemetryMenuOpen, setTelemetryMenuOpen] = useState(false);
 
   return <div className="page-frame max-w-5xl">
     <Link href="/history" className="btn-quiet -ml-3" data-testid="link-back-history"><ArrowLeft size={15} /> All observations</Link>
     <div className="flex flex-wrap items-end justify-between gap-5 mt-6 stagger">
       <div><div className="eyebrow">{analysis.demo ? 'Demo result' : `Saved observation · ${formatDate(analysis.createdAt)}`}</div><h1 className="display-title text-5xl mt-3">A closer look at<br /><span className="accent-label">{analysis.demo ? 'the sample pet' : pet?.name ?? 'your pet'}’s walk.</span></h1></div>
        <div className="flex flex-wrap gap-2">
-         {!analysis.demo && <button type="button" className="btn-secondary" onClick={() => downloadAnalysisReport(analysis, pet)} data-testid={`button-download-report-${analysis.id}`}><Download size={15} /> Download report</button>}
          {!analysis.demo && <button className="btn-quiet" onClick={() => { if (window.confirm('Remove this saved observation from this device?')) onDelete(); }} data-testid={`button-delete-analysis-${analysis.id}`}><Trash2 size={15} /> Remove</button>}
        </div>
     </div>
+
+    {!analysis.demo && (
+      <section className="panel panel-padded mt-5" aria-label="Export Options">
+        <div className="eyebrow">Export Options</div>
+        <div className="flex flex-wrap items-start gap-3 mt-3">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => downloadAnalysisReport(analysis, pet)}
+            data-testid={`button-download-report-${analysis.id}`}
+          >
+            <Download size={15} /> Download Clinical PDF Report
+          </button>
+          <div className="relative">
+            <button
+              type="button"
+              className="btn-secondary"
+              aria-expanded={telemetryMenuOpen}
+              aria-controls={`telemetry-export-options-${analysis.id}`}
+              onClick={() => setTelemetryMenuOpen((open) => !open)}
+              data-testid={`button-export-telemetry-${analysis.id}`}
+            >
+              <Download size={15} /> Export Raw Telemetry (CSV / JSON)
+            </button>
+            {telemetryMenuOpen && (
+              <div
+                className="panel panel-padded absolute left-0 top-full z-10 mt-2 flex min-w-full flex-col gap-2"
+                id={`telemetry-export-options-${analysis.id}`}
+              >
+                <button
+                  type="button"
+                  className="btn-quiet justify-start"
+                  onClick={() => {
+                    downloadTelemetryCsv(analysis);
+                    setTelemetryMenuOpen(false);
+                  }}
+                  data-testid={`button-download-telemetry-csv-${analysis.id}`}
+                >
+                  Download CSV
+                </button>
+                <button
+                  type="button"
+                  className="btn-quiet justify-start"
+                  onClick={() => {
+                    downloadTelemetryJson(analysis, pet);
+                    setTelemetryMenuOpen(false);
+                  }}
+                  data-testid={`button-download-telemetry-json-${analysis.id}`}
+                >
+                  Download JSON
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    )}
 
     {analysis.demo && (
       <div className="soft-note p-4 mt-5" role="note" data-testid="text-sample-data-badge">
