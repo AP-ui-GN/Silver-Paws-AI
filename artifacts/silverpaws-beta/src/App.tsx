@@ -1,5 +1,6 @@
 import { type ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppShell } from '@/components/app-shell';
@@ -24,26 +25,31 @@ function Router() {
   const data = useLocalData();
   const [, setLocation] = useLocation();
   const [demoAnalysis, setDemoAnalysis] = useState<Analysis | null>(null);
-  const openDemoAnalysis = (analysis: Analysis) => {
+  const [demoTourActive, setDemoTourActive] = useState(false);
+  const openDemoAnalysis = (analysis: Analysis, continueTour: boolean) => {
     setDemoAnalysis(analysis);
+    setDemoTourActive(continueTour);
     setLocation(`/history/${analysis.id}`);
   };
   return (
-    <AppShell>
-      <RoutedErrorBoundary>
-        <Switch>
-          <Route path="/" component={() => <Home pets={data.pets} analyses={data.analyses} />} />
-          <Route path="/analyze" component={() => <Analyze pets={data.pets} analyses={data.analyses} addAnalysis={data.addAnalysis} openDemoAnalysis={openDemoAnalysis} />} />
-          <Route path="/history" component={() => <History pets={data.pets} analyses={data.analyses} deleteAnalysis={data.deleteAnalysis} demoAnalysis={demoAnalysis} />} />
-          <Route path="/history/:id" component={() => <History pets={data.pets} analyses={data.analyses} deleteAnalysis={data.deleteAnalysis} demoAnalysis={demoAnalysis} />} />
-          <Route path="/ai-use" component={AiUsePage} />
-          <Route path="/pet">
-            <PetProfile pets={data.pets} addPet={data.addPet} updatePet={data.updatePet} />
-          </Route>
-          <Route component={NotFound} />
-        </Switch>
-      </RoutedErrorBoundary>
-    </AppShell>
+    <>
+      <AppShell>
+        <RoutedErrorBoundary>
+          <Switch>
+            <Route path="/" component={() => <Home pets={data.pets} analyses={data.analyses} />} />
+            <Route path="/analyze" component={() => <Analyze pets={data.pets} analyses={data.analyses} addAnalysis={data.addAnalysis} openDemoAnalysis={openDemoAnalysis} />} />
+            <Route path="/history" component={() => <History pets={data.pets} analyses={data.analyses} deleteAnalysis={data.deleteAnalysis} demoAnalysis={demoAnalysis} demoTourActive={demoTourActive} onDemoTourComplete={() => setDemoTourActive(false)} />} />
+            <Route path="/history/:id" component={() => <History pets={data.pets} analyses={data.analyses} deleteAnalysis={data.deleteAnalysis} demoAnalysis={demoAnalysis} demoTourActive={demoTourActive} onDemoTourComplete={() => setDemoTourActive(false)} />} />
+            <Route path="/ai-use" component={AiUsePage} />
+            <Route path="/pet">
+              <PetProfile pets={data.pets} addPet={data.addPet} updatePet={data.updatePet} />
+            </Route>
+            <Route component={NotFound} />
+          </Switch>
+        </RoutedErrorBoundary>
+      </AppShell>
+      <Toaster position="top-center" theme="dark" richColors />
+    </>
   );
 }
 

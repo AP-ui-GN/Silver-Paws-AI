@@ -79,7 +79,7 @@ export default function SettingsScreen() {
     }
     Alert.alert(
       'Weekly walk check',
-      'SilverPaws can remind you on Sunday at 10:00 to film a short walk. This is not a medical alert. The phone will ask for notification permission next.',
+      'PetLens can remind you on Sunday at 10:00 to film a short walk. This is not a medical alert. The phone will ask for notification permission next.',
       [
         { text: 'Not now', style: 'cancel' },
         {
@@ -119,7 +119,7 @@ export default function SettingsScreen() {
   function sendFeedback() {
     const version = Constants.expoConfig?.version ?? 'unknown';
     void Share.share({
-      message: `SilverPaws AI feedback\nApp version: ${version}\nDevice: ${Platform.OS} ${String(Platform.Version)}\n\n`,
+      message: `PetLens AI feedback\nApp version: ${version}\nDevice: ${Platform.OS} ${String(Platform.Version)}\n\n`,
     });
   }
 
@@ -197,7 +197,7 @@ export default function SettingsScreen() {
         {preferences.advancedApi && (
           <>
         <Muted>
-          Clips are analyzed by the SilverPaws API running on a laptop on the same Wi-Fi network.{' '}
+          Clips are analyzed by the PetLens API running on a laptop on the same Wi-Fi network.{' '}
           {guess ? `Detected from the Expo dev server: ${guess}.` : 'No dev server address detected; enter the address by hand.'}
         </Muted>
         <TextInput
@@ -251,7 +251,7 @@ export default function SettingsScreen() {
         <Text style={[styles.body, { color: colors.text }]}>{SAFETY_DISCLAIMER}</Text>
         <Text style={[styles.body, { color: colors.text }]}>{EMERGENCY_NOTE}</Text>
         <Muted>
-          SilverPaws AI mobile beta {Constants.expoConfig?.version ?? ''} · built for the Congressional App Challenge by Abhi, Sudarshan, and Kavin.
+          PetLens AI mobile beta {Constants.expoConfig?.version ?? ''} · built for the Congressional App Challenge by Abhi, Sudarshan, and Kavin.
         </Muted>
       </Card>
     </ScrollView>

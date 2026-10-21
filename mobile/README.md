@@ -1,6 +1,6 @@
-# SilverPaws AI — mobile app (Expo Go)
+# PetLens AI — mobile app (Expo Go)
 
-The phone version of SilverPaws. Same pet profiles, same walk analysis, same
+The phone version of PetLens. Same pet profiles, same walk analysis, same
 history view as the web beta, running in **Expo Go** so testers can try it
 without an app-store build.
 

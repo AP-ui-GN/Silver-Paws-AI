@@ -45,7 +45,7 @@ export const sampleWalk: Analysis = {
   observation:
     'This is sample data, not a measurement of your pet. The figures on this screen show how a saved note is laid out. They did not come from a video.',
   limitations:
-    'SilverPaws AI does not diagnose medical conditions, replace a veterinarian, or handle emergencies. Sample data is not a wellness note about a real animal.',
+    'PetLens AI does not diagnose medical conditions, replace a veterinarian, or handle emergencies. Sample data is not a wellness note about a real animal.',
   concerningChange: false,
   usedLlm: false,
   modelInfo: {

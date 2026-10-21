@@ -1,5 +1,5 @@
 {
-  "summary": "SilverPaws can use one pose-detection model, MoveNet Thunder, to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers.",
+  "summary": "PetLens can use one pose-detection model, MoveNet Thunder, to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers.",
   "entries": [
     {
       "id": "pose-model",

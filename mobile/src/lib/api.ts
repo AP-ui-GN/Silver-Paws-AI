@@ -1,5 +1,5 @@
 /**
- * Talks to the SilverPaws analysis API (artifacts/api-server).
+ * Talks to the PetLens analysis API (artifacts/api-server).
  *
  * Three jobs live here: work out where the API is, check a clip before it is
  * uploaded, and turn any failure into a sentence a pet owner can act on.
@@ -114,7 +114,7 @@ export async function checkHealth(baseUrl: string, timeoutMs = 5000): Promise<He
     }
     const body = (await response.json()) as { status?: unknown };
     if (body.status !== 'ok') {
-      return { ok: false, message: 'Something answered, but it does not look like the SilverPaws API.' };
+      return { ok: false, message: 'Something answered, but it does not look like the PetLens API.' };
     }
     return { ok: true };
   } catch (error) {

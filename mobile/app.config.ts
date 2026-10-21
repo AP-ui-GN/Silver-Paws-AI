@@ -13,7 +13,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: config.name ?? 'SilverPaws AI',
+    name: config.name ?? 'PetLens AI',
     slug: config.slug ?? 'silverpaws-ai',
     runtimeVersion: { policy: 'appVersion' },
     ios: {

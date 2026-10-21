@@ -1,5 +1,5 @@
 import { execFile, spawn } from 'node:child_process';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -205,7 +205,7 @@ function assertReport(pdfBytes, expected) {
   assert(searchablePdf.indexOf('Sources and licensing') > interpretationIndex, 'report is missing sources after Interpretation');
   assert(searchablePdf.includes(expected.source), `report is missing source text: ${expected.source}`);
   assert(searchablePdf.includes(expected.license), `report is missing license text: ${expected.license}`);
-  assert(searchablePdf.includes('SilverPaws AI is experimental educational software'), 'report is missing experimental language');
+  assert(searchablePdf.includes('PetLens AI is experimental educational software'), 'report is missing experimental language');
   assert(searchablePdf.includes('not a medical diagnosis'), 'report is missing no-diagnosis language');
   assert(searchablePdf.includes('cannot rule out'), 'report is missing cautious limitation language');
   assert(searchablePdf.includes('pain'), 'report is missing pain caution language');
@@ -221,6 +221,21 @@ function assertReport(pdfBytes, expected) {
   for (const fallback of expected.fallbacks ?? []) {
     assert(searchablePdf.includes(fallback), `report is missing fallback text: ${fallback}`);
   }
+}
+
+async function assertReportPreview(cdp, expected) {
+  await waitFor(cdp, 'Boolean(document.querySelector(".vet-report-print-root"))');
+  const previewText = await evaluate(cdp, 'document.querySelector(".vet-report-print-root").innerText');
+  for (const text of expected.text) {
+    assert(previewText.includes(text), `report preview is missing text: ${text}`);
+  }
+  assert(await evaluate(cdp, 'document.querySelectorAll(".vet-report-page").length') === 2, 'report preview does not contain two pages');
+
+  const { data } = await cdp.send('Page.printToPDF', { printBackground: true });
+  const pdf = Buffer.from(data, 'base64');
+  const pageCount = pdf.toString('latin1').match(/\/Type \/Page\b/g)?.length ?? 0;
+  assert(pdf.subarray(0, 5).toString() === '%PDF-', 'print preview did not produce a PDF');
+  assert(pageCount === 2, `print preview produced ${pageCount} pages instead of two`);
 }
 
 async function run() {
@@ -260,13 +275,23 @@ async function run() {
       behavior: 'allow',
       downloadPath: downloadDirectory,
     });
-
     const origin = appOrigin.replace('4173', String(serverPort));
     const savedAnalyses = [completeAnalysis, missingOptionalAnalysis];
     await cdp.send('Page.navigate', { url: `${origin}/history/${completeAnalysis.id}` });
     await waitFor(cdp, `location.pathname.endsWith('/history/${completeAnalysis.id}')`);
     await evaluate(cdp, `localStorage.setItem('silverpaws:pets', ${JSON.stringify(JSON.stringify([pet]))}); localStorage.setItem('silverpaws:analyses', ${JSON.stringify(JSON.stringify(savedAnalyses))}); location.reload();`);
     await waitFor(cdp, `Boolean(document.querySelector('[data-testid="button-download-report-${completeAnalysis.id}"]'))`);
+
+    await evaluate(cdp, `document.querySelector('[data-testid="button-vet-summary-report-${completeAnalysis.id}"]').click()`);
+    await assertReportPreview(cdp, {
+      text: [
+        'SILVER PAWS AI — Clinical Gait & Mobility Telemetry Summary',
+        completeAnalysis.fileName,
+        completeAnalysis.observation,
+        'Clinical notice for veterinary professionals.',
+      ],
+    });
+    await evaluate(cdp, `document.querySelector('[aria-label="Close report preview"]').click()`);
 
     let filesBefore = new Set(await readdir(downloadDirectory));
     await evaluate(cdp, `document.querySelector('[data-testid="button-download-report-${completeAnalysis.id}"]').click()`);
@@ -302,19 +327,30 @@ async function run() {
     await cdp.send('Page.navigate', { url: `${origin}/history/${missingOptionalAnalysis.id}` });
     await waitFor(cdp, `location.pathname.endsWith('/history/${missingOptionalAnalysis.id}')`);
     await waitFor(cdp, `Boolean(document.querySelector('[data-testid="button-download-report-${missingOptionalAnalysis.id}"]'))`);
+    await evaluate(cdp, `document.querySelector('[data-testid="button-vet-summary-report-${missingOptionalAnalysis.id}"]').click()`);
+    await assertReportPreview(cdp, {
+      text: [
+        'SILVER PAWS AI — Clinical Gait & Mobility Telemetry Summary',
+        missingOptionalAnalysis.fileName,
+        'No plain-language interpretation was saved for this observation.',
+        'Not measured',
+      ],
+    });
+    await evaluate(cdp, `document.querySelector('[aria-label="Close report preview"]').click()`);
+
     filesBefore = new Set(await readdir(downloadDirectory));
     await evaluate(cdp, `document.querySelector('[data-testid="button-download-report-${missingOptionalAnalysis.id}"]').click()`);
     reportPath = await waitForDownload(downloadDirectory, filesBefore);
     assertReport(await readFile(reportPath), {
-      source: 'User-provided local video (not uploaded by SilverPaws AI)',
+      source: 'User-provided local video (not uploaded by PetLens AI)',
       license: 'Not provided; confirm sharing rights before publishing this media',
       fallbacks: [
-        'User-provided local video (not uploaded by SilverPaws AI)',
+        'User-provided local video (not uploaded by PetLens AI)',
         'Not provided; confirm sharing rights before publishing this media',
       ],
     });
 
-    console.log('Report download browser test passed for complete and fallback metadata.');
+    console.log('Report preview, PDF download, and telemetry browser tests passed.');
   } finally {
     cdp?.close();
     await Promise.all([stopProcess(browser), stopProcess(server)]);

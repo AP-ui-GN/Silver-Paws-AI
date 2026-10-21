@@ -49,20 +49,20 @@ export function walkReportHtml(analysis: Analysis, pets: Pet[]): string {
 <head>
 <meta charset="utf-8" />
 <style>
-  body { font-family: -apple-system, sans-serif; color: #1c1916; padding: 28px; font-size: 14px; line-height: 1.4; }
+  body { font-family: -apple-system, sans-serif; color: #0a4267; padding: 28px; font-size: 14px; line-height: 1.4; }
   h1 { font-size: 22px; margin-bottom: 4px; }
   h2 { font-size: 16px; margin-top: 22px; }
-  .muted { color: #5c534c; }
-  .banner { background: #f4e3dc; padding: 10px 12px; border-radius: 8px; }
+  .muted { color: #46606a; }
+  .banner { background: #e8f7f5; border: 1px solid #3794a4; padding: 10px 12px; border-radius: 8px; }
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: left; padding: 4px 8px 4px 0; vertical-align: top; }
   th { width: 46%; font-weight: 600; }
-  footer { margin-top: 28px; font-size: 12px; color: #5c534c; }
+  footer { margin-top: 28px; font-size: 12px; color: #46606a; }
 </style>
 </head>
 <body>
   ${sample ? `<p class="banner"><strong>Sample data — not your pet.</strong> These figures were not measured from a clip.</p>` : ''}
-  <h1>SilverPaws AI walk note</h1>
+  <h1>PETLENS AI — Clinical Gait Telemetry Summary</h1>
   <p class="muted">${escapeHtml(name)} · ${escapeHtml(formatDateTime(analysis.createdAt))}</p>
   ${concerning}
   <h2>Raw measurements</h2>
@@ -122,15 +122,15 @@ export function vetSummaryHtml(walks: Analysis[], pets: Pet[]): string {
 <head>
 <meta charset="utf-8" />
 <style>
-  body { font-family: -apple-system, sans-serif; color: #1c1916; padding: 28px; font-size: 14px; line-height: 1.4; }
+  body { font-family: -apple-system, sans-serif; color: #0a4267; padding: 28px; font-size: 14px; line-height: 1.4; }
   h1 { font-size: 22px; }
   h2 { font-size: 16px; margin-top: 18px; }
-  .muted { color: #5c534c; }
-  footer { margin-top: 28px; font-size: 12px; color: #5c534c; }
+  .muted { color: #46606a; }
+  footer { margin-top: 28px; font-size: 12px; color: #46606a; }
 </style>
 </head>
 <body>
-  <h1>SilverPaws AI summary for a veterinarian</h1>
+  <h1>PETLENS AI — Clinical Gait Telemetry Summary</h1>
   <p class="muted">Recent saved walks. Walks measured in different ways are listed separately and are not averaged together. This is not a diagnosis.</p>
   ${empty}
   ${sections}

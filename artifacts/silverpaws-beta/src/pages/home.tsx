@@ -1,5 +1,6 @@
 import { ArrowRight, CalendarDays, ChevronRight, CircleHelp, FileVideo, HeartHandshake, PawPrint, Sparkles } from 'lucide-react';
 import { Link } from 'wouter';
+import MobilityTrendTracker from '@/components/MobilityTrendTracker';
 import { displayScore, type Analysis, type Pet } from '@/lib/storage';
 import { formatRelative } from '@/lib/format';
 
@@ -29,8 +30,8 @@ export default function Home({ pets, analyses }: Props) {
     <div className="page-frame">
       <div className="flex flex-wrap justify-between gap-5 items-end stagger">
         <div>
-          <div className="eyebrow">A quiet read on movement</div>
-          <h1 className="display-title text-5xl md:text-6xl mt-3">Good morning,<br /><span className="accent-label">{pet.name}.</span></h1>
+          <div className="eyebrow font-sans text-[11px] font-bold uppercase tracking-wider text-slate-400/90">A quiet read on movement</div>
+          <h1 className="display-title text-4xl sm:text-5xl mt-3">Good morning,<br /><span className="accent-label">{pet.name}.</span></h1>
           <p className="body-muted mt-4 max-w-md leading-relaxed">One short walk can become a useful note to bring into a bigger conversation.</p>
         </div>
         <Link href="/analyze" className="btn-primary mb-1" data-testid="link-start-analysis"><Sparkles size={16} /> Start an analysis</Link>
@@ -38,47 +39,49 @@ export default function Home({ pets, analyses }: Props) {
 
       <section className="grid md:grid-cols-[1.1fr_.9fr] gap-5 mt-10 stagger-2">
         <div className="panel panel-padded relative overflow-hidden">
-          <div className="absolute -right-4 -top-8 text-[170px] leading-none opacity-10" style={{ color: '#174946' }}>◒</div>
+          <div className="absolute -right-4 -top-8 text-[170px] leading-none opacity-10" style={{ color: '#3794a4' }}>◒</div>
           <div className="relative">
             <div className="flex items-center gap-4">
               <div className="pet-orb">{pet.name.slice(0, 2).toUpperCase()}</div>
               <div>
-                <div className="eyebrow">Selected companion</div>
-                <h2 className="display-title text-3xl mt-1">{pet.name}</h2>
-                <p className="body-muted text-sm mt-1">{pet.breed || pet.species}{pet.age ? ` · ${pet.age} years` : ''}</p>
+                <div className="eyebrow font-sans text-[11px] font-bold uppercase tracking-wider text-slate-400/90">Selected companion</div>
+                <h2 className="font-sans font-bold text-xl text-white tracking-normal leading-snug mt-1">{pet.name}</h2>
+                <p className="body-muted text-sm mt-1">{pet.species}{pet.age ? ` · ${pet.age} years` : ''}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-8 max-w-sm">
-              <div><div className="body-muted mono text-[10px] uppercase tracking-wider">Last read</div><div className="font-semibold text-sm mt-1">{latest ? formatRelative(latest.createdAt) : 'Not yet'}</div></div>
-              <div><div className="body-muted mono text-[10px] uppercase tracking-wider">On device</div><div className="font-semibold text-sm mt-1">{analyses.length} observation{analyses.length === 1 ? '' : 's'}</div></div>
+              <div><div className="body-muted text-xs font-bold uppercase tracking-wider">Last read</div><div className="font-semibold text-sm mt-1">{latest ? formatRelative(latest.createdAt) : 'Not yet'}</div></div>
+              <div><div className="body-muted text-xs font-bold uppercase tracking-wider">On device</div><div className="font-semibold text-sm mt-1"><span className="font-mono">{analyses.length}</span> observation{analyses.length === 1 ? '' : 's'}</div></div>
             </div>
           </div>
         </div>
         <div className="panel panel-padded flex flex-col justify-between">
           <div className="flex justify-between gap-4">
-            <div><div className="eyebrow">Latest mobility note</div><h2 className="display-title text-3xl mt-2">{latest ? 'A steady picture' : 'Nothing to compare yet'}</h2></div>
-            <HeartHandshake size={25} style={{ color: '#b9684d' }} />
+            <div><div className="eyebrow font-sans text-[11px] font-bold uppercase tracking-wider text-slate-400/90">Latest mobility note</div><h2 className="font-sans font-bold text-xl text-white tracking-normal leading-snug mt-2">{latest ? 'A steady picture' : 'Nothing to compare yet'}</h2></div>
+            <HeartHandshake size={25} style={{ color: '#3eb49c' }} />
           </div>
           {latest ? (
             <>
-              <p className="body-muted text-sm leading-relaxed mt-7">{latest.observation}</p>
+              <p className="body-muted text-sm leading-relaxed mt-3">{latest.observation}</p>
               {latestScore !== null && (
                 <div className="mt-7">
-                  <div className="flex justify-between items-center text-xs mb-2"><span className="font-semibold">Overall indicator</span><span className="mono">{latestScore}/100</span></div>
+                  <div className="flex justify-between items-center text-xs mb-2"><span className="font-semibold">Overall indicator</span><span className="font-mono">{latestScore}/100</span></div>
                   <div className="progress-track"><div className="progress-fill" style={{ width: `${latestScore}%` }} /></div>
                 </div>
               )}
               <Link href={`/history/${latest.id}`} className="btn-quiet self-start mt-5 -ml-3" data-testid={`link-view-latest-${latest.id}`}>Open observation <ArrowRight size={15} /></Link>
             </>
           ) : (
-            <div className="mt-8"><p className="body-muted text-sm leading-relaxed">Upload a walking video to create your first educational observation.</p><Link href="/analyze" className="btn-secondary mt-5" data-testid="link-upload-first">Upload a walk <ArrowRight size={15} /></Link></div>
+            <div className="mt-3"><p className="body-muted text-sm leading-relaxed">Upload a walking video to create your first educational observation.</p><Link href="/analyze" className="btn-primary mt-5" data-testid="link-upload-first">Upload a walk <ArrowRight size={15} /></Link></div>
           )}
         </div>
       </section>
 
+      <MobilityTrendTracker analyses={analyses} petId={pet.id} />
+
       <section className="grid lg:grid-cols-[1.2fr_.8fr] gap-5 mt-5 stagger-3">
         <div className="panel panel-padded">
-          <div className="flex items-center justify-between mb-2"><div><div className="eyebrow">Recent analyses</div><h2 className="display-title text-2xl mt-2">Your observation trail</h2></div><Link href="/history" className="btn-quiet" data-testid="link-see-all-history">See all <ChevronRight size={15} /></Link></div>
+          <div className="flex items-center justify-between mb-3"><div><div className="eyebrow font-sans text-[11px] font-bold uppercase tracking-wider text-slate-400/90">Recent analyses</div><h2 className="font-sans font-bold text-xl text-white tracking-normal leading-snug mt-2">Your observation trail</h2></div><Link href="/history" className="btn-quiet" data-testid="link-see-all-history">See all <ChevronRight size={15} /></Link></div>
           {recent.length ? recent.map((analysis) => (
             <Link href={`/history/${analysis.id}`} key={analysis.id} className="analysis-row no-underline" data-testid={`link-analysis-${analysis.id}`}>
               <div className="flex gap-3 items-center min-w-0"><div className="video-icon"><FileVideo size={16} /></div><div className="min-w-0"><div className="font-semibold text-sm truncate">{analysis.fileName}</div><div className="body-muted text-xs mt-1"><span className={`status-dot status-${analysis.status}`} />{formatRelative(analysis.createdAt)} · {analysis.status === 'complete' ? 'Observation ready' : 'Processing'}</div></div></div>
@@ -87,13 +90,13 @@ export default function Home({ pets, analyses }: Props) {
           )) : <div className="body-muted text-sm py-8 text-center">Your completed observations will collect here.</div>}
         </div>
         <div className="soft-note p-5">
-          <CircleHelp size={20} style={{ color: '#b9684d' }} />
-          <h2 className="font-bold mt-4">How to get a useful clip</h2>
+          <CircleHelp size={20} style={{ color: '#3794a4' }} />
+          <h2 className="font-sans font-bold text-xl text-white tracking-normal leading-snug mt-4">How to get a useful clip</h2>
           <ul className="body-muted text-sm leading-relaxed mt-3 space-y-2 list-disc pl-4"><li>Keep the camera low and level.</li><li>Capture a few steps from the side.</li><li>Let your pet move naturally.</li></ul>
           <div className="flex items-center gap-2 mt-5 text-xs font-semibold"><CalendarDays size={14} /> Repeat over time, not just once.</div>
         </div>
       </section>
-      <p className="body-muted text-[11px] mt-7 flex items-center gap-2"><CircleHelp size={13} /> SilverPaws AI is experimental and educational. It does not diagnose injury or illness.</p>
+      <p className="body-muted text-[11px] mt-7 flex items-center gap-2"><CircleHelp size={13} /> PetLens AI is experimental and educational. It does not diagnose injury or illness.</p>
     </div>
   );
 }

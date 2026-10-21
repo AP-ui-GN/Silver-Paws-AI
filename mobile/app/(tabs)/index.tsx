@@ -74,7 +74,7 @@ export default function HomeScreen() {
     <ScrollView contentContainerStyle={styles.page}>
       {ready && !preferences.consentAccepted && (
         <Note tone="info" title="Before the first analysis">
-          Three short notes explain what SilverPaws does and does not do. Analysis stays locked until you acknowledge that this is a wellness note, not a diagnosis.
+          Three short notes explain what PetLens does and does not do. Analysis stays locked until you acknowledge that this is a wellness note, not a diagnosis.
         </Note>
       )}
       {ready && !preferences.consentAccepted && <Button label="Read the notes" onPress={() => router.push('/onboarding')} />}
@@ -83,7 +83,7 @@ export default function HomeScreen() {
         <Eyebrow>Observational wellness notes</Eyebrow>
         <Title>{pets.length ? 'Your pets' : 'Welcome'}</Title>
         <Muted>
-          Record a short walk, and SilverPaws measures how steady and even the movement looked. It never diagnoses.
+          Record a short walk, and PetLens measures how steady and even the movement looked. It never diagnoses.
         </Muted>
       </View>
 

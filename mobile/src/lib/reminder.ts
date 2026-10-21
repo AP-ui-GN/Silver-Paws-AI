@@ -30,7 +30,7 @@ export async function enableWalkReminder(): Promise<{ ok: true } | { ok: false; 
     granted = asked.granted;
   }
   if (!granted) {
-    return { ok: false, message: 'Notifications are off for SilverPaws. You can allow them in the phone settings.' };
+    return { ok: false, message: 'Notifications are off for PetLens. You can allow them in the phone settings.' };
   }
 
   if (Platform.OS === 'android') {

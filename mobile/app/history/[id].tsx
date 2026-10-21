@@ -178,7 +178,7 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
 /** Plain-text version of the record for the share sheet. */
 function buildShareText(analysis: Analysis, pet?: Pet) {
   const lines = [
-    `SilverPaws AI observation for ${pet?.name ?? 'pet'} — ${formatDateTime(analysis.createdAt)}`,
+    `PetLens AI observation for ${pet?.name ?? 'pet'} — ${formatDateTime(analysis.createdAt)}`,
     `Overall wellness indicator: ${formatMeasure(analysis.overallScore, '/100', 0)}`,
     ...FACTOR_LABELS.map((factor) => `${factor.label}: ${formatMeasure(analysis.factors[factor.key], '/100', 0)}`),
     '',

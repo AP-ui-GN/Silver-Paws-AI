@@ -10,19 +10,19 @@ import { usePreferences } from './hooks/use-preferences';
 import { colors as lightColors, type ThemeColors } from './theme';
 
 export const darkColors: ThemeColors = {
-  background: '#1c1916',
-  card: '#2a2522',
-  border: '#3d362f',
-  text: '#f4efe8',
-  muted: '#c4b6a8',
-  accent: '#e08a72',
-  accentSoft: '#3a2a24',
-  good: '#8fd4aa',
-  warn: '#e0b15a',
+  background: '#04121d',
+  card: '#082d47',
+  border: '#124969',
+  text: '#f3fafc',
+  muted: '#a5bec9',
+  accent: '#3eb49c',
+  accentSoft: '#103d4f',
+  good: '#69d8bf',
+  warn: '#f1b65f',
   warnSoft: '#3a311c',
-  error: '#f0a090',
+  error: '#ff8b84',
   errorSoft: '#3a2420',
-  track: '#3d362f',
+  track: '#12364b',
 };
 
 const ThemeContext = createContext<ThemeColors>(lightColors);

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "SilverPaws AI",
+    "name": "PetLens AI",
     "slug": "silverpaws-ai",
     "scheme": "silverpaws",
     "version": "0.1.0",
@@ -11,14 +11,14 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.silverpaws.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "SilverPaws uses the camera to record a short side-on walking clip. Only the picture is measured. This app does not record or analyze sound.",
-        "NSPhotoLibraryUsageDescription": "SilverPaws opens your video library so you can choose a walking clip to measure. The chosen clip is sent to the analysis server and then deleted. Other photos and videos stay on this phone."
+        "NSCameraUsageDescription": "PetLens uses the camera to record a short side-on walking clip. Only the picture is measured. This app does not record or analyze sound.",
+        "NSPhotoLibraryUsageDescription": "PetLens opens your video library so you can choose a walking clip to measure. The chosen clip is sent to the analysis server and then deleted. Other photos and videos stay on this phone."
       }
     },
     "android": {
       "package": "com.silverpaws.app",
       "adaptiveIcon": {
-        "backgroundColor": "#f7f2eb",
+        "backgroundColor": "#061826",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -33,8 +33,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "SilverPaws opens your video library so you can choose a walking clip to measure. The chosen clip is sent to the analysis server and then deleted. Other photos and videos stay on this phone.",
-          "cameraPermission": "SilverPaws uses the camera to record a short side-on walking clip. Only the picture is measured. This app does not record or analyze sound.",
+          "photosPermission": "PetLens opens your video library so you can choose a walking clip to measure. The chosen clip is sent to the analysis server and then deleted. Other photos and videos stay on this phone.",
+          "cameraPermission": "PetLens uses the camera to record a short side-on walking clip. Only the picture is measured. This app does not record or analyze sound.",
           "microphonePermission": false
         }
       ],
@@ -42,7 +42,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#f7f2eb",
+          "backgroundColor": "#061826",
           "image": "./assets/splash-icon.png",
           "resizeMode": "contain",
           "imageWidth": 200
@@ -51,7 +51,7 @@
       [
         "expo-notifications",
         {
-          "color": "#b9684d"
+          "color": "#3eb49c"
         }
       ]
     ],

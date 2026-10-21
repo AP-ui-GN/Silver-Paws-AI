@@ -14,14 +14,14 @@ import { useColors } from '../src/theme-context';
 
 const STEPS = [
   {
-    eyebrow: 'What SilverPaws does',
+    eyebrow: 'What PetLens does',
     title: 'A note about a walk',
     body: 'You save a pet, film a short walk, and the app stores measured movement values with a plain-language note you can compare later.',
   },
   {
     eyebrow: 'What it does not do',
     title: 'Not a diagnosis',
-    body: 'SilverPaws does not detect pain, injury, or disease, and it is not for emergencies. A concerning change points you to a veterinarian.',
+    body: 'PetLens does not detect pain, injury, or disease, and it is not for emergencies. A concerning change points you to a veterinarian.',
   },
   {
     eyebrow: 'How to film',
