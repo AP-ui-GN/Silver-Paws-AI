@@ -18,7 +18,7 @@ export interface AnalyzeError {
 }
 
 /**
- * Mean normalized location for one MoveNet keypoint.
+ * Mean normalized location for one quadruped keypoint.
  */
 export interface PoseKeypointSummary {
   name: string;
@@ -43,7 +43,7 @@ export interface PoseKeypointSummary {
  * Raw measurements from the clip. These describe what was measured and carry no interpretation.
  */
 export interface AnalysisMeasurements {
-  /** Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left, after correcting MoveNet's letterboxing. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters. */
+  /** Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left. QuadPose maps its crop back onto the source frame before these means are taken. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters. */
   poseKeypoints?: PoseKeypointSummary[] | null;
   frameCount: number;
   durationSeconds: number;
@@ -74,7 +74,7 @@ export type ModelInfoPipeline = typeof ModelInfoPipeline[keyof typeof ModelInfoP
 
 
 export const ModelInfoPipeline = {
-  movenet: 'movenet',
+  quadpose: 'quadpose',
   'opencv-motion': 'opencv-motion',
 } as const;
 
@@ -107,13 +107,13 @@ export interface AnalysisWeights {
 }
 
 /**
- * movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.
+ * quadpose when quadruped pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.
  */
 export type AnalyzeResultPipeline = typeof AnalyzeResultPipeline[keyof typeof AnalyzeResultPipeline];
 
 
 export const AnalyzeResultPipeline = {
-  movenet: 'movenet',
+  quadpose: 'quadpose',
   'opencv-motion': 'opencv-motion',
 } as const;
 
@@ -136,7 +136,7 @@ export type AnalyzeResultDiagnostics = { [key: string]: unknown };
 
 export interface AnalyzeResult {
   ok: boolean;
-  /** movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured. */
+  /** quadpose when quadruped pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured. */
   pipeline: AnalyzeResultPipeline;
   /** How much the measurements from this clip can be trusted. */
   signalQuality: AnalyzeResultSignalQuality;

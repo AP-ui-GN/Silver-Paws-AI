@@ -1,2 +1,2 @@
-- [Pet pose validation](movenet-validation.md) — MoveNet Thunder can run end to end, but human-pose confidence is unreliable for pet gait and must gate any score.
+- [Pet pose validation](movenet-validation.md) — The old note is the human MoveNet check. The analysis path is QuadPose F2, a quadruped model. Low confidence still leaves a limb unmeasured.
 - [Local report export](report-export.md) — Keep browser PDF exports dependency-free, separate measurements from interpretation, and preserve cautious metadata.

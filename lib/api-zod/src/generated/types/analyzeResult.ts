@@ -15,7 +15,7 @@ import type { ModelInfo } from './modelInfo';
 
 export interface AnalyzeResult {
   ok: boolean;
-  /** movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured. */
+  /** quadpose when quadruped pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured. */
   pipeline: AnalyzeResultPipeline;
   /** How much the measurements from this clip can be trusted. */
   signalQuality: AnalyzeResultSignalQuality;

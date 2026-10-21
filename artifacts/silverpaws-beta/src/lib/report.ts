@@ -74,6 +74,7 @@ const FACTOR_REPORT_LABELS: [keyof NonNullable<Analysis['factors']>, string][] =
 ];
 
 const PIPELINE_REPORT_LABELS: Record<string, string> = {
+  quadpose: 'Quadruped pose (QuadPose F2)',
   movenet: 'Pose landmarks (MoveNet)',
   'opencv-motion': 'Picture motion only',
 };

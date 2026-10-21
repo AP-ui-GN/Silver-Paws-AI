@@ -1,18 +1,18 @@
 {
-  "summary": "SilverPaws can use one pose-detection model, MoveNet Thunder, to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers.",
+  "summary": "SilverPaws can use one pose-detection model, QuadPose F2, to find quadruped body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers.",
   "entries": [
     {
       "id": "pose-model",
-      "whatItIs": "MoveNet Thunder, a machine-learning pose model published by Google on TensorFlow Hub as singlepose/thunder/4. It was trained on human bodies.",
-      "whatItDoes": "When TensorFlow is installed, the analysis server runs MoveNet on video frames. It returns 17 body keypoints, each with a position and a confidence. It does not run on the phone.",
-      "whatItDoesnt": "It outputs positions and confidences only. It does not name a condition, detect pain, or choose the wellness score.",
-      "codePath": "gait_engine/movenet.py",
-      "resultLine": "Movement measured with a pose-detection model (MoveNet)."
+      "whatItIs": "QuadPose F2, a quadruped pose model published by Sausage Labs in snapml-quadruped-pose (checkpoint quadpose_f2.onnx, Apache-2.0). The publisher states it was trained on AP-10K, an animal pose dataset whose authors describe 54 species, including dogs, with 17 body keypoints.",
+      "whatItDoes": "When onnxruntime is installed and the pinned checkpoint is cached, the analysis server runs QuadPose F2 on video frames. It returns 17 quadruped keypoints, each with a position and a confidence. Hind paws are the landmarks stored as left and right motion. Hip landmarks are stored as hip stability. Left and right stay separate. It does not run on the phone.",
+      "whatItDoesnt": "It does not diagnose pain, injury, or disease. It is not the human MoveNet model, and a dog clip is not measured with MoveNet. A missing landmark, or one below the confidence gate, is left unmeasured and is not stored as zero. It does not name a condition or choose the wellness score.",
+      "codePath": "gait_engine/quadpose.py",
+      "resultLine": "Movement measured with a quadruped pose model (QuadPose F2)."
     },
     {
       "id": "motion-fallback",
       "whatItIs": "Standard OpenCV frame-difference analysis. This is not a learned model.",
-      "whatItDoes": "The server compares consecutive frames and records how much the picture changed. This runs on every clip. When MoveNet is unavailable, it is the only movement measurement. When MoveNet runs, this measurement still supplies movement consistency and activity.",
+      "whatItDoes": "The server compares consecutive frames and records how much the picture changed. This runs on every clip. When QuadPose is unavailable, it is the only movement measurement. When QuadPose runs, this measurement still supplies movement consistency and activity.",
       "whatItDoesnt": "It does not find limbs or keypoints, and it is not an AI model.",
       "codePath": "gait_engine/motion.py",
       "resultLine": "Motion measured with standard video analysis (no AI model)."

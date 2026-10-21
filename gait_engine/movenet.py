@@ -1,5 +1,9 @@
 """MoveNet Thunder loading and video keypoint extraction.
 
+This is the human-pose loader used by scripts/validate_movenet.py. The clip
+analysis pipeline does not call it. A dog clip is measured with QuadPose F2
+in gait_engine/quadpose.py. Do not describe these weights as a dog model.
+
 This module intentionally has no FastAPI or database dependencies. Keeping
 inference here makes it possible to validate the model in Colab before the
 backend is introduced.
@@ -65,8 +69,9 @@ def load_movenet(model_url: str = DEFAULT_MODEL_URL) -> Any:
         import tensorflow_hub as hub
     except ImportError as exc:
         raise RuntimeError(
-            "MoveNet dependencies are missing. Install requirements.txt with "
-            "Python 3.10 or 3.11 before running validation."
+            "MoveNet dependencies are missing. This human-pose script is not the "
+            "analysis path. TensorFlow is not in requirements.txt. The server "
+            "runs QuadPose F2 from gait_engine/quadpose.py."
         ) from exc
 
     cache = cache_directory()

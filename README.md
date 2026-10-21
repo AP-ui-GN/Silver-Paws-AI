@@ -16,8 +16,8 @@ over time and, if needed, take to a veterinarian.
 
 - Pet profile (name, species, breed, age, weight, notes) stored in this browser
 - Walking-clip upload with file, size, and duration checks
-- Computer vision pipeline: frames → picture motion, and MoveNet pose when
-  TensorFlow is installed
+- Computer vision pipeline: frames → picture motion, and QuadPose F2
+  (a published quadruped pose model) when onnxruntime is installed
 - Gait measurements (left/right ankle motion, stride symmetry) kept separate
   from interpretation
 - Transparent factor scores (consistency, symmetry, mobility, activity, and
@@ -55,11 +55,15 @@ The wording for each step lives in `lib/ai-use/registry.json` and is copied
 into the apps by `node scripts/sync-ai-use.mjs`. The generated page is
 `docs/AI_USE.md`. Pose limits are in `docs/MODEL_CARD.md`.
 
-- **MoveNet Thunder** finds 17 body keypoints on the analysis server when
-  TensorFlow is installed. It was trained on human bodies. Low confidence is
-  reported as “not measured”, not as a perfect score.
+- **QuadPose F2** finds 17 quadruped keypoints on the analysis server when
+  onnxruntime is installed and the pinned checkpoint is cached. The publisher
+  (Sausage Labs, Apache-2.0) states that it was trained on AP-10K, an animal
+  pose dataset that includes dogs. Hind paws are stored as the left and right
+  motion measurements. Hips are stored as hip stability. Left and right stay
+  separate. A missing landmark, or one below the confidence gate, is “not
+  measured”, not zero. This is not MoveNet, and it is not a diagnosis.
 - **OpenCV frame difference** runs on every clip. It is not a learned model.
-  When MoveNet is missing, it is the only movement measurement. When MoveNet
+  When QuadPose is missing, it is the only movement measurement. When QuadPose
   runs, it still supplies movement consistency and activity. Results from the
   two pipelines are never mixed in a chart.
 - **Scores and the note** come from fixed formulas and templates in
@@ -78,7 +82,7 @@ into the apps by `node scripts/sync-ai-use.mjs`. The generated page is
 - Does not replace a veterinarian
 - Not for emergencies
 - One camera angle of one short clip is not a full picture of a pet
-- MoveNet is a human-pose model; treat pet limb detections cautiously
+- QuadPose is a general quadruped model, not a diagnosis and not a measurement of one breed; treat limb numbers cautiously
 - Beta data stays in this browser (`localStorage`), not a shared database
 
 ## How to run
@@ -96,12 +100,13 @@ pip install -r requirements-opencv.txt
 `requirements-opencv.txt` pins OpenCV and NumPy for Python 3.10–3.12. That
 path measures picture motion only and labels the result `opencv-motion`.
 
-For pose landmarks, use Python 3.10 or 3.11 (TensorFlow 2.15 does not support
-3.12) and warm the model cache so the first request does not download it:
+For pose landmarks, install the pinned onnxruntime stack and warm the
+checkpoint cache so the first request does not download it. Python 3.10, 3.11,
+or 3.12 can run this file. The API image uses Python 3.11.
 
 ```bash
 pip install -r requirements.txt
-python scripts/cache_movenet.py
+python scripts/cache_quadpose.py
 ```
 
 See `docs/MODEL_CARD.md` for what each model is and what it cannot do.

@@ -32,7 +32,7 @@ export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceM
 
 export const AnalyzeMovementClipResponse = zod.object({
   "ok": zod.boolean(),
-  "pipeline": zod.enum(['movenet', 'opencv-motion']).describe('movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.'),
+  "pipeline": zod.enum(['quadpose', 'opencv-motion']).describe('quadpose when quadruped pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.'),
   "signalQuality": zod.enum(['good', 'limited', 'unusable']).describe('How much the measurements from this clip can be trusted.'),
   "signalNote": zod.string().describe('Plain-language reason for signalQuality, safe to display.'),
   "measurements": zod.object({
@@ -41,7 +41,7 @@ export const AnalyzeMovementClipResponse = zod.object({
   "x": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemXMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemXMax),
   "y": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMax),
   "confidence": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMax)
-}).describe('Mean normalized location for one MoveNet keypoint.')).nullish().describe('Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left, after correcting MoveNet\'s letterboxing. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters.'),
+}).describe('Mean normalized location for one quadruped keypoint.')).nullish().describe('Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left. QuadPose maps its crop back onto the source frame before these means are taken. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters.'),
   "frameCount": zod.number(),
   "durationSeconds": zod.number(),
   "meanKeypointConfidence": zod.number().nullish(),
@@ -78,7 +78,7 @@ export const AnalyzeMovementClipResponse = zod.object({
   "historicalChange": zod.number().optional()
 }).optional().describe('Weights used to blend the available factors into overallScore.'),
   "modelInfo": zod.object({
-  "pipeline": zod.enum(['movenet', 'opencv-motion']),
+  "pipeline": zod.enum(['quadpose', 'opencv-motion']),
   "modelName": zod.string(),
   "modelVersion": zod.string(),
   "runsOn": zod.enum(['server'])

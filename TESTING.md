@@ -100,7 +100,7 @@ pnpm --filter @workspace/silverpaws-beta run dev
 
 ## What to test
 
-On a saved result, the AI-use lines should name only the steps that produced that walk: MoveNet when pose ran, frame-to-frame motion (it runs on every clip), fixed scores and a fixed note, and a language-model reword only when the server kept one.
+On a saved result, the AI-use lines should name only the steps that produced that walk: QuadPose F2 when pose ran, frame-to-frame motion (it runs on every clip), fixed scores and a fixed note, and a language-model reword only when the server kept one.
 
 ## Manual checklist (for teammates)
 
@@ -110,8 +110,9 @@ On a saved result, the AI-use lines should name only the steps that produced tha
       mentions the score difference
 - [ ] Delete an observation and visit its old URL
 - [ ] Stop the API and confirm the analyze page shows a reachable-service error
-- [ ] Confirm MoveNet path (`pipeline: "movenet"`) on a machine with
-      TensorFlow 2.15 + Python 3.10/3.11
+- [ ] Confirm the quadruped path (`pipeline: "quadpose"`, model name QuadPose F2)
+      on a machine with onnxruntime and the cached checkpoint. It must not
+      report `movenet`.
 
 ## Pet form and trends (automated)
 
@@ -125,7 +126,7 @@ That command covers:
 - pet form: age or weight that is present but not a positive number is rejected
 - pet form: a blank age and weight, with a name, can be saved
 - history trends: an empty list produces no series
-- history trends: walks from `movenet` and `opencv-motion` stay in separate series
+- history trends: walks from `quadpose` and `opencv-motion` stay in separate series. A legacy `movenet` record stays in its own series too.
 - history trends: a missing score stays null and is not drawn as zero
 
 The history page still shows the empty-state “Record a walk” link when no
@@ -153,7 +154,7 @@ That test expects `CHROMIUM_PATH` and is not required for a local Windows run.
 
 ## What is not tested here
 
-- Live TensorFlow Hub download of MoveNet (this environment has OpenCV only)
+- A live download of the QuadPose checkpoint during the recorded Phase 6 run (later tests cache it with `scripts/cache_quadpose.py`)
 - Live LLM provider (the request is unit-tested with a mock; no live endpoint was configured)
 - `lib/db` — unused in the beta
 

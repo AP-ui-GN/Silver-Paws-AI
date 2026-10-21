@@ -5,10 +5,11 @@
 
 Two pipelines are supported and the best available one is chosen per clip:
 
-* ``movenet``       pose landmarks, so left/right stride symmetry can be measured.
-* ``opencv-motion`` frame-to-frame picture change only. Used whenever TensorFlow
-                    or the pose model is unavailable, which keeps the product
-                    usable on a machine with just OpenCV installed.
+* ``quadpose``      quadruped pose landmarks (QuadPose F2), so left and right
+                    hind-paw motion and hip stability can be measured.
+* ``opencv-motion`` frame-to-frame picture change only. Used when the pose
+                    checkpoint or onnxruntime is unavailable. This is not a
+                    learned model, and it is not labeled as pose.
 
 The returned dictionary matches the ``AnalyzeResult`` schema in
 `lib/api-spec/openapi.yaml`, so the API server can validate it before replying.
@@ -26,7 +27,7 @@ from .confidence import pose_is_trusted, summarize_keypoints, summarize_pose_coo
 from .features import MOTION_FLOOR, hip_stability, motion_statistics
 from .metrics import compute_gait_metrics
 from .motion import read_motion_signal
-from .movenet import DEFAULT_MODEL_URL, MOVENET_MODEL_NAME, MOVENET_MODEL_VERSION
+from .quadpose import MODEL_NAME, MODEL_VERSION, PIPELINE_ID
 from .wellness import (
     DEFAULT_WEIGHTS,
     build_limitations,
@@ -52,28 +53,14 @@ MIN_ANKLE_FRAMES = 10
 MIN_COMPARABLE_FRAMES = 5
 
 
-def _pose_model_identity(model_url: str | None) -> tuple[str, str]:
-    """Name and version for the pose model that was actually requested.
-
-    A different URL is not labeled as MoveNet Thunder. The fallback path never
-    claims to be pose.
-    """
-
-    url = (model_url or DEFAULT_MODEL_URL).rstrip("/")
-    if url == DEFAULT_MODEL_URL.rstrip("/"):
-        return MOVENET_MODEL_NAME, MOVENET_MODEL_VERSION
-    return "MoveNet", url
-
-
-def _model_info(pipeline: str, model_url: str | None) -> dict[str, str]:
+def _model_info(pipeline: str) -> dict[str, str]:
     """Describe the model that produced this result. Inference stays on the server."""
 
-    if pipeline == "movenet":
-        name, version = _pose_model_identity(model_url)
+    if pipeline == PIPELINE_ID:
         return {
-            "pipeline": "movenet",
-            "modelName": name,
-            "modelVersion": version,
+            "pipeline": PIPELINE_ID,
+            "modelName": MODEL_NAME,
+            "modelVersion": MODEL_VERSION,
             "runsOn": "server",
         }
 
@@ -89,12 +76,13 @@ def ai_use_ids(pipeline: str) -> list[str]:
     """Registry ids for the steps that produced one result.
 
     Frame-difference motion runs on every successful clip, including when
-    MoveNet also runs. ``development`` is a product fact, not a per-clip step.
+    QuadPose also runs. ``development`` is a product fact, not a per-clip step.
     ``llm-rewrite`` is added by the API only when a validated rewrite is kept.
+    The human MoveNet pipeline is not a step this function reports.
     """
 
     shared = ["motion-fallback", "scoring", "observation-rules"]
-    if pipeline == "movenet":
+    if pipeline == PIPELINE_ID:
         return ["pose-model", *shared]
     return shared
 
@@ -111,18 +99,17 @@ def _clean_pet_name(pet_name: str | None) -> str | None:
 def _try_pose(
     video_path: Path,
     *,
-    model_url: str | None,
     max_frames: int,
 ) -> tuple[Any | None, str | None]:
-    """Try to extract pose landmarks. Returns (keypoints, skip_reason)."""
+    """Try to extract quadruped pose landmarks. Returns (keypoints, skip_reason)."""
 
     try:
-        from .movenet import DEFAULT_MODEL_URL, extract_keypoints_from_video, load_movenet
+        from .quadpose import extract_keypoints_from_video, load_quadpose
     except ImportError as exc:
         return None, f"pose modules unavailable: {exc}"
 
     try:
-        model = load_movenet(model_url or DEFAULT_MODEL_URL)
+        model = load_quadpose()
         keypoints, _fps = extract_keypoints_from_video(
             video_path,
             model,
@@ -130,9 +117,9 @@ def _try_pose(
             max_frames=max_frames,
         )
     except Exception as exc:  # noqa: BLE001 - any pose failure must fall back
-        # Missing TensorFlow, no network for the model download, an unreadable
-        # frame: none of these should fail the request, because the motion
-        # pipeline can still measure the clip.
+        # Missing onnxruntime, a failed checkpoint download, or an unreadable
+        # frame: the motion pipeline can still measure the clip. This path
+        # does not call the human pose model.
         return None, f"{type(exc).__name__}: {exc}"
 
     return keypoints, None
@@ -180,7 +167,6 @@ def analyze_clip(
     previous_overall: float | None = None,
     previous_pipeline: str | None = None,
     use_pose: bool = True,
-    model_url: str | None = None,
 ) -> dict[str, Any]:
     """Analyze one movement clip and return an ``AnalyzeResult`` dictionary.
 
@@ -219,11 +205,10 @@ def analyze_clip(
     if use_pose:
         keypoints, pose_skip_reason = _try_pose(
             path,
-            model_url=model_url,
             max_frames=MAX_POSE_FRAMES,
         )
         if keypoints is not None:
-            pipeline = "movenet"
+            pipeline = PIPELINE_ID
             summary = summarize_keypoints(
                 keypoints,
                 frame_threshold=MIN_POSE_CONFIDENCE,
@@ -235,8 +220,6 @@ def analyze_clip(
                 keypoints,
                 frame_threshold=MIN_POSE_CONFIDENCE,
                 keypoint_threshold=POSE_CONFIDENCE_THRESHOLD,
-                frame_width=signal.width,
-                frame_height=signal.height,
             )
             measurements["meanKeypointConfidence"] = model_confidence
             # Below the trust line, limb numbers are left unset. They are not
@@ -256,6 +239,8 @@ def analyze_clip(
                 )
                 measurements["symmetryReliable"] = bool(
                     gait.stride_symmetry_score is not None
+                    and gait.left_ankle_motion is not None
+                    and gait.right_ankle_motion is not None
                     and gait.mean_keypoint_confidence >= MIN_POSE_CONFIDENCE
                     and gait.valid_left_ankle_frames >= MIN_ANKLE_FRAMES
                     and gait.valid_right_ankle_frames >= MIN_ANKLE_FRAMES
@@ -344,7 +329,7 @@ def analyze_clip(
         "concerningChange": concerning,
         "usedLlm": False,
         "weightsUsed": weights_used(factors),
-        "modelInfo": _model_info(pipeline, model_url),
+        "modelInfo": _model_info(pipeline),
         "modelConfidence": model_confidence,
         "framesUsed": frames_used,
         "framesTotal": frames_total,

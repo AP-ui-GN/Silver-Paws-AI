@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import statistics
 
-LEFT_HIP_INDEX = 11
-RIGHT_HIP_INDEX = 12
+from .quadpose import LEFT_HIP_INDEX, RIGHT_HIP_INDEX
 
 # A frame pair below this mean change is treated as "no visible movement". It is
 # roughly half a grayscale level out of 255, which sits above camera noise on the
@@ -57,8 +56,9 @@ def movement_consistency(motion_mean: float, motion_std: float) -> float | None:
 def hip_stability(keypoints, *, confidence_threshold: float = 0.2) -> float | None:
     """Score how steady the hip line stayed vertically, from 0 to 1.
 
-    ``keypoints`` is the ``(frames, 17, 3)`` MoveNet array of (y, x, confidence).
-    Returns None when too few frames have both hips detected confidently.
+    ``keypoints`` is ``(frames, 17, 3)`` of (y, x, confidence). The hips are
+    AP-10K ``L_Hip`` and ``R_Hip``. Returns None when too few frames have both
+    hips above the confidence gate. A missing hip is not scored as zero.
     """
 
     hip_heights: list[float] = []

@@ -8,13 +8,15 @@ mean a server is already running, and it does not include a public URL.
 
 ## What the image contains
 
-`Dockerfile` uses Node 20 and Debian bookworm's Python 3.11. TensorFlow 2.15
-does not run on Python 3.12. The image installs `opencv-python-headless` (the
-laptop file `requirements.txt` uses `opencv-python`, which expects a display),
-NumPy, and TensorFlow at the versions in `requirements-docker.txt`.
+`Dockerfile` uses Node 20 and Debian bookworm's Python 3.11. The image installs
+`opencv-python-headless` (the laptop file `requirements.txt` uses
+`opencv-python`, which expects a display), NumPy, and onnxruntime at the
+versions in `requirements-docker.txt`.
 
-While the image builds, `scripts/cache_movenet.py` downloads MoveNet Thunder
-into `/app/models/tfhub`. A later request reuses that cache.
+While the image builds, `scripts/cache_quadpose.py` downloads the pinned
+QuadPose F2 checkpoint into `/app/models/quadpose` and checks its SHA-256.
+A later request reuses that file. The weights are Apache-2.0. MoveNet is not
+downloaded.
 
 The container listens on port 8080. `GET /api/healthz` returns `{ "status": "ok" }`.
 That path stays on plain HTTP so the Docker healthcheck can call localhost.
@@ -33,7 +35,7 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | `ANALYZE_RATE_LIMIT_PER_MINUTE` | `10` | Analyses allowed per client address each minute |
 | `SILVERPAWS_PYTHON` | `/opt/venv/bin/python` in the image | Python that runs the pipeline |
 | `SILVERPAWS_REPO_ROOT` | `/app` in the image | Where `gait_engine` and `scripts` live |
-| `SILVERPAWS_MOVENET_CACHE` | `/app/models/tfhub` in the image | MoveNet weight cache |
+| `SILVERPAWS_QUADPOSE_CACHE` | `/app/models/quadpose` in the image | QuadPose F2 weight cache |
 | `SILVERPAWS_LLM_URL` | unset | Optional rewrite endpoint. Leave unset to stay on the rule-based note |
 | `SILVERPAWS_LLM_KEY` | unset | Bearer token for that endpoint. Never put this in the phone app |
 | `SILVERPAWS_LLM_MODEL` | unset | Model name. Required, with the URL, before a rewrite is attempted |
@@ -42,8 +44,8 @@ No API key is required for a clip to be measured.
 
 ## Memory
 
-Start the service at **2 GB** of RAM. TensorFlow loads MoveNet on a pose
-request, and 2 GB is a starting size, not a measurement from a finished image.
+Start the service at **2 GB** of RAM. QuadPose runs on the CPU through
+onnxruntime, and 2 GB is a starting size, not a measurement from a finished image.
 
 To see what a real clip uses:
 
@@ -74,7 +76,7 @@ Render is the host described here because a Docker web service, a health check, 
 3. Set the health check path to `/api/healthz`.
 4. Choose an instance with at least 2 GB of RAM.
 5. Set `NODE_ENV` to `production` and set any other variables from the table. Leave the language-model variables empty unless you have a provider.
-6. Deploy. Render serves HTTPS. The first pose request should not download MoveNet, because the image build already cached it.
+6. Deploy. Render serves HTTPS. The first pose request should not download QuadPose, because the image build already cached it.
 7. Copy the `https://` address Render shows. That address is `EXPO_PUBLIC_API_URL` for the phone build. Do not invent one in the repo.
 
 The phone build does not contain `SILVERPAWS_LLM_KEY` or any other server secret. `EXPO_PUBLIC_API_URL` is public by design. It is only the API address.

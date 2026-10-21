@@ -331,8 +331,9 @@ def build_limitations(pipeline: str, signal_quality: str) -> str:
         )
     else:
         parts.append(
-            "Pose landmarks come from a model trained on human bodies, so limb detections "
-            "on pets can be unreliable."
+            "Pose landmarks come from a quadruped model trained on animal photographs. "
+            "They are not a veterinary measurement. A missing landmark, or one below the "
+            "confidence gate, is left unmeasured."
         )
 
     if signal_quality != "good":

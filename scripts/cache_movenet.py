@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Download MoveNet Thunder into the local cache.
 
+This is the human-pose checkpoint used by scripts/validate_movenet.py.
+The product pose step does not use it. Cache QuadPose with
+scripts/cache_quadpose.py.
+
 Run this at build or deploy time, before the API serves traffic, so the first
 analysis request does not download the weights:
 

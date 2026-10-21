@@ -15,6 +15,7 @@ export const SIGNAL_LABELS: Record<string, string> = {
 };
 
 export const PIPELINE_LABELS: Record<string, string> = {
+  quadpose: 'Quadruped pose (QuadPose F2)',
   movenet: 'Pose landmarks (MoveNet)',
   'opencv-motion': 'Picture motion only',
 };

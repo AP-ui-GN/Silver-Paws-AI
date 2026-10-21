@@ -39,7 +39,7 @@ test("sample data is not a real walk and is dropped from history helpers", () =>
 
 test("different pipelines are refused and the same pipeline is allowed", () => {
   const motion = walk("m", "opencv-motion");
-  const pose = walk("p", "movenet");
+  const pose = walk("p", "quadpose");
   assert.match(compareBlockReason(motion, pose) ?? "", /different ways/);
   assert.equal(compareBlockReason(motion, { ...motion, id: "m2" }), null);
   assert.match(compareBlockReason(sampleWalk, motion) ?? "", /Sample data/);

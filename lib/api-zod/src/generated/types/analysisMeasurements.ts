@@ -11,7 +11,7 @@ import type { PoseKeypointSummary } from './poseKeypointSummary';
  * Raw measurements from the clip. These describe what was measured and carry no interpretation.
  */
 export interface AnalysisMeasurements {
-  /** Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left, after correcting MoveNet's letterboxing. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters. */
+  /** Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left. QuadPose maps its crop back onto the source frame before these means are taken. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters. */
   poseKeypoints?: PoseKeypointSummary[] | null;
   frameCount: number;
   durationSeconds: number;

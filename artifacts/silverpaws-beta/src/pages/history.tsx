@@ -34,23 +34,29 @@ const SIGNAL_LABELS: Record<string, string> = {
 };
 
 const PIPELINE_LABELS: Record<string, string> = {
+  quadpose: 'Quadruped pose (QuadPose F2)',
   movenet: 'Pose landmarks (MoveNet)',
   'opencv-motion': 'Picture motion only',
 };
 
 const POSE_CONNECTIONS = [
-  ['left_shoulder', 'right_shoulder'],
-  ['left_shoulder', 'left_elbow'],
-  ['left_elbow', 'left_wrist'],
-  ['right_shoulder', 'right_elbow'],
-  ['right_elbow', 'right_wrist'],
-  ['left_shoulder', 'left_hip'],
-  ['right_shoulder', 'right_hip'],
-  ['left_hip', 'right_hip'],
-  ['left_hip', 'left_knee'],
-  ['left_knee', 'left_ankle'],
-  ['right_hip', 'right_knee'],
-  ['right_knee', 'right_ankle'],
+  ['L_Eye', 'R_Eye'],
+  ['L_Eye', 'Nose'],
+  ['R_Eye', 'Nose'],
+  ['Nose', 'Neck'],
+  ['Neck', 'Root of tail'],
+  ['Neck', 'L_Shoulder'],
+  ['Neck', 'R_Shoulder'],
+  ['L_Shoulder', 'L_Elbow'],
+  ['L_Elbow', 'L_F_Paw'],
+  ['R_Shoulder', 'R_Elbow'],
+  ['R_Elbow', 'R_F_Paw'],
+  ['Root of tail', 'L_Hip'],
+  ['L_Hip', 'L_Knee'],
+  ['L_Knee', 'L_B_Paw'],
+  ['Root of tail', 'R_Hip'],
+  ['R_Hip', 'R_Knee'],
+  ['R_Knee', 'R_B_Paw'],
 ] as const;
 
 type PosePoint = NonNullable<NonNullable<Analysis['measurements']>['poseKeypoints']>[number];
@@ -106,9 +112,9 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   const byName = new Map(points.map((point) => [point.name, point]));
 
   return (
-    <section className="panel panel-padded mt-5" aria-label="MoveNet pose landmark summary">
+    <section className="panel panel-padded mt-5" aria-label="Quadruped pose landmark summary">
       <div className="eyebrow">Computer vision activity</div>
-      <h2 className="display-title text-2xl mt-2">MoveNet landmark summary</h2>
+      <h2 className="display-title text-2xl mt-2">Quadruped landmark summary</h2>
       <p className="body-muted text-sm mt-2">
         Mean normalized landmark positions from confident pose frames—not a diagnosis or a clinical measurement.
       </p>
@@ -120,7 +126,7 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
               style={{ aspectRatio: '10 / 7' }}
               viewBox="0 0 100 70"
               role="img"
-              aria-label={`${points.length} averaged MoveNet keypoint markers`}
+              aria-label={`${points.length} averaged quadruped keypoint markers`}
             >
               <title>Confidence-filtered average pose landmarks</title>
               {POSE_CONNECTIONS.map(([from, to]) => {

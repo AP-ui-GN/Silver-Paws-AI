@@ -22,6 +22,9 @@ outputs/
 *.avi
 # MoveNet Hub cache from scripts/cache_movenet.py. Do not commit the weights.
 models/tfhub/
+# QuadPose F2 checkpoint from scripts/cache_quadpose.py. Do not commit the weights.
+models/quadpose/*.onnx
+models/quadpose/*.partial
 
 # Firebase credentials — never commit service-account keys
 firebase-service-account*.json

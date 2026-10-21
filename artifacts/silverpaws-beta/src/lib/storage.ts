@@ -40,7 +40,7 @@ export type Analysis = {
   source?: string;
   license?: string;
   sourceUrl?: string;
-  /** Which measurement path produced this record: 'movenet' or 'opencv-motion'. */
+  /** Which measurement path produced this record: 'quadpose', 'opencv-motion', or a legacy 'movenet' record. */
   pipeline?: string;
   signalQuality?: string;
   signalNote?: string;

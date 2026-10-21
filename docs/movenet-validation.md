@@ -1,9 +1,15 @@
 # MoveNet Thunder validation
 
-This is the first SilverPaws AI milestone: run pretrained MoveNet Thunder on
-video frames, print the detected keypoints, and calculate one explainable
-left/right motion metric. It is intentionally independent of FastAPI,
-Firestore, and any frontend.
+This is the older human-pose check. The analysis server does not call it.
+A dog clip is measured with QuadPose F2 (`docs/MODEL_CARD.md`). Do not treat
+this script's output as the product pose result, and do not rename MoveNet
+as a dog model.
+
+`requirements.txt` no longer installs TensorFlow. To reproduce this check,
+install TensorFlow 2.15 and tensorflow-hub yourself on Python 3.10 or 3.11.
+
+The script prints MoveNet keypoints and one left/right motion metric. It is
+independent of FastAPI, Firestore, and any frontend.
 
 ## Run locally
 
@@ -12,7 +18,7 @@ Use Python 3.10 or 3.11:
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install tensorflow==2.15.1 tensorflow-hub==0.16.1 opencv-python==4.10.0.84 numpy==1.26.4
 python scripts/validate_movenet.py path/to/pet-walking-video.mp4
 ```
 

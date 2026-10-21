@@ -14,6 +14,7 @@ from gait_engine.confidence import (
     summarize_pose_coordinates,
 )
 from gait_engine.pipeline import MIN_POSE_CONFIDENCE, ai_use_ids, analyze_clip
+from gait_engine.quadpose import MODEL_NAME, MODEL_VERSION, PIPELINE_ID
 
 
 def keypoints(frames, confidence):
@@ -53,7 +54,7 @@ class ConfidenceSummaryTests(unittest.TestCase):
         array = keypoints(2, 0.9)
         array[0, 5, :2] = (0.2, 0.4)
         array[1, 5, :2] = (0.6, 0.8)
-        array[:, 6, 2] = 0.1
+        array[:, 8, 2] = 0.1
 
         points = summarize_pose_coordinates(
             array,
@@ -61,14 +62,14 @@ class ConfidenceSummaryTests(unittest.TestCase):
             keypoint_threshold=0.2,
         )
 
-        left_shoulder = next(point for point in points if point["name"] == "left_shoulder")
+        left_shoulder = next(point for point in points if point["name"] == "L_Shoulder")
         self.assertEqual(left_shoulder, {
-            "name": "left_shoulder",
+            "name": "L_Shoulder",
             "x": 0.6,
             "y": 0.4,
             "confidence": 0.9,
         })
-        self.assertNotIn("right_shoulder", {point["name"] for point in points})
+        self.assertNotIn("R_Shoulder", {point["name"] for point in points})
 
     def test_pose_coordinates_omit_low_confidence_and_out_of_frame_points(self):
         array = keypoints(1, 0.1)
@@ -82,13 +83,13 @@ class ConfidenceSummaryTests(unittest.TestCase):
         )
 
         array = keypoints(1, 0.9)
-        array[0, 0, 1] = 1.2
+        array[0, 2, 1] = 1.2
         points = summarize_pose_coordinates(
             array,
             frame_threshold=0.3,
             keypoint_threshold=0.2,
         )
-        self.assertNotIn("nose", {point["name"] for point in points})
+        self.assertNotIn("Nose", {point["name"] for point in points})
 
     def test_pose_coordinates_map_letterboxed_landmarks_to_source_frame(self):
         array = keypoints(1, 0.9)
@@ -99,9 +100,10 @@ class ConfidenceSummaryTests(unittest.TestCase):
             keypoint_threshold=0.2,
             frame_width=16,
             frame_height=9,
+            undo_letterbox=True,
         )
 
-        nose = next(point for point in points if point["name"] == "nose")
+        nose = next(point for point in points if point["name"] == "L_Eye")
         self.assertAlmostEqual(nose["x"], 0.5)
         self.assertAlmostEqual(nose["y"], (0.3 - 0.21875) / 0.5625, places=4)
 
@@ -188,7 +190,7 @@ class OpenCvResultTests(unittest.TestCase):
 
 class AiUseIdTests(unittest.TestCase):
     def test_a_pose_run_lists_pose_and_the_motion_measurement(self):
-        ids = ai_use_ids("movenet")
+        ids = ai_use_ids("quadpose")
 
         self.assertEqual(
             ids,
@@ -196,3 +198,31 @@ class AiUseIdTests(unittest.TestCase):
         )
         self.assertNotIn("development", ids)
         self.assertNotIn("llm-rewrite", ids)
+
+
+class QuadPoseResultTests(unittest.TestCase):
+    def test_a_dog_model_run_reports_quadpose_and_not_movenet(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "walk.avi"
+            write_clip(path, frames=8)
+            result = analyze_clip(path)
+
+        self.assertIsNone(result["diagnostics"]["poseSkipReason"])
+        self.assertEqual(result["pipeline"], PIPELINE_ID)
+        self.assertEqual(result["modelInfo"]["pipeline"], PIPELINE_ID)
+        self.assertEqual(result["modelInfo"]["modelName"], MODEL_NAME)
+        self.assertEqual(result["modelInfo"]["modelVersion"], MODEL_VERSION)
+        self.assertEqual(result["modelInfo"]["runsOn"], "server")
+        self.assertNotEqual(result["pipeline"], "movenet")
+        self.assertNotEqual(result["modelInfo"]["pipeline"], "movenet")
+        self.assertNotIn("MoveNet", result["modelInfo"]["modelName"])
+        self.assertNotIn("movenet", result["modelInfo"]["modelName"].lower())
+        self.assertEqual(result["aiUse"][0], "pose-model")
+        self.assertNotIn("human", result["limitations"].lower())
+        for key in ("leftAnkleMotion", "rightAnkleMotion", "hipStability"):
+            value = result["measurements"][key]
+            self.assertTrue(value is None or isinstance(value, float))
+        if result["lowConfidence"]:
+            self.assertIsNone(result["measurements"]["leftAnkleMotion"])
+            self.assertIsNone(result["measurements"]["rightAnkleMotion"])
+            self.assertIsNone(result["measurements"]["hipStability"])

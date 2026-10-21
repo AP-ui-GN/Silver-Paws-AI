@@ -17,7 +17,7 @@ PYTHON PIPELINE      scripts/analyze_clip.py → gait_engine.pipeline.analyze_cl
   ↓
 FRAMES               gait_engine/motion.py
   ↓
-POSE (optional)      gait_engine/movenet.py
+POSE (optional)      gait_engine/quadpose.py
   ↓
 FEATURES             gait_engine/features.py, gait_engine/metrics.py
   ↓
@@ -59,7 +59,7 @@ browser produce the same record shape.
 
 - `app/_layout.tsx` — providers and root stack
 - `app/(tabs)/` — Home, Analyze (record/choose clip, upload progress), History, Settings
-- `app/history/[id].tsx` — one walk: factors, raw measurements, MoveNet landmark summary or OpenCV frame-motion coverage, share, delete
+- `app/history/[id].tsx` — one walk: factors, raw measurements, quadruped landmark summary or OpenCV frame-motion coverage, share, delete
 - `app/pet/[id].tsx` — pet form (`new` creates), with name / age / weight checks
 - `src/lib/api.ts` — API address discovery from the Expo dev server, clip checks, XHR upload with progress, error text
 - `src/lib/storage.ts` — AsyncStorage version of the web storage module
@@ -77,11 +77,11 @@ browser produce the same record shape.
 ### Analysis — `gait_engine/`
 
 - `motion.py` — OpenCV frame motion
-- `movenet.py` — pose landmarks
+- `quadpose.py` — quadruped pose landmarks (QuadPose F2). `movenet.py` is the old human-pose loader and is not called by the pipeline
 - `metrics.py` — left/right ankle symmetry
 - `features.py` — consistency, coverage, hip stability
 - `wellness.py` — factor scores, including mobility and historical change
-- `pipeline.py` — chooses `movenet` or `opencv-motion`, builds `AnalyzeResult`
+- `pipeline.py` — chooses `quadpose` or `opencv-motion`, builds `AnalyzeResult`
 - `confidence.py` — pose confidence gate (`modelConfidence`, frames used)
 - `clip_quality.py` — duration, resolution, brightness, and motion notes
 

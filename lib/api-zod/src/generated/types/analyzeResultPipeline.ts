@@ -7,12 +7,12 @@
  */
 
 /**
- * movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.
+ * quadpose when quadruped pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.
  */
 export type AnalyzeResultPipeline = typeof AnalyzeResultPipeline[keyof typeof AnalyzeResultPipeline];
 
 
 export const AnalyzeResultPipeline = {
-  movenet: 'movenet',
+  quadpose: 'quadpose',
   'opencv-motion': 'opencv-motion',
 } as const;
