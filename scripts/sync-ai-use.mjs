@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Copy lib/ai-use/registry.json into the web app and the phone app, and write
- * docs/AI_USE.md from the same file. Edit the registry, then run this script.
+ * Copy lib/ai-use/registry.json into the web app and write docs/AI_USE.md
+ * from the same file. Edit the registry, then run this script.
  *
  *   node scripts/sync-ai-use.mjs
  *   node scripts/sync-ai-use.mjs --check
@@ -15,7 +15,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const registryPath = path.join(root, "lib", "ai-use", "registry.json");
 const copies = [
   path.join(root, "artifacts", "silverpaws-beta", "src", "lib", "ai-use-registry.json"),
-  path.join(root, "mobile", "src", "lib", "ai-use-registry.json"),
 ];
 const markdownPath = path.join(root, "docs", "AI_USE.md");
 

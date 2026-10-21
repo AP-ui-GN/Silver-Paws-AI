@@ -1,7 +1,12 @@
 # Host the analysis API
 
-The phone app sends a walking clip to this API. The API runs the Python
+The web app sends a walking clip to this API. The API runs the Python
 pipeline and deletes the upload. Nothing here is an account system.
+
+In development the Vite server proxies `/api` to the API (`API_PROXY_TARGET`,
+default `http://127.0.0.1:8080`). In production, serve the web build and the
+API from one origin, or point the web build at the API URL with the client
+base-URL setting. Do not bake server secrets into the web build.
 
 This document prepares a container and the steps for one host. It does not
 mean a server is already running, and it does not include a public URL.
@@ -35,7 +40,7 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | `SILVERPAWS_REPO_ROOT` | `/app` in the image | Where `gait_engine` and `scripts` live |
 | `SILVERPAWS_MOVENET_CACHE` | `/app/models/tfhub` in the image | MoveNet weight cache |
 | `SILVERPAWS_LLM_URL` | unset | Optional rewrite endpoint. Leave unset to stay on the rule-based note |
-| `SILVERPAWS_LLM_KEY` | unset | Bearer token for that endpoint. Never put this in the phone app |
+| `SILVERPAWS_LLM_KEY` | unset | Bearer token for that endpoint. Keep it on the server |
 | `SILVERPAWS_LLM_MODEL` | unset | Model name. Required, with the URL, before a rewrite is attempted |
 
 No API key is required for a clip to be measured.
@@ -75,6 +80,6 @@ Render is the host described here because a Docker web service, a health check, 
 4. Choose an instance with at least 2 GB of RAM.
 5. Set `NODE_ENV` to `production` and set any other variables from the table. Leave the language-model variables empty unless you have a provider.
 6. Deploy. Render serves HTTPS. The first pose request should not download MoveNet, because the image build already cached it.
-7. Copy the `https://` address Render shows. That address is `EXPO_PUBLIC_API_URL` for the phone build. Do not invent one in the repo.
+7. Copy the `https://` address Render shows. Serve the web build from that origin, or point the web build at it. Do not invent an address in the repo.
 
-The phone build does not contain `SILVERPAWS_LLM_KEY` or any other server secret. `EXPO_PUBLIC_API_URL` is public by design. It is only the API address.
+The web build does not contain `SILVERPAWS_LLM_KEY` or any other server secret.

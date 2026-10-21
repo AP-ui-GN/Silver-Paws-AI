@@ -41,7 +41,7 @@ app.use((req, res, next) => {
   }
   res.status(400).json({
     ok: false,
-    error: "Open this server with https://. The phone app should use the HTTPS address.",
+    error: "Open this server with https://.",
   });
 });
 app.use(express.json());

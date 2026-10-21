@@ -39,6 +39,7 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const recordRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -69,6 +70,7 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
       setPhase('upload');
       setError('File exceeds the 60 MB limit. Please select a shorter or lower-resolution clip.');
       if (inputRef.current) inputRef.current.value = '';
+      if (recordRef.current) recordRef.current.value = '';
       return;
     }
 
@@ -117,6 +119,7 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
     setPhase('upload');
     setError('');
     if (inputRef.current) inputRef.current.value = '';
+    if (recordRef.current) recordRef.current.value = '';
   };
 
   const tryDemo = () => {
@@ -207,9 +210,11 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
                 <p className="body-muted text-sm mt-2">Side view, steady camera. A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds.</p>
                 <div className="flex flex-wrap justify-center gap-3 mt-5">
                   <button type="button" className="btn-secondary" onClick={() => inputRef.current?.click()} disabled={!pets.length} data-testid="button-choose-video"><Film size={16} /> Choose video</button>
+                  <button type="button" className="btn-secondary" onClick={() => recordRef.current?.click()} disabled={!pets.length} data-testid="button-record-walk"><Film size={16} /> Record walk</button>
                   <button type="button" className="btn-quiet" onClick={tryDemo} data-testid="button-try-demo"><Sparkles size={16} /> Try Demo Mode</button>
                 </div>
                 <input ref={inputRef} className="hidden" type="file" accept="video/*" onChange={(event) => selectFile(event.target.files?.[0])} data-testid="input-walking-video" />
+                <input ref={recordRef} className="hidden" type="file" accept="video/*" capture="environment" onChange={(event) => selectFile(event.target.files?.[0])} data-testid="input-record-walk" />
               </div>
               {error && <div className="text-sm mt-3 flex items-center gap-2" style={{ color: '#a54339' }} role="alert" data-testid="text-upload-error"><CircleAlert size={15} />{error}</div>}
             </div>

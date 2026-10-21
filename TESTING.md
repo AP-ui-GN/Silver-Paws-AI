@@ -36,32 +36,6 @@ python scripts/analyze_clip.py path/to/walk.mp4 --pet-name Mabel
 
 Add `--no-pose` to force the OpenCV-only path.
 
-Mobile app (from `mobile/`):
-
-```bash
-npm run typecheck        # tsc, 0 errors
-npm run doctor           # expo-doctor, 21/21 checks
-npm run export:check     # Metro bundle without a device
-```
-
-## Mobile checks on a phone (Expo Go)
-
-Not run in this pass — no phone was attached. Run with the API server up and
-`npm start` in `mobile/`:
-
-1. Scan the QR code; the Home tab loads with the "Add your first pet" card.
-2. Settings → **Test connection** reports "Connected" with the laptop's address.
-   If not, type `<laptop-ip>:8080`, Save, and test again.
-3. Create a pet; you land on Analyze with that pet selected.
-4. **Choose video** with a non-video file (Android lets you) → the red note
-   says to choose a video. Nothing uploads.
-5. **Record** a 5–10 s side-on walk → upload percentage climbs, then
-   "Measuring movement…", then the saved card with a score and observation.
-6. Tap **See the full breakdown** → factors, raw measurements grid, limitations.
-7. Stop the API server, analyze again → "Could not reach the analysis
-   service…" with no crash; Cancel works mid-upload.
-8. Kill and reopen the app → pets and walks are still there (AsyncStorage).
-
 ## Live product checks (verified in this pass)
 
 Both services running:
@@ -165,25 +139,23 @@ Checks that passed in this environment:
 - `pnpm --filter @workspace/api-server run test` — 35 passed
 - `pnpm --filter @workspace/silverpaws-beta run test` — 9 passed
 - `pnpm run typecheck` — passed
-- `npx tsc --noEmit` in `mobile/` — passed
-- `npx expo-doctor` in `mobile/` — 21/21 passed
 - GitHub checks on pull request 1 — `gh pr checks` reported no checks on this branch. None were failing because none were reported.
 - Workspace lint — there is no lint script and no ESLint config. That command was not run, and it is not recorded as passed. Typecheck is the static check this repo has.
 - No `SILVERPAWS_LLM_*` variables were set. `POST /api/analyze` of a synthetic clip returned `usedLlm: false`.
 - Mock provider, from `artifacts/api-server/tests/explanation.test.ts`: a valid rewrite sets `usedLlm: true`; an invalid rewrite is discarded and the rule-based note stays (`usedLlm: false`).
-- Low-confidence keypoints, from `tests/test_model_phase.py`: confidence 0.1 is not trusted, `framesUsed` is 0, and the summary is not treated as missing. A missing score is the words "Not measured" or "Not scored", not zero (`mobile/src/lib/format.ts`, trend tests, report test).
+- Low-confidence keypoints, from `tests/test_model_phase.py`: confidence 0.1 is not trusted, `framesUsed` is 0, and the summary is not treated as missing. A missing score is the words "Not measured" or "Not scored", not zero (trend tests, report test).
 - Non-video upload: `POST /api/analyze` with `notes.txt` returned 400, "That file is not a video SilverPaws can read. MP4, MOV, and WebM work best."
 - Oversized upload: the server was started with `MAX_UPLOAD_MB=1` (the default in code is 60). A body over that cap returned 413, "That clip is larger than the 1 MB beta limit. Try a shorter clip."
 - OpenCV was attempted. A generated moving rectangle (not a pet, and not a file from the repo) was analyzed with `analyze_clip(..., use_pose=False)` and again through `POST /api/analyze`. Both returned `pipeline: "opencv-motion"`, `aiUse: ["motion-fallback", "scoring", "observation-rules"]`, and null stride symmetry. The same file with pose requested also returned `opencv-motion`, because TensorFlow is not installed.
-- The screen lines for that `aiUse` list, from `aiUseResultLines`, are the registry sentences for motion, scoring, and rules. `development` is not included. The phone screen was not opened, so the pixels were not compared.
+- The screen lines for that `aiUse` list, from `aiUseResultLines`, are the registry sentences for motion, scoring, and rules. `development` is not included. The web screen was not opened for that list, so the pixels were not compared.
 
 Checks that were not run, and are not passed:
 
-- UI → API → pipeline with a real walking clip. The repository has no `.mp4`, `.mov`, or `.webm`. No phone or browser was used.
+- UI → API → pipeline with a real walking clip. The repository has no `.mp4`, `.mov`, or `.webm`. No browser was used for a real walk.
 - MoveNet on a real clip. `import tensorflow` fails with `ModuleNotFoundError`. Pose was not measured.
-- The low-confidence banner on a phone. The banner code is in the Analyze and walk-detail screens. It was not shown, because MoveNet did not run.
-- Server down → the phone's offline note, Retry, and the kept clip. The API process was stopped and `curl` to it failed. The phone UI was not opened. The Analyze screen keeps `clip` on error and shows Try again; that path was not exercised on a device.
-- Demo mode on a phone. Unit tests drop the sample from history, trends helpers, and the vet summary. The Demo screen was not opened.
+- The low-confidence banner. The banner code is in the walk-detail screen. It was not shown, because MoveNet did not run.
+- Server down → the offline note and the kept clip. The API process was stopped and `curl` to it failed. The Analyze screen was not opened. That path was not exercised in a browser.
+- Demo mode in the browser. Unit tests drop the sample from history and trends helpers. The Demo screen was not opened.
 - A live language-model provider. No endpoint was configured.
 - `node artifacts/silverpaws-beta/tests/report-download.browser.mjs` — needs `CHROMIUM_PATH`.
 - Docker image build. The `docker` command is still not installed.

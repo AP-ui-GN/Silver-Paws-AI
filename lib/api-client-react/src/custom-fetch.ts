@@ -22,7 +22,7 @@ let _authTokenGetter: AuthTokenGetter | null = null;
  * Set a base URL that is prepended to every relative request URL
  * (i.e. paths that start with `/`).
  *
- * Useful for Expo bundles that need to call a remote API server.
+ * Useful for non-browser clients that need to call a remote API server.
  * Pass `null` to clear the base URL.
  */
 export function setBaseUrl(url: string | null): void {
@@ -34,7 +34,7 @@ export function setBaseUrl(url: string | null): void {
  * the getter is invoked; when it returns a non-null string, an
  * `Authorization: Bearer <token>` header is attached to the request.
  *
- * Useful for Expo bundles making token-gated API calls.
+ * Useful for non-browser clients making token-gated API calls.
  * Pass `null` to clear the getter.
  *
  * NOTE: This function should never be used in web applications where session

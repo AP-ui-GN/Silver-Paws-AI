@@ -55,20 +55,20 @@ COMPLETION CRITERIA:
 # Finish the trend view, form validation, and selected tests.
 # ==================================================
 
-STATUS: Done. The web and phone trend panels compare saved walks and keep
-`movenet` and `opencv-motion` apart. Pet forms block a blank name and an
+STATUS: Done. The web trend panel compares saved walks and keeps
+`movenet` and `opencv-motion` apart. The pet form blocks a blank name and an
 age or weight that is present but not a positive number. Automated checks:
 `pnpm --filter @workspace/silverpaws-beta run test`.
 
 TEAM MEMBER: Kavin
 TASK: Historical trends, validation messages, and a testing checklist
 FILE / MODULE:
-- `artifacts/silverpaws-beta/src/components/trend-panel.tsx` (web) and `mobile/src/components/trend-panel.tsx` (phone)
-- `artifacts/silverpaws-beta/src/pages/pet.tsx` (web) and `mobile/app/pet/[id].tsx` (phone)
+- `artifacts/silverpaws-beta/src/components/trend-panel.tsx`
+- `artifacts/silverpaws-beta/src/pages/pet.tsx`
 - `TESTING.md`
 WHAT TO IMPLEMENT:
-1. **Trend panel** — replace the placeholder in `trend-panel.tsx` with a real comparison of saved walks. Show date, overall score, movement consistency, and symmetry. Only compare records that share the same `pipeline` (`movenet` vs `opencv-motion`). Handle empty, one-walk, and many-walk states. Do not invent chart data. Start with the web version; the phone version receives the same `analyses` prop (already newest-first), so the same logic ports over with React Native `View`/`Text` instead of HTML.
-2. **Pet form validation** — in `pet.tsx` / `pet/[id].tsx`, show a visible message when name is blank, or when age/weight is present but not a positive number. Do not save until those checks pass. (The phone form disables Save on a blank name; the age/weight messages are still yours.)
+1. **Trend panel** — replace the placeholder in `trend-panel.tsx` with a real comparison of saved walks. Show date, overall score, movement consistency, and symmetry. Only compare records that share the same `pipeline` (`movenet` vs `opencv-motion`). Handle empty, one-walk, and many-walk states. Do not invent chart data.
+2. **Pet form validation** — in `pet.tsx`, show a visible message when name is blank, or when age/weight is present but not a positive number. Do not save until those checks pass.
 3. **Testing** — add a short automated check (Playwright, Vitest, or a node test) for one of: pet save, clip-type rejection, or history empty state. Update the checklist in `TESTING.md`.
 WHY IT MATTERS:
 - Owners need to see direction over time, not a single number, and the form should explain itself when something is wrong.

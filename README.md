@@ -31,16 +31,14 @@ over time and, if needed, take to a veterinarian.
 ## Architecture
 
 ```text
-Web UI (React)     ─┐
-                    ├→  API (Express)  →  Python pipeline (gait_engine)
-Mobile (Expo Go)   ─┘          ↓
-                     localStorage / AsyncStorage  →  dashboard / history
+Web UI (React)  →  API (Express)  →  Python pipeline (gait_engine)
+                         ↓
+                   localStorage  →  dashboard / history
 ```
 
 | Layer | Location |
 | --- | --- |
 | Web frontend | `artifacts/silverpaws-beta` |
-| Mobile app (Expo Go) | `mobile/` — see `mobile/README.md` |
 | API | `artifacts/api-server` |
 | Shared contracts | `lib/api-spec`, `lib/api-zod`, `lib/api-client-react` |
 | Analysis / CV | `gait_engine/` |
@@ -52,7 +50,7 @@ Pose detection, feature math, scoring, and explanation live behind the API.
 ## AI components
 
 The wording for each step lives in `lib/ai-use/registry.json` and is copied
-into the apps by `node scripts/sync-ai-use.mjs`. The generated page is
+into the web app by `node scripts/sync-ai-use.mjs`. The generated page is
 `docs/AI_USE.md`. Pose limits are in `docs/MODEL_CARD.md`.
 
 - **MoveNet Thunder** finds 17 body keypoints on the analysis server when
@@ -121,19 +119,12 @@ Open http://127.0.0.1:4173
 To run the API in Docker, see `docs/HOSTING.md`. The image was not built in
 this repository checkout.
 
-### On a phone (Expo Go)
+### On a phone on the same Wi-Fi
 
-With the API from terminal 1 still running:
-
-```bash
-cd mobile
-npm install
-npm start
-```
-
-Scan the QR code with Expo Go on a phone on the same Wi-Fi. The app finds the
-API on the laptop automatically; `mobile/README.md` covers the manual address
-and tunnel options.
+The web dev script already uses `--host 0.0.0.0`. With both services running,
+a phone on the same network can open `http://<laptop-ip>:4173`. Use **Record
+walk** on the Analyze page to hand the clip to the phone camera through the
+file picker. The page does not open the camera itself.
 
 Optional environment variables:
 
@@ -149,7 +140,6 @@ Optional environment variables:
 | `SILVERPAWS_LLM_URL` | API | unset | Optional chat-completions endpoint |
 | `SILVERPAWS_LLM_KEY` | API | unset | Bearer token for that endpoint; never logged |
 | `SILVERPAWS_LLM_MODEL` | API | unset | Model name. Required, with the URL, before a rewrite is attempted |
-| `EXPO_PUBLIC_API_URL` | mobile | derived from the Expo dev server | API address baked into the phone app |
 
 No API keys are required for the app to analyze a clip.
 
@@ -165,4 +155,3 @@ task — extend the function or component that is already marked.
 - `TEAM_TASKS.md` — Sudarshan, Kavin, and Abhi work
 - `TESTING.md` — how to verify the app
 - `docs/PROJECT_STATUS.md` — what changed, measured impact, per-member handoff
-- `mobile/README.md` — running the phone app in Expo Go

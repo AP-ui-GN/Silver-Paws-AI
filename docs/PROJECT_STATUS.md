@@ -87,29 +87,18 @@ Error mapping seen by the user:
 | `vite.config.ts` | extended | `/api` proxied to the API server in dev and preview |
 | `analyze-client.ts`, `local-motion-probe.ts`, `wellness.ts` | **removed** | Orphaned duplicate pipeline living in UI code |
 
-### 2.4 Mobile app (`mobile/`, Expo SDK 57, runs in Expo Go)
+### 2.4 Client
 
-| File | Status | What it does |
-| --- | --- | --- |
-| `app/(tabs)/index.tsx` | **new** | Home: pets with latest score, add/edit, link to history |
-| `app/(tabs)/analyze.tsx` | **new** | Pick pet → Record (camera) or Choose video → upload with real progress → saved result card |
-| `app/(tabs)/history.tsx` | **new** | Saved walks, pet filter, mounts Kavin's `TrendPanel` |
-| `app/(tabs)/settings.tsx` | **new** | API address (auto-detected from the Expo dev server), Test connection, delete local data, safety text |
-| `app/history/[id].tsx` | **new** | Score, factor bars, raw-measurements grid, observation, limitations, vet banner, share sheet, delete |
-| `app/pet/[id].tsx` | **new** | Create/edit pet; **Kavin** marker for validation messages |
-| `src/lib/api.ts` | **new** | `guessApiUrl` from `Constants.expoConfig.hostUri`, `checkClip`, XHR upload with `onprogress`, `isAnalyzeResult` guard, `describeAnalysisError` |
-| `src/lib/storage.ts` | **new** | AsyncStorage version of the web module; `toAnalysisRecord`, `findBaseline` |
-| `src/lib/types.ts` | **new** | Mirrors `openapi.yaml` |
-| `src/components/*` | **new** | `ui.tsx`, `score.tsx`, `disclaimer-footer.tsx`, `trend-panel.tsx` (**Kavin** placeholder) |
-| `metro.config.js` | **new** | Pins Metro to `mobile/` so the pnpm workspace above is not watched |
+October 21, 2026: the separate phone app was removed and the web app is the only client.
 
-The mobile app is a standalone npm project so Expo's exact React/React Native
-pins never conflict with the web app's catalog. It talks to the same
-`POST /api/analyze`; no scoring happens on the phone.
-
-Also removed in this step: three orphaned files from a pre-existing attempt
+Also removed in the earlier client pass: three orphaned files from a pre-existing attempt
 that nothing imported (`api-server/src/lib/read-upload.ts`,
 `run-python-analysis.ts`, `scripts/run_analysis.py`).
+
+The lockfile still lists an optional SQLite peer on `drizzle-orm` whose package
+name belongs to that removed client. It is published package metadata, not an
+installed dependency. Regenerating the lockfile writes the peer line back.
+The workspace no longer depends on a phone-app package.
 
 ### 2.5 Shared libraries and docs
 
@@ -135,7 +124,7 @@ All numbers below were produced by running the code, not estimated.
 | Result for that clip | random | overall 91.4 · consistency 87.6 · activity 100 · symmetry *not scored* (no pose) |
 | Fabricated seed records | 2 | 0 |
 | Disclaimer coverage | Home + PDF | Every page footer + history detail + PDF + observation text |
-| Platforms | Browser only | Browser + iOS/Android via Expo Go (tsc 0 errors, expo-doctor 21/21, Metro bundle 3.1 MB) |
+| Platforms | Browser only | Browser (web app only) |
 | Dead/duplicate source files | 7 | 0 (3 more orphaned API/script files removed with the mobile pass) |
 
 Live browser check (Cursor browser, Sept 16): create pet → attach clip → run →
@@ -165,7 +154,7 @@ app cannot show a measurement it did not take.
 Phase 1 (section 9) finished the marked scoring, trend, pet-form, and rewrite
 request. The cards below are the September handoff. Still open from this list:
 head-bob measurement, a live provider walk-through, the cognitive log, the
-accessibility pass, a phone test on a real device, and the copy review.
+accessibility pass, and the copy review.
 
 Each item lists: file, what to do, how to check it. Do not start by rewriting
 what already works — extend the marked function or component.
@@ -243,12 +232,6 @@ Coordinate with Sudarshan on the score formula (`weighted_sum / 17.5`, inverted 
 Run a screen reader over Analyze and History. Confirm factor bars have text
 values (they do) and that "Not scored" tags are announced.
 
-**K6. Phone test run (Expo Go)**
-Follow "Mobile checks on a phone" in `TESTING.md` on at least one iPhone and
-one Android device. Record which steps passed, clip sizes that worked, and
-anything that felt slow. The mobile `TrendPanel` and pet-form messages (K1,
-K2) have matching placeholders in `mobile/`.
-
 ### 5.3 Abhi — integration and hardening
 
 Marked in code with `// TEAM TASK: ABHI` in `explanation.ts`.
@@ -282,11 +265,6 @@ Upload path: size cap, temp-file cleanup, filename never used as a path — done
 Review: CORS origin, rate limiting on `/api/analyze`, and what stderr from the
 Python process is logged. The API now also serves phones on the LAN; decide
 whether it should stay open on `0.0.0.0` or bind to a chosen interface.
-
-**A7. Mobile beyond Expo Go (optional)**
-Expo Go allows plain `http://` to the laptop. A TestFlight / Play build would
-need a hosted HTTPS API (`EXPO_PUBLIC_API_URL`) or `expo-build-properties`
-with a cleartext exception, plus EAS Build configuration.
 
 **A6. Optional — persistence beyond `localStorage`**
 `lib/db` is still a stub. If the team wants family sync or the "Silver Passport"
@@ -381,10 +359,10 @@ were not started.
 - `DEFAULT_WEIGHTS` now includes `mobility` 0.20 and `historicalChange` 0.10.
   The original consistency / symmetry / activity weights are unchanged.
   `CONCERNING_DROP` stays 10 and `CONCERNING_ASYMMETRY` stays 20.
-- Web and phone trend panels list date, overall score, movement consistency,
+- The web trend panel lists date, overall score, movement consistency,
   and symmetry from saved walks only. Different `pipeline` values are separate
-  series. The phone draws the overall scores with `react-native-svg`.
-- Pet forms on web and phone show a message for a blank name, and for an age
+  series.
+- The pet form shows a message for a blank name, and for an age
   or weight that is filled in but is not a positive number. Save does not run
   until those checks pass. The web `/pet` route now renders `PetProfile` as a
   child element. The previous inline `component` function was a new component
@@ -414,20 +392,15 @@ The repo won in each case.
    tests cover the three outcomes (no env, valid rewrite, invalid rewrite).
    The live check stays open.
 4. **Weight units.** The prompt did not mention units. The web form labels
-   weight in kilograms and the phone form labels it in pounds. Both were left
-   as they are.
-5. **`react-native-svg` was not installed.** The phone trend view needs it.
-   `15.15.4` was added because that is the version Expo SDK 57 pins in
-   `bundledNativeModules.json`. The Expo SDK was not upgraded.
-6. **History copy.** The factor help text said mobility and change from
+   weight in kilograms. It was left as it is.
+5. **History copy.** The factor help text said mobility and change from
    baseline were “Not scored in this release.” That sentence was updated so
    the breakdown matches the scores the pipeline now returns.
 
 ### Still open after Phase 1
 
 - Live language-model walk-through (Abhi)
-- Head-bob measurement, cognitive log, accessibility pass, and a phone test
-  on a real device
+- Head-bob measurement, cognitive log, and the accessibility pass
 - Copy review in the product/research task (`TEAM_TASKS.md`)
 - Phases 2–6 were not started in the Phase 1 commit. Phase 2 is recorded below.
 
@@ -442,7 +415,7 @@ a warmed MoveNet cache. Phase 3 was not started.
 
 - Pose frames are summarized as `modelConfidence` (0–1), `framesUsed`, and
   `framesTotal`. Below the existing 0.3 mean, limb measurements stay unset and
-  `lowConfidence` is true. Web history and the phone result screens show
+  `lowConfidence` is true. Web history shows
   **Low confidence — try a clearer clip**. A missing confidence is not shown
   as zero.
 - `modelInfo` names the pipeline, model, version, and `runsOn: "server"`.
@@ -483,53 +456,14 @@ a warmed MoveNet cache. Phase 3 was not started.
 
 ## 11. Phase 3 (October 18, 2026)
 
-Phone features around the existing screens. Phase 4 was not started.
-
-### What landed
-
-- Onboarding has three steps. Analysis stays locked until the owner
-  acknowledges "this is a wellness note, not a diagnosis". That flag is stored
-  on the phone.
-- The Analyze screen lists the filming guide, a connection chip for
-  `/api/healthz` that retries with backoff, and the privacy line. A failed
-  analysis keeps the chosen clip and offers Try again.
-- Demo mode shows one bundled sample labeled "Sample data — not your pet".
-  `addAnalysis` drops it, history helpers drop it, and it is not included in
-  trends or the vet summary.
-- History filters by pet and clears a filter if that pet was deleted. Compare
-  refuses two walks whose pipelines differ.
-- A walk can be shared as a PDF. A vet summary covers the latest saved walks,
-  grouped by pipeline, with the veterinarian pointer only when a change is
-  concerning. The PDF footer says the AI-use list arrives with the registry.
-- Settings adds kg/lb for new pets, theme, a weekly local reminder (permission
-  asked when the switch is turned on), an Advanced API address toggle around
-  the existing editor, JSON export, feedback without a video, version, and a
-  short How AI is used placeholder.
-- Shared controls use 44 pt targets, selected chips include a check mark, and
-  a root error boundary catches a thrown screen. History and Analyze show a
-  loading state.
+This pass added screens on the separate client. Those screens were removed on
+October 21, 2026 with that client. Phase 4 was not started in this commit.
 
 ### Where this prompt disagreed with the repo
 
 1. **Clip length.** The filming guide recommends 5–15 seconds. The existing
    Analyze copy and the API still allow up to 120 seconds. The guide was
    added; the limit was not tightened.
-2. **Weight units.** New pets default to kg, matching the web form. A phone
-   profile saved before this change has no stored unit, so it stays labeled
-   lb. Changing the unit does not convert the number.
-3. **API address.** Settings already showed the address to every tester. It
-   now sits behind an Advanced switch. The editor itself was not removed.
-4. **Dark theme.** Navigation, cards, buttons, and notes follow the choice.
-   Some screen stylesheets still carry the original light-palette text color,
-   so a few labels do not recolor. That is unfinished polish, not a second
-   theme system.
-5. **No phone or simulator was available here.** Checks are typecheck and
-   unit tests. Expo Go, local notifications, and the PDF share sheet were
-   not run on a device.
-
-The Phase 3 gaps above (dark-mode text colors, no unit conversion for older
-profiles, filming-guide 5–15 seconds versus the API's 120 second limit) are
-unchanged.
 
 ---
 
@@ -540,15 +474,14 @@ One AI-use registry. Phase 5 was not started.
 ### What landed
 
 - `lib/ai-use/registry.json` is the only wording source. `scripts/sync-ai-use.mjs`
-  copies it into the web app and `mobile/src/lib/`, and writes `docs/AI_USE.md`.
+  copies it into the web app and writes `docs/AI_USE.md`.
 - A clip's `aiUse` lists the steps that ran. MoveNet runs include `pose-model`.
   Every successful clip includes `motion-fallback`, because OpenCV frame
   difference always runs. `scoring` and `observation-rules` are always included.
   `llm-rewrite` is added by the API only when a validated rewrite is kept.
   `development` is never attached to a clip.
-- Result screens and both PDFs show one registry `resultLine` per id. Settings
-  → How AI is used (and the web AI-use page) show the summary and the full
-  list, including development.
+- The web result screen and PDF show one registry `resultLine` per id. The
+  web AI-use page shows the summary and the full list, including development.
 
 ### Where this prompt disagreed with the repo
 
@@ -558,16 +491,15 @@ movement consistency and activity come from that signal even when MoveNet
 succeeds. `motion-fallback` is therefore included on pose runs as well. Its
 registry text says it runs on every clip, not only when pose is missing.
 
-The Phase 3 gaps (dark-mode label colors, no unit conversion for older
-profiles, filming-guide 5–15 seconds versus the API's 120 second limit) are
-still open. Phase 5 does not change them.
+The filming-guide 5–15 seconds versus the API's 120 second limit is still
+open. Phase 5 does not change it.
 
 ---
 
 ## 13. Phase 5 (October 18, 2026)
 
-Hosting config and an Expo tester guide. Phase 6 was not started. No deploy
-and no Expo build were run. There is no public URL and no store listing.
+Hosting config. Phase 6 was not started. No deploy was run. There is no
+public URL.
 
 ### What landed
 
@@ -582,17 +514,6 @@ and no Expo build were run. There is no public URL and no store listing.
 - `docs/HOSTING.md` lists the environment variables, starts RAM at 2 GB, and
   says how to read a real peak. The host steps are for Render. The service
   was not created.
-- `mobile/app.config.ts` reads `EXPO_PUBLIC_API_URL`. Development still guesses
-  the laptop. A release build does not. Settings → Advanced remains the tester
-  override.
-- `mobile/eas.json` has `development`, `preview` (internal), and `production`,
-  each with its own update channel. The bundle id `com.silverpaws.app` is a
-  placeholder. The previous id was `org.silverpaws.mobile`.
-- Camera and photo-library strings say what is measured. Microphone permission
-  is turned off (`microphonePermission: false`) because the pipeline never
-  reads sound.
-- `docs/EXPO_TESTING.md` is the tester guide. Commands were checked against
-  docs.expo.dev for EAS Build, internal distribution, and EAS Update.
 
 ### Docker
 
@@ -606,27 +527,12 @@ Do not treat the Dockerfile as a finished image.
 1. **OpenCV wheel.** `requirements.txt` pins `opencv-python` for a laptop with
    a display. The image uses `opencv-python-headless` at the same version
    (`4.10.0.84`) because the container has no screen.
-2. **Bundle id.** The repo had `org.silverpaws.mobile`. Phase 5 sets the
-   placeholder `com.silverpaws.app` and flags it for a human to replace.
-3. **Icons.** `attached_assets/` has no images. `mobile/assets/` already holds
-   the Expo template icon and splash. They were left in place and flagged.
-   No new artwork was invented.
-4. **Updates URL.** `eas update:configure` writes the Expo project id and
-   `updates.url` after a person logs in. Those values are not in the repo,
-   because inventing a project id would be a fake deploy. `docs/EXPO_TESTING.md`
-   tells the human to run that command before the first preview build.
-5. **Expo patch pins.** `npx expo-doctor` failed on the previous SDK 57 patch
-   pins (`expo` 57.0.23 and three related packages). They were moved to the
-   versions doctor asked for (`expo` ~57.0.30 and matching patches). The SDK
-   stayed 57. The legacy `splash` field is not allowed, so the placeholder
-   splash image is set with the `expo-splash-screen` plugin instead.
 
 ---
 
 ## 14. Phase 6 (October 18, 2026)
 
-The three Phase 3 gaps are closed. No deploy, no `eas build`, and no login.
-The testing record is in `TESTING.md`.
+No deploy was run. The testing record is in `TESTING.md`.
 
 ### What changed
 
@@ -635,14 +541,10 @@ The testing record is in `TESTING.md`.
   palette. The surfaces those labels sit on do too. A missing score is the
   words "Not scored" or "Not measured", and a selected chip includes a check
   mark, so meaning is not color alone.
-- Units: an older phone profile with no stored unit stays labeled pounds.
-  Switching kg/lb converts the number and shows both values ("62 lb is now
-  28.1 kg"). A value that is not a positive number is not relabeled. New pets
-  still default to kilograms. The web form still says kilograms only, because
-  that form never stored a separate unit.
-- Filming: the phone guide, the web upload line, the client errors, and the
-  pipeline notes say a useful walk is about 5 to 15 seconds and that the
-  server accepts a longer clip up to 120 seconds. The cap in code is still 120.
+- Units: the web form says kilograms. It never stored a separate unit.
+- Filming: the web upload line, the client errors, and the pipeline notes say
+  a useful walk is about 5 to 15 seconds and that the server accepts a longer
+  clip up to 120 seconds. The cap in code is still 120.
 
 ### Where this prompt disagreed with the repo
 

@@ -32,13 +32,7 @@ DASHBOARD / HISTORY  pages/home.tsx, pages/history.tsx
 ```
 
 The UI never runs the vision pipeline. It sends a file and stores the JSON
-that comes back.
-
-The mobile app (`mobile/`) follows the same path with different first and last
-steps: `app/(tabs)/analyze.tsx → src/lib/api.ts → POST /api/analyze`, and the
-result is stored in AsyncStorage by `src/lib/storage.ts`. Both clients share
-one API contract, so a walk analyzed from a phone and a walk analyzed from a
-browser produce the same record shape.
+that comes back. The web app is the only client.
 
 ## Module map
 
@@ -54,18 +48,6 @@ browser produce the same record shape.
 - `lib/analysis-api.ts` — upload checks and API error messages
 - `lib/report.ts` — browser PDF from a saved record
 - `lib/disclaimers.ts` — safety copy used in the footer
-
-### Mobile — `mobile/` (Expo Go, standalone npm project)
-
-- `app/_layout.tsx` — providers and root stack
-- `app/(tabs)/` — Home, Analyze (record/choose clip, upload progress), History, Settings
-- `app/history/[id].tsx` — one walk: factors, raw measurements, MoveNet landmark summary or OpenCV frame-motion coverage, share, delete
-- `app/pet/[id].tsx` — pet form (`new` creates), with name / age / weight checks
-- `src/lib/api.ts` — API address discovery from the Expo dev server, clip checks, XHR upload with progress, error text
-- `src/lib/storage.ts` — AsyncStorage version of the web storage module
-- `src/lib/types.ts` — hand-mirrored `AnalyzeResult` (source of truth: `lib/api-spec/openapi.yaml`)
-- `src/components/trend-panel.tsx` — saved-walk comparison, with a sparkline
-- `metro.config.js` — pins Metro to `mobile/` so it ignores the pnpm workspace above
 
 ### API — `artifacts/api-server/src`
 
