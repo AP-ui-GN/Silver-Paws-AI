@@ -1,4 +1,4 @@
-import { type CSSProperties } from 'react';
+import { type CSSProperties, useState } from 'react';
 import { ArrowLeft, ArrowRight, CalendarDays, CircleAlert, Download, FileVideo, Gauge, Info, Ruler, Stethoscope, Trash2 } from 'lucide-react';
 import { Link, useParams } from 'wouter';
 import { displayScore, type Analysis, type Pet } from '@/lib/storage';
@@ -7,8 +7,9 @@ import { aiUseResultLines } from '@/lib/ai-use';
 import { formatDate, formatDuration, formatPoseFrames, formatRelative } from '@/lib/format';
 import { downloadAnalysisReport } from '@/lib/report';
 import { TrendPanel } from '@/components/trend-panel';
+import { SAMPLE_DATA_LABEL } from '@/lib/sample-analysis';
 
-type Props = { pets: Pet[]; analyses: Analysis[]; deleteAnalysis: (id: string) => void };
+type Props = { pets: Pet[]; analyses: Analysis[]; deleteAnalysis: (id: string) => void; demoAnalysis?: Analysis | null };
 
 const FACTOR_LABELS: { key: keyof NonNullable<Analysis['factors']>; label: string; help: string }[] = [
   { key: 'movementConsistency', label: 'Movement consistency', help: 'How steady the amount of movement stayed between frames.' },
@@ -17,6 +18,14 @@ const FACTOR_LABELS: { key: keyof NonNullable<Analysis['factors']>; label: strin
   { key: 'activity', label: 'Activity', help: 'Share of the clip that contained visible movement.' },
   { key: 'historicalChange', label: 'Change from baseline', help: 'How this walk compares with the previous walk measured the same way. A first walk is not scored.' },
 ];
+
+const WEIGHT_LABELS: Record<string, string> = {
+  movementConsistency: 'Movement Consistency',
+  symmetry: 'Stride Symmetry',
+  mobility: 'Mobility',
+  activity: 'Activity',
+  historicalChange: 'Baseline Change',
+};
 
 const SIGNAL_LABELS: Record<string, string> = {
   good: 'Good signal',
@@ -29,6 +38,170 @@ const PIPELINE_LABELS: Record<string, string> = {
   'opencv-motion': 'Picture motion only',
 };
 
+const POSE_CONNECTIONS = [
+  ['left_shoulder', 'right_shoulder'],
+  ['left_shoulder', 'left_elbow'],
+  ['left_elbow', 'left_wrist'],
+  ['right_shoulder', 'right_elbow'],
+  ['right_elbow', 'right_wrist'],
+  ['left_shoulder', 'left_hip'],
+  ['right_shoulder', 'right_hip'],
+  ['left_hip', 'right_hip'],
+  ['left_hip', 'left_knee'],
+  ['left_knee', 'left_ankle'],
+  ['right_hip', 'right_knee'],
+  ['right_knee', 'right_ankle'],
+] as const;
+
+type PosePoint = NonNullable<NonNullable<Analysis['measurements']>['poseKeypoints']>[number];
+
+function isPosePoint(point: unknown): point is PosePoint {
+  if (!point || typeof point !== 'object') return false;
+  const candidate = point as Record<string, unknown>;
+  return (
+    typeof candidate.name === 'string' &&
+    typeof candidate.x === 'number' && Number.isFinite(candidate.x) && candidate.x >= 0 && candidate.x <= 1 &&
+    typeof candidate.y === 'number' && Number.isFinite(candidate.y) && candidate.y >= 0 && candidate.y <= 1 &&
+    typeof candidate.confidence === 'number' && Number.isFinite(candidate.confidence) &&
+    candidate.confidence >= 0 && candidate.confidence <= 1
+  );
+}
+
+function PipelineVisual({ analysis }: { analysis: Analysis }) {
+  const measurements = analysis.measurements;
+  const [selectedPoint, setSelectedPoint] = useState<PosePoint | null>(null);
+  const rawPoints = measurements?.poseKeypoints;
+  const points = Array.isArray(rawPoints) ? rawPoints.filter(isPosePoint) : [];
+  const lowConfidence =
+    analysis.lowConfidence === true ||
+    (typeof analysis.modelConfidence === 'number' && analysis.modelConfidence < 0.3) ||
+    (typeof measurements?.meanKeypointConfidence === 'number' && measurements.meanKeypointConfidence < 0.3);
+
+  if (points.length === 0 || lowConfidence) {
+    const coverage = measurements?.motionCoverage;
+    const percent = typeof coverage === 'number' && Number.isFinite(coverage)
+      ? Math.max(0, Math.min(100, coverage * 100))
+      : null;
+    const reason = lowConfidence
+      ? 'Pose confidence was too low to show reliable keypoints, so frame-motion coverage is shown instead.'
+      : analysis.pipeline === 'opencv-motion'
+        ? 'This fallback measures picture motion and does not produce pose landmarks.'
+        : 'No usable pose keypoints were returned, so frame-motion coverage is shown instead.';
+    return (
+      <section className="panel panel-padded mt-5" aria-label="Frame motion coverage fallback">
+        <div className="eyebrow">Computer vision activity</div>
+        <h2 className="display-title text-2xl mt-2">Frame Motion Coverage</h2>
+        <p className="body-muted text-sm mt-2">Share of analyzed frame pairs with visible picture motion. {reason}</p>
+        <div className="flex justify-between items-center text-sm mt-5">
+          <span className="font-semibold">Frames with movement</span>
+          <span className="mono">{percent === null ? 'Not measured' : `${percent.toFixed(0)}%`}</span>
+        </div>
+        <div className="progress-track mt-2" role="progressbar" aria-label="Frame Motion Coverage" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined}>
+          <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
+        </div>
+      </section>
+    );
+  }
+
+  const byName = new Map(points.map((point) => [point.name, point]));
+
+  return (
+    <section className="panel panel-padded mt-5" aria-label="MoveNet pose landmark summary">
+      <div className="eyebrow">Computer vision activity</div>
+      <h2 className="display-title text-2xl mt-2">MoveNet landmark summary</h2>
+      <p className="body-muted text-sm mt-2">
+        Mean normalized landmark positions from confident pose frames—not a diagnosis or a clinical measurement.
+      </p>
+      {points.length ? (
+        <>
+          <div className="grid md:grid-cols-[1.2fr_.8fr] gap-5 items-center mt-5">
+            <svg
+              className="w-full rounded-xl bg-[#263b35]"
+              style={{ aspectRatio: '10 / 7' }}
+              viewBox="0 0 100 70"
+              role="img"
+              aria-label={`${points.length} averaged MoveNet keypoint markers`}
+            >
+              <title>Confidence-filtered average pose landmarks</title>
+              {POSE_CONNECTIONS.map(([from, to]) => {
+                const start = byName.get(from);
+                const end = byName.get(to);
+                return start && end ? (
+                  <line
+                    key={`${from}-${to}`}
+                    x1={start.x * 100}
+                    y1={start.y * 70}
+                    x2={end.x * 100}
+                    y2={end.y * 70}
+                    stroke="#b7d6c5"
+                    strokeWidth="1.2"
+                  />
+                ) : null;
+              })}
+              {points.map((point) => (
+                <circle
+                  key={point.name}
+                  cx={point.x * 100}
+                  cy={point.y * 70}
+                  r="2.2"
+                  fill="#f1a77a"
+                  stroke="#fff4e7"
+                  strokeWidth="0.6"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${point.name.replaceAll('_', ' ')} keypoint, ${Math.round(point.confidence * 100)}% confidence`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setSelectedPoint(point)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSelectedPoint(point);
+                    }
+                  }}
+                >
+                  <title>{point.name.replaceAll('_', ' ')}</title>
+                </circle>
+              ))}
+            </svg>
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="soft-note p-3">
+                  <div className="font-bold text-lg">{points.length}</div>
+                  <div className="body-muted text-xs mt-1">Joint Keypoints Tracked</div>
+                </div>
+                <div className="soft-note p-3">
+                  <div className="font-bold text-lg">
+                    {typeof analysis.framesUsed === 'number' && typeof analysis.framesTotal === 'number'
+                      ? `${analysis.framesUsed} / ${analysis.framesTotal}`
+                      : 'Not measured'}
+                  </div>
+                  <div className="body-muted text-xs mt-1">Valid Frames Analyzed</div>
+                </div>
+              </div>
+              <div className="soft-note p-4">
+                <div className="font-semibold text-sm">Joint groupings</div>
+                <ul className="body-muted text-sm mt-3 flex flex-col gap-3">
+                  <li>Top nodes: Spine &amp; Hip alignment</li>
+                  <li>Middle nodes: Knee &amp; Stifle joints</li>
+                  <li>Lower nodes: Paw &amp; Hock contact points</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <p className="body-muted text-xs mt-3">
+            {selectedPoint
+              ? `${selectedPoint.name.replaceAll('_', ' ')} · ${Math.round(selectedPoint.confidence * 100)}% confidence`
+              : 'Select a keypoint to inspect its confidence.'}
+            {' · '}{points.length} landmarks averaged across {formatPoseFrames(analysis.framesUsed, analysis.framesTotal)}.
+          </p>
+        </>
+      ) : (
+        <p className="body-muted text-sm mt-5">No confident keypoints were available to visualize for this walk.</p>
+      )}
+    </section>
+  );
+}
+
 /** Format a measurement for display, keeping "not measured" visibly different from zero. */
 function formatMeasure(value: number | null | undefined, suffix = '', digits = 3) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 'Not measured';
@@ -37,20 +210,27 @@ function formatMeasure(value: number | null | undefined, suffix = '', digits = 3
 
 function FactorRow({ label, help, score }: { label: string; help: string; score: number | null | undefined }) {
   const measured = typeof score === 'number';
+  const scoreColor = measured ? getScoreColor(score) : undefined;
   return (
     <div className="factor-row" data-testid={`row-factor-${label.toLowerCase().replaceAll(' ', '-')}`}>
       <div className="min-w-0">
         <div className="font-semibold text-sm">{label}</div>
         <div className="body-muted text-xs mt-1">{help}</div>
-        {measured && <div className="progress-track mt-2 max-w-[240px]"><div className="progress-fill" style={{ width: `${score}%` }} /></div>}
+        {measured && <div className="progress-track mt-2 max-w-[240px]"><div className="progress-fill" style={{ width: `${score}%`, backgroundColor: scoreColor }} /></div>}
       </div>
       <div className="text-right">
         {measured
-          ? <><div className="font-bold text-lg">{score}</div><div className="body-muted text-[10px] mono">OUT OF 100</div></>
+          ? <><div className="font-bold text-lg" style={{ color: scoreColor }}>{score}</div><div className="body-muted text-[10px] mono">OUT OF 100</div></>
           : <span className="tag">Not scored</span>}
       </div>
     </div>
   );
+}
+
+function getScoreColor(score: number) {
+  if (score >= 80) return '#16a34a';
+  if (score >= 60) return '#d97706';
+  return '#dc2626';
 }
 
 function AnalysisList({ analyses, pets }: { analyses: Analysis[]; pets: Pet[] }) {
@@ -77,12 +257,19 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
   return <div className="page-frame max-w-5xl">
     <Link href="/history" className="btn-quiet -ml-3" data-testid="link-back-history"><ArrowLeft size={15} /> All observations</Link>
     <div className="flex flex-wrap items-end justify-between gap-5 mt-6 stagger">
-      <div><div className="eyebrow">Saved observation · {formatDate(analysis.createdAt)}</div><h1 className="display-title text-5xl mt-3">A closer look at<br /><span className="accent-label">{pet?.name ?? 'your pet'}’s walk.</span></h1></div>
+      <div><div className="eyebrow">{analysis.demo ? 'Demo result' : `Saved observation · ${formatDate(analysis.createdAt)}`}</div><h1 className="display-title text-5xl mt-3">A closer look at<br /><span className="accent-label">{analysis.demo ? 'the sample pet' : pet?.name ?? 'your pet'}’s walk.</span></h1></div>
        <div className="flex flex-wrap gap-2">
-         <button type="button" className="btn-secondary" onClick={() => downloadAnalysisReport(analysis, pet)} data-testid={`button-download-report-${analysis.id}`}><Download size={15} /> Download report</button>
-         <button className="btn-quiet" onClick={() => { if (window.confirm('Remove this saved observation from this device?')) onDelete(); }} data-testid={`button-delete-analysis-${analysis.id}`}><Trash2 size={15} /> Remove</button>
+         {!analysis.demo && <button type="button" className="btn-secondary" onClick={() => downloadAnalysisReport(analysis, pet)} data-testid={`button-download-report-${analysis.id}`}><Download size={15} /> Download report</button>}
+         {!analysis.demo && <button className="btn-quiet" onClick={() => { if (window.confirm('Remove this saved observation from this device?')) onDelete(); }} data-testid={`button-delete-analysis-${analysis.id}`}><Trash2 size={15} /> Remove</button>}
        </div>
     </div>
+
+    {analysis.demo && (
+      <div className="soft-note p-4 mt-5" role="note" data-testid="text-sample-data-badge">
+        <strong>{SAMPLE_DATA_LABEL}</strong>
+        <p className="body-muted text-sm mt-1">This example is mock data, was not analyzed from a video, and is not saved to your history.</p>
+      </div>
+    )}
 
     {analysis.lowConfidence && (
       <section className="alert-note p-5 mt-7 flex gap-3 items-start" role="alert" data-testid="text-low-confidence">
@@ -142,9 +329,11 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
       <div className="panel panel-padded">
         <div className="flex items-center gap-2"><Gauge size={18} style={{ color: '#b9684d' }} /><div className="eyebrow">What we noticed</div></div>
         <p className="text-base leading-relaxed mt-5" data-testid="text-observation">{analysis.observation ?? 'No interpretation was saved for this observation.'}</p>
-        <div className="video-meta mt-7"><div className="video-icon"><FileVideo size={16} /></div><div><div className="font-semibold text-sm">{analysis.fileName}</div><div className="body-muted text-xs mt-1">{formatDuration(analysis.durationSeconds)} · {pet?.name ?? 'Pet'}</div></div></div>
+        <div className="video-meta mt-7"><div className="video-icon"><FileVideo size={16} /></div><div><div className="font-semibold text-sm">{analysis.fileName}</div><div className="body-muted text-xs mt-1">{formatDuration(analysis.durationSeconds)} · {analysis.demo ? 'Sample pet' : pet?.name ?? 'Pet'}</div></div></div>
       </div>
     </div>
+
+    <PipelineVisual analysis={analysis} />
 
     {factors && (
       <section className="panel panel-padded mt-5 stagger-3">
@@ -158,7 +347,7 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
         </div>
         {analysis.weightsUsed && Object.keys(analysis.weightsUsed).length > 0 && (
           <p className="body-muted text-xs mt-5">
-            Weights used: {Object.entries(analysis.weightsUsed).map(([name, weight]) => `${name} ${Math.round((weight ?? 0) * 100)}%`).join(' · ')}
+            Weights used: {Object.entries(analysis.weightsUsed).map(([name, weight]) => `${WEIGHT_LABELS[name] ?? name} (${Math.round((weight ?? 0) * 100)}%)`).join(' • ')}
           </p>
         )}
       </section>
@@ -173,7 +362,7 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Measured length</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.durationSeconds, 's', 2)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Mean frame motion</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.motionMean, '', 4)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Motion variation</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.motionStd, '', 4)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Frames with movement</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.motionCoverage, '', 3)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Frame Motion Coverage</div><div className="font-bold text-lg mt-1">{formatMeasure(typeof measurements.motionCoverage === 'number' ? measurements.motionCoverage * 100 : undefined, '%', 0)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Stride symmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.strideSymmetry)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Asymmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.asymmetryPercent, '%', 2)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Hip stability</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>
@@ -188,9 +377,11 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
   </div>;
 }
 
-export default function History({ pets, analyses, deleteAnalysis }: Props) {
+export default function History({ pets, analyses, deleteAnalysis, demoAnalysis }: Props) {
   const params = useParams<{ id?: string }>();
-  const selected = params.id ? analyses.find((analysis) => analysis.id === params.id) : undefined;
+  const selected = params.id
+    ? analyses.find((analysis) => analysis.id === params.id) ?? (demoAnalysis?.id === params.id ? demoAnalysis : undefined)
+    : undefined;
   if (params.id && selected) {
     return <ResultDetail analysis={selected} pet={pets.find((pet) => pet.id === selected.petId)} onDelete={() => deleteAnalysis(selected.id)} />;
   }

@@ -19,3 +19,4 @@ export * from './healthStatus';
 export * from './modelInfo';
 export * from './modelInfoPipeline';
 export * from './modelInfoRunsOn';
+export * from './poseKeypointSummary';

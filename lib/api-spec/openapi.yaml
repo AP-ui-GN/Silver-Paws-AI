@@ -111,6 +111,17 @@ components:
         Raw measurements from the clip. These describe what was measured and
         carry no interpretation.
       properties:
+        poseKeypoints:
+          type: array
+          nullable: true
+          description: >-
+            Confidence-filtered mean keypoint coordinates across usable pose
+            frames. Coordinates are normalized to the source frame from 0 to 1
+            with the origin at its top-left, after correcting MoveNet's
+            letterboxing. Null when pose did not run; an empty array means pose
+            ran but no point passed the confidence filters.
+          items:
+            $ref: "#/components/schemas/PoseKeypointSummary"
         frameCount:
           # Whole number of frames. Declared as number so the generated zod
           # stays compatible with the zod version pinned in the catalog.
@@ -150,6 +161,29 @@ components:
         - motionStd
         - motionCoverage
         - symmetryReliable
+    PoseKeypointSummary:
+      type: object
+      description: Mean normalized location for one MoveNet keypoint.
+      properties:
+        name:
+          type: string
+        x:
+          type: number
+          minimum: 0
+          maximum: 1
+        y:
+          type: number
+          minimum: 0
+          maximum: 1
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+      required:
+        - name
+        - x
+        - y
+        - confidence
     AnalysisFactors:
       type: object
       description: >-
@@ -326,4 +360,3 @@ components:
         - lowConfidence
         - qualityNotes
         - aiUse
-

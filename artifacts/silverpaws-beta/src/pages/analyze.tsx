@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, CircleAlert, FileVideo, Film, LoaderCircle, LockKeyhole, PawPrint, Play, RotateCcw, Sparkles, UploadCloud } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { findBaseline, toAnalysisRecord, type Analysis, type Pet } from '@/lib/storage';
-import { checkClip, describeAnalysisError, requestAnalysis } from '@/lib/analysis-api';
+import { checkClip, describeAnalysisError, MAX_UPLOAD_MB, requestAnalysis } from '@/lib/analysis-api';
 import { formatDuration } from '@/lib/format';
+import { createSampleAnalysis } from '@/lib/sample-analysis';
 
 type Props = {
   pets: Pet[];
   analyses: Analysis[];
   addAnalysis: (analysis: Omit<Analysis, 'id' | 'createdAt'>) => Analysis;
+  openDemoAnalysis: (analysis: Analysis) => void;
 };
 
 type Phase = 'upload' | 'review' | 'processing' | 'done';
@@ -22,11 +24,12 @@ const STAGES = [
   'Writing a plain-language note',
 ];
 
-export default function Analyze({ pets, analyses, addAnalysis }: Props) {
+export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis }: Props) {
   const [, setLocation] = useLocation();
   const [petId, setPetId] = useState(pets[0]?.id ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
+  const [showDurationWarning, setShowDurationWarning] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
   const [source, setSource] = useState('');
   const [license, setLicense] = useState('');
@@ -58,6 +61,17 @@ export default function Analyze({ pets, analyses, addAnalysis }: Props) {
     if (!selected) return;
     setError('');
 
+    if (selected.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setFile(null);
+      setDuration(0);
+      setShowDurationWarning(false);
+      setPreviewUrl('');
+      setPhase('upload');
+      setError('File exceeds the 60 MB limit. Please select a shorter or lower-resolution clip.');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+
     const immediateProblem = checkClip(selected, 0);
     if (immediateProblem) {
       setError(immediateProblem.message);
@@ -69,6 +83,7 @@ export default function Analyze({ pets, analyses, addAnalysis }: Props) {
     setPreviewUrl(url);
     setPhase('review');
     setDuration(0);
+    setShowDurationWarning(false);
 
     // Duration is read for display and for the length check. A container the
     // browser cannot measure is still accepted, because the pipeline measures it.
@@ -77,10 +92,14 @@ export default function Analyze({ pets, analyses, addAnalysis }: Props) {
     video.onloadedmetadata = () => {
       const seconds = Number.isFinite(video.duration) ? Math.round(video.duration) : 0;
       setDuration(seconds);
+      setShowDurationWarning(Number.isFinite(video.duration) && video.duration > 15);
       const durationProblem = checkClip(selected, seconds);
       if (durationProblem) setError(durationProblem.message);
     };
-    video.onerror = () => setDuration(0);
+    video.onerror = () => {
+      setDuration(0);
+      setShowDurationWarning(false);
+    };
     video.src = url;
   };
 
@@ -88,6 +107,7 @@ export default function Analyze({ pets, analyses, addAnalysis }: Props) {
     requestRef.current?.abort();
     setFile(null);
     setDuration(0);
+    setShowDurationWarning(false);
     setPreviewUrl('');
     setSource('');
     setLicense('');
@@ -97,6 +117,11 @@ export default function Analyze({ pets, analyses, addAnalysis }: Props) {
     setPhase('upload');
     setError('');
     if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const tryDemo = () => {
+    requestRef.current?.abort();
+    openDemoAnalysis(createSampleAnalysis());
   };
 
   const runAnalysis = async () => {
@@ -180,7 +205,10 @@ export default function Analyze({ pets, analyses, addAnalysis }: Props) {
                 <div className="empty-art"><UploadCloud size={27} /></div>
                 <h2 className="font-bold text-lg mt-5">Drop a walking video here</h2>
                 <p className="body-muted text-sm mt-2">Side view, steady camera. A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds.</p>
-                <button type="button" className="btn-secondary mt-5" onClick={() => inputRef.current?.click()} disabled={!pets.length} data-testid="button-choose-video"><Film size={16} /> Choose video</button>
+                <div className="flex flex-wrap justify-center gap-3 mt-5">
+                  <button type="button" className="btn-secondary" onClick={() => inputRef.current?.click()} disabled={!pets.length} data-testid="button-choose-video"><Film size={16} /> Choose video</button>
+                  <button type="button" className="btn-quiet" onClick={tryDemo} data-testid="button-try-demo"><Sparkles size={16} /> Try Demo Mode</button>
+                </div>
                 <input ref={inputRef} className="hidden" type="file" accept="video/*" onChange={(event) => selectFile(event.target.files?.[0])} data-testid="input-walking-video" />
               </div>
               {error && <div className="text-sm mt-3 flex items-center gap-2" style={{ color: '#a54339' }} role="alert" data-testid="text-upload-error"><CircleAlert size={15} />{error}</div>}
@@ -204,6 +232,11 @@ export default function Analyze({ pets, analyses, addAnalysis }: Props) {
             </div>
             <div>
               <div className="video-meta"><div className="video-icon"><FileVideo size={16} /></div><div className="min-w-0"><div className="font-semibold text-sm truncate">{file.name}</div><div className="body-muted text-xs mt-1">{duration ? formatDuration(duration) : 'Duration will be measured'} · {Math.round(file.size / 1024)} KB</div></div></div>
+              {showDurationWarning && (
+                <div className="text-sm mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900" role="status" data-testid="text-duration-warning">
+                  Clips over 15 seconds take longer to process. For optimal analysis, use a 5–15 second clip.
+                </div>
+              )}
               <div className="mt-6"><label className="field-label" htmlFor="pet-select-review">Pet</label><select id="pet-select-review" className="field-input" value={petId} onChange={(event) => setPetId(event.target.value)} data-testid="select-review-pet">{pets.map((pet) => <option value={pet.id} key={pet.id}>{pet.name}</option>)}</select></div>
                <div className="soft-note p-4 mt-6">
                  <div className="eyebrow">Optional sharing context</div>

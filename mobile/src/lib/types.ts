@@ -21,7 +21,17 @@ export type AnalysisFactors = {
 export type AnalysisWeights = Partial<Record<keyof AnalysisFactors, number>>;
 
 /** Raw measurements from the clip. These carry no interpretation. */
+export type PoseKeypointSummary = {
+  name: string;
+  /** Normalized frame coordinate, from 0 to 1. */
+  x: number;
+  /** Normalized frame coordinate, from 0 to 1. */
+  y: number;
+  confidence: number;
+};
+
 export type AnalysisMeasurements = {
+  poseKeypoints?: PoseKeypointSummary[] | null;
   frameCount: number;
   durationSeconds: number;
   meanKeypointConfidence?: number | null;

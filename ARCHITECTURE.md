@@ -59,7 +59,7 @@ browser produce the same record shape.
 
 - `app/_layout.tsx` — providers and root stack
 - `app/(tabs)/` — Home, Analyze (record/choose clip, upload progress), History, Settings
-- `app/history/[id].tsx` — one walk: factors, raw measurements, share, delete
+- `app/history/[id].tsx` — one walk: factors, raw measurements, MoveNet landmark summary or OpenCV frame-motion coverage, share, delete
 - `app/pet/[id].tsx` — pet form (`new` creates), with name / age / weight checks
 - `src/lib/api.ts` — API address discovery from the Expo dev server, clip checks, XHR upload with progress, error text
 - `src/lib/storage.ts` — AsyncStorage version of the web storage module

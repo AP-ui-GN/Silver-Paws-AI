@@ -8,7 +8,8 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { DisclaimerFooter } from '../../src/components/disclaimer-footer';
 import { ScoreBadge } from '../../src/components/score';
@@ -67,6 +68,7 @@ export default function AnalyzeScreen() {
   const [petId, setPetId] = useState<string | null>(params.petId ?? pets[0]?.id ?? null);
   const [clip, setClip] = useState<ClipAsset | null>(null);
   const [clipProblem, setClipProblem] = useState<string | null>(null);
+  const [framingReady, setFramingReady] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [uploadFraction, setUploadFraction] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -239,6 +241,60 @@ export default function AnalyzeScreen() {
 
       <Card>
         <Eyebrow>2 · The walk</Eyebrow>
+        <View style={[styles.alignmentGuide, { backgroundColor: colors.track, borderColor: colors.border }]}>
+          <View style={styles.alignmentHeader}>
+            <View style={styles.alignmentTitleGroup}>
+              <Ionicons name="scan-outline" size={17} color={colors.accent} />
+              <Text style={[styles.alignmentTitle, { color: colors.text }]}>Pre-Filming Alignment Guide</Text>
+            </View>
+            <Text style={[styles.alignmentStep, { color: colors.muted }]}>01 / 03</Text>
+          </View>
+
+          <View style={styles.viewfinder}>
+            <View style={styles.targetFrame}>
+              <View style={styles.frameLabel}>
+                <View style={styles.liveDot} />
+                <Text style={styles.frameLabelText}>SIDE VIEW</Text>
+              </View>
+              <Ionicons name="paw" size={46} color="#f5e8d7" />
+              <View style={styles.groundLine} />
+              <View style={styles.targetCornerTopLeft} />
+              <View style={styles.targetCornerTopRight} />
+              <View style={styles.targetCornerBottomLeft} />
+              <View style={styles.targetCornerBottomRight} />
+            </View>
+          </View>
+
+          <View style={styles.guidelineList}>
+            <View style={styles.guidelineRow}>
+              <Ionicons name="compass-outline" size={16} color={colors.accent} />
+              <Text style={[styles.guidelineText, { color: colors.text }]}>Film directly from the side (90° angle)</Text>
+            </View>
+            <View style={styles.guidelineRow}>
+              <Ionicons name="sunny-outline" size={16} color={colors.accent} />
+              <Text style={[styles.guidelineText, { color: colors.text }]}>Ensure flat ground and good lighting</Text>
+            </View>
+            <View style={styles.guidelineRow}>
+              <Ionicons name="scan-outline" size={16} color={colors.accent} />
+              <Text style={[styles.guidelineText, { color: colors.text }]}>Keep pet's full body inside the viewport</Text>
+            </View>
+          </View>
+
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityState={{ checked: framingReady }}
+            onPress={() => setFramingReady((ready) => !ready)}
+            style={styles.readyToggle}
+          >
+            <View style={styles.readyTextGroup}>
+              <Ionicons name={framingReady ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={framingReady ? colors.good : colors.muted} />
+              <Text style={[styles.readyText, { color: colors.text }]}>Framing Ready</Text>
+            </View>
+            <View style={[styles.toggleTrack, { backgroundColor: framingReady ? colors.good : colors.border }]}>
+              <View style={[styles.toggleThumb, framingReady && styles.toggleThumbOn]} />
+            </View>
+          </Pressable>
+        </View>
         <Muted>
           Film from the side while your pet walks in a straight line, in good light. A useful walk is about 5 to 15
           seconds. The server accepts a longer clip, up to {MAX_CLIP_SECONDS} seconds and {MAX_UPLOAD_MB} MB.
@@ -375,6 +431,30 @@ function ConnectionChip({
 const styles = StyleSheet.create({
   page: { padding: spacing.lg, gap: spacing.lg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  alignmentGuide: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.md },
+  alignmentHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  alignmentTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
+  alignmentTitle: { fontSize: 14, fontWeight: '700', flexShrink: 1 },
+  alignmentStep: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  viewfinder: { height: 150, borderRadius: radius.sm, backgroundColor: '#263b35', padding: spacing.md },
+  targetFrame: { flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(245, 232, 215, 0.72)', borderRadius: radius.sm, overflow: 'hidden' },
+  frameLabel: { position: 'absolute', top: spacing.sm, left: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(20, 31, 28, 0.72)', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 5 },
+  liveDot: { width: 6, height: 6, borderRadius: radius.pill, backgroundColor: '#e8a47b' },
+  frameLabelText: { color: '#f5e8d7', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  groundLine: { position: 'absolute', left: spacing.md, right: spacing.md, bottom: 27, borderBottomWidth: 1, borderColor: 'rgba(245, 232, 215, 0.48)' },
+  targetCornerTopLeft: { position: 'absolute', top: -1, left: -1, width: 13, height: 13, borderTopWidth: 2, borderLeftWidth: 2, borderColor: '#f5e8d7' },
+  targetCornerTopRight: { position: 'absolute', top: -1, right: -1, width: 13, height: 13, borderTopWidth: 2, borderRightWidth: 2, borderColor: '#f5e8d7' },
+  targetCornerBottomLeft: { position: 'absolute', bottom: -1, left: -1, width: 13, height: 13, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: '#f5e8d7' },
+  targetCornerBottomRight: { position: 'absolute', bottom: -1, right: -1, width: 13, height: 13, borderBottomWidth: 2, borderRightWidth: 2, borderColor: '#f5e8d7' },
+  guidelineList: { gap: spacing.sm },
+  guidelineRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  guidelineText: { flex: 1, fontSize: 12, lineHeight: 18 },
+  readyToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderColor: 'rgba(122, 111, 102, 0.18)', paddingTop: spacing.md, minHeight: 40 },
+  readyTextGroup: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  readyText: { fontSize: 13, fontWeight: '700' },
+  toggleTrack: { width: 40, height: 23, borderRadius: radius.pill, justifyContent: 'center', paddingHorizontal: 3 },
+  toggleThumb: { width: 17, height: 17, borderRadius: radius.pill, backgroundColor: '#fff' },
+  toggleThumbOn: { alignSelf: 'flex-end' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   clipMeta: { marginTop: spacing.xs, gap: 2 },

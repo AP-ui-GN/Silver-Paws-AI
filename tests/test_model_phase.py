@@ -8,7 +8,11 @@ import cv2
 import numpy as np
 
 from gait_engine.clip_quality import quality_notes
-from gait_engine.confidence import pose_is_trusted, summarize_keypoints
+from gait_engine.confidence import (
+    pose_is_trusted,
+    summarize_keypoints,
+    summarize_pose_coordinates,
+)
 from gait_engine.pipeline import MIN_POSE_CONFIDENCE, ai_use_ids, analyze_clip
 
 
@@ -44,6 +48,62 @@ class ConfidenceSummaryTests(unittest.TestCase):
         self.assertIsNone(summary["modelConfidence"])
         self.assertEqual(summary["framesUsed"], 0)
         self.assertEqual(summary["framesTotal"], 4)
+
+    def test_pose_coordinates_average_confident_frames_only(self):
+        array = keypoints(2, 0.9)
+        array[0, 5, :2] = (0.2, 0.4)
+        array[1, 5, :2] = (0.6, 0.8)
+        array[:, 6, 2] = 0.1
+
+        points = summarize_pose_coordinates(
+            array,
+            frame_threshold=0.3,
+            keypoint_threshold=0.2,
+        )
+
+        left_shoulder = next(point for point in points if point["name"] == "left_shoulder")
+        self.assertEqual(left_shoulder, {
+            "name": "left_shoulder",
+            "x": 0.6,
+            "y": 0.4,
+            "confidence": 0.9,
+        })
+        self.assertNotIn("right_shoulder", {point["name"] for point in points})
+
+    def test_pose_coordinates_omit_low_confidence_and_out_of_frame_points(self):
+        array = keypoints(1, 0.1)
+        self.assertEqual(
+            summarize_pose_coordinates(
+                array,
+                frame_threshold=0.3,
+                keypoint_threshold=0.2,
+            ),
+            [],
+        )
+
+        array = keypoints(1, 0.9)
+        array[0, 0, 1] = 1.2
+        points = summarize_pose_coordinates(
+            array,
+            frame_threshold=0.3,
+            keypoint_threshold=0.2,
+        )
+        self.assertNotIn("nose", {point["name"] for point in points})
+
+    def test_pose_coordinates_map_letterboxed_landmarks_to_source_frame(self):
+        array = keypoints(1, 0.9)
+        array[0, 0, :2] = (0.3, 0.5)
+        points = summarize_pose_coordinates(
+            array,
+            frame_threshold=0.3,
+            keypoint_threshold=0.2,
+            frame_width=16,
+            frame_height=9,
+        )
+
+        nose = next(point for point in points if point["name"] == "nose")
+        self.assertAlmostEqual(nose["x"], 0.5)
+        self.assertAlmostEqual(nose["y"], (0.3 - 0.21875) / 0.5625, places=4)
 
 
 class ClipQualityTests(unittest.TestCase):
@@ -115,6 +175,7 @@ class OpenCvResultTests(unittest.TestCase):
         self.assertFalse(result["lowConfidence"])
         self.assertIsNone(result["measurements"]["strideSymmetry"])
         self.assertIsNone(result["measurements"]["hipStability"])
+        self.assertIsNone(result["measurements"]["poseKeypoints"])
         self.assertTrue(result["modelInfo"]["modelVersion"])
         self.assertEqual(
             result["aiUse"],

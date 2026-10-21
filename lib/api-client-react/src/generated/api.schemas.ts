@@ -18,9 +18,33 @@ export interface AnalyzeError {
 }
 
 /**
+ * Mean normalized location for one MoveNet keypoint.
+ */
+export interface PoseKeypointSummary {
+  name: string;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  x: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  y: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence: number;
+}
+
+/**
  * Raw measurements from the clip. These describe what was measured and carry no interpretation.
  */
 export interface AnalysisMeasurements {
+  /** Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left, after correcting MoveNet's letterboxing. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters. */
+  poseKeypoints?: PoseKeypointSummary[] | null;
   frameCount: number;
   durationSeconds: number;
   meanKeypointConfidence?: number | null;

@@ -22,7 +22,7 @@ from typing import Any
 import cv2
 
 from .clip_quality import quality_notes
-from .confidence import pose_is_trusted, summarize_keypoints
+from .confidence import pose_is_trusted, summarize_keypoints, summarize_pose_coordinates
 from .features import MOTION_FLOOR, hip_stability, motion_statistics
 from .metrics import compute_gait_metrics
 from .motion import read_motion_signal
@@ -194,6 +194,7 @@ def analyze_clip(
     motion_mean, motion_std, motion_coverage = motion_statistics(signal.frame_motion)
 
     measurements: dict[str, Any] = {
+        "poseKeypoints": None,
         "frameCount": signal.frames_read,
         "durationSeconds": signal.duration_seconds,
         "meanKeypointConfidence": None,
@@ -230,6 +231,13 @@ def analyze_clip(
             model_confidence = summary["modelConfidence"]
             frames_used = summary["framesUsed"]
             frames_total = summary["framesTotal"]
+            measurements["poseKeypoints"] = summarize_pose_coordinates(
+                keypoints,
+                frame_threshold=MIN_POSE_CONFIDENCE,
+                keypoint_threshold=POSE_CONFIDENCE_THRESHOLD,
+                frame_width=signal.width,
+                frame_height=signal.height,
+            )
             measurements["meanKeypointConfidence"] = model_confidence
             # Below the trust line, limb numbers are left unset. They are not
             # published as zero, and the result UI shows "Not measured".

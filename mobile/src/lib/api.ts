@@ -285,30 +285,111 @@ function isAbort(error: unknown) {
   return error instanceof Error && error.name === 'AbortError';
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isNullableNumber(value: unknown) {
+  return value === null || isFiniteNumber(value);
+}
+
+function hasOptionalNullableNumbers(record: Record<string, unknown>, keys: string[]) {
+  return keys.every((key) => !(key in record) || isNullableNumber(record[key]));
+}
+
 /**
  * Check the response has the fields every screen relies on. This is the
  * mobile-side guard against a misbehaving server; the server validates the same
  * payload against the full OpenAPI schema before sending it.
  */
 export function isAnalyzeResult(value: unknown): value is AnalyzeResult {
-  if (!value || typeof value !== 'object') return false;
-  const result = value as Record<string, unknown>;
-  const measurements = result.measurements as Record<string, unknown> | undefined;
+  if (!isRecord(value)) return false;
+  const result = value;
+  const measurements = isRecord(result.measurements) ? result.measurements : null;
+  const factors = isRecord(result.factors) ? result.factors : null;
+  const modelInfo = isRecord(result.modelInfo) ? result.modelInfo : null;
+  const weights = result.weightsUsed === undefined ? null : isRecord(result.weightsUsed) ? result.weightsUsed : undefined;
+  const validDiagnostics = result.diagnostics === undefined || isRecord(result.diagnostics);
+  const poseKeypoints = measurements?.poseKeypoints;
+  const validPoseKeypoints =
+    poseKeypoints === undefined ||
+    poseKeypoints === null ||
+    (Array.isArray(poseKeypoints) &&
+      poseKeypoints.every((point: unknown) => {
+        if (!isRecord(point)) return false;
+        const keypoint = point;
+        return (
+          typeof keypoint.name === 'string' &&
+          typeof keypoint.x === 'number' && Number.isFinite(keypoint.x) && keypoint.x >= 0 && keypoint.x <= 1 &&
+          typeof keypoint.y === 'number' && Number.isFinite(keypoint.y) && keypoint.y >= 0 && keypoint.y <= 1 &&
+          typeof keypoint.confidence === 'number' &&
+          Number.isFinite(keypoint.confidence) &&
+          keypoint.confidence >= 0 &&
+          keypoint.confidence <= 1
+        );
+      }));
+  const validFactors = factors !== null && hasOptionalNullableNumbers(factors, [
+    'movementConsistency',
+    'symmetry',
+    'mobility',
+    'activity',
+    'historicalChange',
+  ]);
+  const validWeights =
+    weights === null ||
+    (weights !== undefined &&
+      ['movementConsistency', 'symmetry', 'mobility', 'activity', 'historicalChange']
+        .every((key) => !(key in weights) || isFiniteNumber(weights[key])));
+  const validMeasurements = measurements !== null &&
+    isFiniteNumber(measurements.frameCount) &&
+    isFiniteNumber(measurements.durationSeconds) &&
+    isFiniteNumber(measurements.motionMean) &&
+    isFiniteNumber(measurements.motionStd) &&
+    isFiniteNumber(measurements.motionCoverage) &&
+    typeof measurements.symmetryReliable === 'boolean' &&
+    hasOptionalNullableNumbers(measurements, [
+      'meanKeypointConfidence',
+      'leftAnkleMotion',
+      'rightAnkleMotion',
+      'strideSymmetry',
+      'asymmetryPercent',
+      'hipStability',
+    ]) &&
+    validPoseKeypoints;
   return (
     result.ok === true &&
     (result.pipeline === 'movenet' || result.pipeline === 'opencv-motion') &&
-    typeof result.signalQuality === 'string' &&
+    (result.signalQuality === 'good' || result.signalQuality === 'limited' || result.signalQuality === 'unusable') &&
     typeof result.signalNote === 'string' &&
     typeof result.observation === 'string' &&
     typeof result.limitations === 'string' &&
     typeof result.concerningChange === 'boolean' &&
     typeof result.usedLlm === 'boolean' &&
-    !!result.factors &&
-    typeof result.factors === 'object' &&
-    !!measurements &&
-    typeof measurements.frameCount === 'number' &&
-    typeof measurements.durationSeconds === 'number' &&
-    typeof measurements.motionMean === 'number'
+    validFactors &&
+    validMeasurements &&
+    (result.overallScore === undefined || isNullableNumber(result.overallScore)) &&
+    (result.strideSymmetryScore === undefined || isNullableNumber(result.strideSymmetryScore)) &&
+    (result.asymmetryPercent === undefined || isNullableNumber(result.asymmetryPercent)) &&
+    (result.confidence === undefined || isNullableNumber(result.confidence)) &&
+    validWeights &&
+    modelInfo !== null &&
+    (modelInfo.pipeline === 'movenet' || modelInfo.pipeline === 'opencv-motion') &&
+    typeof modelInfo.modelName === 'string' &&
+    typeof modelInfo.modelVersion === 'string' &&
+    modelInfo.runsOn === 'server' &&
+    isNullableNumber(result.modelConfidence) &&
+    isNullableNumber(result.framesUsed) &&
+    isNullableNumber(result.framesTotal) &&
+    typeof result.lowConfidence === 'boolean' &&
+    Array.isArray(result.qualityNotes) &&
+    result.qualityNotes.every((note: unknown) => typeof note === 'string') &&
+    Array.isArray(result.aiUse) &&
+    result.aiUse.every((step: unknown) => typeof step === 'string') &&
+    validDiagnostics
   );
 }
 

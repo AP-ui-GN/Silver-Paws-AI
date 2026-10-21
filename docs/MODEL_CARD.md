@@ -100,6 +100,18 @@ and spread, motion coverage, brightness used only for the quality note,
 keypoint confidence, frames used, and — when pose confidence is high enough —
 ankle motion, stride symmetry, asymmetry, and hip stability.
 
+When MoveNet runs, the API also returns `measurements.poseKeypoints`: a compact
+per-joint mean of source-frame-normalized `(x, y)` positions across frames whose
+mean pose confidence reaches the existing trust threshold. Coordinates are
+corrected for the padding MoveNet adds around frames that do not match its
+square input. Individual points must also pass the existing keypoint-confidence
+threshold and fall inside the frame. These coordinates are a visual summary,
+not a frame-by-frame recording, and they do not feed or change any score. They
+are saved with the local analysis record so the detail screen can render the
+same summary later. The app does not retain or replay the uploaded video. The
+OpenCV-only path has no pose points; its detail screen instead displays frame
+motion coverage.
+
 **Interpreted:** factor scores, the overall 0–100 indicator, the observation
 sentence, and the "ask a veterinarian" flag. The observation may quote
 measured numbers. It does not name a condition. An optional language model

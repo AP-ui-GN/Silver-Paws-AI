@@ -19,12 +19,29 @@ export const AnalyzeMovementClipBody = zod.object({
   "previousPipeline": zod.string().optional().describe('Pipeline that produced previousOverall. Trends are only compared when it matches the pipeline used for this run.')
 })
 
+export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemXMin = 0;
+export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemXMax = 1;
+
+export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMin = 0;
+export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMax = 1;
+
+export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMin = 0;
+export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMax = 1;
+
+
+
 export const AnalyzeMovementClipResponse = zod.object({
   "ok": zod.boolean(),
   "pipeline": zod.enum(['movenet', 'opencv-motion']).describe('movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.'),
   "signalQuality": zod.enum(['good', 'limited', 'unusable']).describe('How much the measurements from this clip can be trusted.'),
   "signalNote": zod.string().describe('Plain-language reason for signalQuality, safe to display.'),
   "measurements": zod.object({
+  "poseKeypoints": zod.array(zod.object({
+  "name": zod.string(),
+  "x": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemXMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemXMax),
+  "y": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMax),
+  "confidence": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMax)
+}).describe('Mean normalized location for one MoveNet keypoint.')).nullish().describe('Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left, after correcting MoveNet\'s letterboxing. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters.'),
   "frameCount": zod.number(),
   "durationSeconds": zod.number(),
   "meanKeypointConfidence": zod.number().nullish(),

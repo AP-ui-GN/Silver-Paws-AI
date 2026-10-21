@@ -5,7 +5,9 @@
  */
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, Line } from 'react-native-svg';
 
 import { DisclaimerFooter } from '../../src/components/disclaimer-footer';
 import { FactorRow, ScoreBadge } from '../../src/components/score';
@@ -36,6 +38,140 @@ function Measure({ label, value }: { label: string; value: string }) {
       <Text style={[styles.measureLabel, { color: colors.muted }]}>{label}</Text>
       <Text style={[styles.measureValue, { color: colors.text }]}>{value}</Text>
     </View>
+  );
+}
+
+const POSE_CONNECTIONS = [
+  ['left_shoulder', 'right_shoulder'],
+  ['left_shoulder', 'left_elbow'],
+  ['left_elbow', 'left_wrist'],
+  ['right_shoulder', 'right_elbow'],
+  ['right_elbow', 'right_wrist'],
+  ['left_shoulder', 'left_hip'],
+  ['right_shoulder', 'right_hip'],
+  ['left_hip', 'right_hip'],
+  ['left_hip', 'left_knee'],
+  ['left_knee', 'left_ankle'],
+  ['right_hip', 'right_knee'],
+  ['right_knee', 'right_ankle'],
+] as const;
+
+const WEIGHT_LABELS: Record<string, string> = {
+  movementConsistency: 'Movement Consistency',
+  symmetry: 'Stride Symmetry',
+  mobility: 'Mobility',
+  activity: 'Activity',
+  historicalChange: 'Baseline Change',
+};
+
+type PosePoint = NonNullable<NonNullable<Analysis['measurements']>['poseKeypoints']>[number];
+
+function isPosePoint(point: unknown): point is PosePoint {
+  if (!point || typeof point !== 'object') return false;
+  const candidate = point as Record<string, unknown>;
+  return (
+    typeof candidate.name === 'string' &&
+    typeof candidate.x === 'number' && Number.isFinite(candidate.x) && candidate.x >= 0 && candidate.x <= 1 &&
+    typeof candidate.y === 'number' && Number.isFinite(candidate.y) && candidate.y >= 0 && candidate.y <= 1 &&
+    typeof candidate.confidence === 'number' && Number.isFinite(candidate.confidence) &&
+    candidate.confidence >= 0 && candidate.confidence <= 1
+  );
+}
+
+function PipelineVisual({ analysis }: { analysis: Analysis }) {
+  const colors = useColors();
+  const measurements = analysis.measurements;
+  const [selectedPoint, setSelectedPoint] = useState<PosePoint | null>(null);
+  const rawPoints = measurements?.poseKeypoints;
+  const points = Array.isArray(rawPoints) ? rawPoints.filter(isPosePoint) : [];
+  const lowConfidence =
+    analysis.lowConfidence === true ||
+    (typeof analysis.modelConfidence === 'number' && analysis.modelConfidence < 0.3) ||
+    (typeof measurements?.meanKeypointConfidence === 'number' && measurements.meanKeypointConfidence < 0.3);
+
+  if (points.length === 0 || lowConfidence) {
+    const coverage = measurements?.motionCoverage;
+    const percent = typeof coverage === 'number' && Number.isFinite(coverage)
+      ? Math.max(0, Math.min(100, coverage * 100))
+      : null;
+    const reason = lowConfidence
+      ? 'Pose confidence was too low to show reliable keypoints, so frame-motion coverage is shown instead.'
+      : analysis.pipeline === 'opencv-motion'
+        ? 'This fallback measures picture motion and does not produce pose landmarks.'
+        : 'No usable pose keypoints were returned, so frame-motion coverage is shown instead.';
+    return (
+      <Card>
+        <Eyebrow>Computer vision activity</Eyebrow>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Frame Motion Coverage</Text>
+        <Muted>Share of analyzed frame pairs with visible picture motion. {reason}</Muted>
+        <View style={styles.coverageHeader}>
+          <Muted>Frames with movement</Muted>
+          <Text style={[styles.coverageValue, { color: colors.text }]}>{percent === null ? 'Not measured' : `${percent.toFixed(0)}%`}</Text>
+        </View>
+        <View
+          accessibilityRole="progressbar"
+          accessibilityLabel="Frame Motion Coverage"
+          accessibilityValue={percent === null ? undefined : { min: 0, max: 100, now: percent }}
+          style={[styles.coverageTrack, { backgroundColor: colors.track }]}
+        >
+          <View style={[styles.coverageFill, { width: `${percent ?? 0}%`, backgroundColor: colors.accent }]} />
+        </View>
+      </Card>
+    );
+  }
+
+  const byName = new Map(points.map((point) => [point.name, point]));
+  return (
+    <Card>
+      <Eyebrow>Computer vision activity</Eyebrow>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>MoveNet landmark summary</Text>
+      <Muted>Mean normalized landmark positions from confident pose frames—not a diagnosis or a clinical measurement.</Muted>
+      {points.length ? (
+        <>
+          <View style={styles.poseCanvas}>
+            <Svg width="100%" height="100%" viewBox="0 0 100 70" preserveAspectRatio="none" accessibilityRole="image">
+              {POSE_CONNECTIONS.map(([from, to]) => {
+                const start = byName.get(from);
+                const end = byName.get(to);
+                return start && end ? (
+                  <Line
+                    key={`${from}-${to}`}
+                    x1={start.x * 100}
+                    y1={start.y * 70}
+                    x2={end.x * 100}
+                    y2={end.y * 70}
+                    stroke={colors.good}
+                    strokeWidth="1.2"
+                  />
+                ) : null;
+              })}
+              {points.map((point) => (
+                <Circle
+                  key={point.name}
+                  cx={point.x * 100}
+                  cy={point.y * 70}
+                  r="2.2"
+                  fill={colors.accent}
+                  stroke="#fff4e7"
+                  strokeWidth="0.6"
+                  accessible
+                  accessibilityLabel={`${point.name.replaceAll('_', ' ')} keypoint, ${Math.round(point.confidence * 100)}% confidence`}
+                  onPress={() => setSelectedPoint(point)}
+                />
+              ))}
+            </Svg>
+          </View>
+          <Muted>
+            {selectedPoint
+              ? `${selectedPoint.name.replaceAll('_', ' ')} · ${Math.round(selectedPoint.confidence * 100)}% confidence`
+              : 'Tap a keypoint to inspect its confidence.'}
+            {' · '}{points.length} landmarks averaged across {formatPoseFrames(analysis.framesUsed, analysis.framesTotal)}.
+          </Muted>
+        </>
+      ) : (
+        <Muted>No confident keypoints were available to visualize for this walk.</Muted>
+      )}
+    </Card>
   );
 }
 
@@ -158,6 +294,8 @@ export default function WalkDetailScreen() {
         <Text style={[styles.observation, { color: colors.text }]}>{analysis.observation}</Text>
       </Card>
 
+      <PipelineVisual analysis={analysis} />
+
       <Card>
         <Eyebrow>Factors</Eyebrow>
         <Muted>Each factor is scored 0-100 from the measurements below. "Not scored" means there was not enough signal.</Muted>
@@ -168,31 +306,40 @@ export default function WalkDetailScreen() {
           <Muted>
             Weights used:{' '}
             {Object.entries(analysis.weightsUsed)
-              .map(([name, weight]) => `${name} ${Math.round((weight ?? 0) * 100)}%`)
-              .join(' · ')}
+              .map(([name, weight]) => `${WEIGHT_LABELS[name] ?? name} (${Math.round((weight ?? 0) * 100)}%)`)
+              .join(' • ')}
           </Muted>
         )}
       </Card>
 
-      <Card>
-        <Eyebrow>Raw measurements</Eyebrow>
-        <Muted>Exactly what the pipeline measured, with no interpretation.</Muted>
-        <View style={styles.measureGrid}>
-          <Measure label="Frames read" value={formatMeasure(measurements.frameCount, '', 0)} />
-          <Measure label="Clip length" value={formatMeasure(measurements.durationSeconds, ' s', 1)} />
-          <Measure label="Mean frame motion" value={formatMeasure(measurements.motionMean)} />
-          <Measure label="Motion variation" value={formatMeasure(measurements.motionStd)} />
-          <Measure label="Frames with movement" value={formatMeasure(measurements.motionCoverage * 100, '%', 0)} />
-          <Measure label="Stride symmetry" value={formatMeasure(measurements.strideSymmetry)} />
-          <Measure label="Asymmetry" value={formatMeasure(measurements.asymmetryPercent, '%', 1)} />
-          <Measure label="Hip stability" value={formatMeasure(measurements.hipStability)} />
-          <Measure label="Left ankle motion" value={formatMeasure(measurements.leftAnkleMotion)} />
-          <Measure label="Right ankle motion" value={formatMeasure(measurements.rightAnkleMotion)} />
-          <Measure label="Keypoint confidence" value={formatMeasure(measurements.meanKeypointConfidence)} />
-          <Measure label="Confident frames" value={formatPoseFrames(analysis.framesUsed, analysis.framesTotal)} />
-          <Measure label="Symmetry reliable" value={measurements.symmetryReliable ? 'Yes' : 'No'} />
-        </View>
-      </Card>
+      {measurements && (
+        <Card>
+          <Eyebrow>Raw measurements</Eyebrow>
+          <Muted>Exactly what the pipeline measured, with no interpretation.</Muted>
+          <View style={styles.measureGrid}>
+            <Measure label="Frames read" value={formatMeasure(measurements.frameCount, '', 0)} />
+            <Measure label="Clip length" value={formatMeasure(measurements.durationSeconds, ' s', 1)} />
+            <Measure label="Mean frame motion" value={formatMeasure(measurements.motionMean)} />
+            <Measure label="Motion variation" value={formatMeasure(measurements.motionStd)} />
+            <Measure
+              label="Frame Motion Coverage"
+              value={formatMeasure(
+                typeof measurements.motionCoverage === 'number' ? measurements.motionCoverage * 100 : undefined,
+                '%',
+                0,
+              )}
+            />
+            <Measure label="Stride symmetry" value={formatMeasure(measurements.strideSymmetry)} />
+            <Measure label="Asymmetry" value={formatMeasure(measurements.asymmetryPercent, '%', 1)} />
+            <Measure label="Hip stability" value={formatMeasure(measurements.hipStability)} />
+            <Measure label="Left ankle motion" value={formatMeasure(measurements.leftAnkleMotion)} />
+            <Measure label="Right ankle motion" value={formatMeasure(measurements.rightAnkleMotion)} />
+            <Measure label="Keypoint confidence" value={formatMeasure(measurements.meanKeypointConfidence)} />
+            <Measure label="Confident frames" value={formatPoseFrames(analysis.framesUsed, analysis.framesTotal)} />
+            <Measure label="Symmetry reliable" value={typeof measurements.symmetryReliable === 'boolean' ? (measurements.symmetryReliable ? 'Yes' : 'No') : 'Not measured'} />
+          </View>
+        </Card>
+      )}
 
       <Card>
         <Eyebrow>Limitations</Eyebrow>
@@ -223,6 +370,12 @@ const styles = StyleSheet.create({
   petName: { fontSize: 22, fontWeight: '700' },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
   observation: { fontSize: 16, lineHeight: 24 },
+  sectionTitle: { fontSize: 18, fontWeight: '700' },
+  coverageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
+  coverageValue: { fontSize: 14, fontWeight: '700' },
+  coverageTrack: { height: 10, borderRadius: 5, overflow: 'hidden', marginTop: spacing.xs },
+  coverageFill: { height: '100%', borderRadius: 5 },
+  poseCanvas: { width: '100%', aspectRatio: 10 / 7, borderRadius: 12, overflow: 'hidden', backgroundColor: '#263b35', marginVertical: spacing.md },
   body: { fontSize: 14, lineHeight: 21 },
   measureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
   measure: {

@@ -11,6 +11,8 @@ import math
 
 import numpy as np
 
+from .movenet import KEYPOINT_NAMES
+
 
 def summarize_keypoints(keypoints, *, frame_threshold: float) -> dict:
     """Return modelConfidence (0-1 or None), framesUsed, and framesTotal.
@@ -57,6 +59,70 @@ def summarize_keypoints(keypoints, *, frame_threshold: float) -> dict:
         "framesUsed": frames_used,
         "framesTotal": frames_total,
     }
+
+
+def summarize_pose_coordinates(
+    keypoints,
+    *,
+    frame_threshold: float,
+    keypoint_threshold: float,
+    frame_width: int | None = None,
+    frame_height: int | None = None,
+) -> list[dict[str, float | str]]:
+    """Average source-frame-normalized coordinates over confident pose frames."""
+
+    array = np.asarray(keypoints, dtype=np.float32)
+    if array.ndim != 3 or array.shape[-1] < 3:
+        raise ValueError("keypoints must have shape (frames, points, 3).")
+    if array.shape[1] != len(KEYPOINT_NAMES):
+        raise ValueError(f"keypoints must contain {len(KEYPOINT_NAMES)} points.")
+    if not 0.0 <= frame_threshold <= 1.0:
+        raise ValueError("frame_threshold must be between 0 and 1.")
+    if not 0.0 <= keypoint_threshold <= 1.0:
+        raise ValueError("keypoint_threshold must be between 0 and 1.")
+    if (frame_width is None) != (frame_height is None):
+        raise ValueError("frame_width and frame_height must be provided together.")
+
+    confidences = array[:, :, 2]
+    usable_frames = []
+    for frame, frame_confidence in zip(array, confidences):
+        finite = np.isfinite(frame_confidence)
+        if not np.any(finite) or float(np.mean(frame_confidence[finite])) < frame_threshold:
+            continue
+        usable_frames.append(frame)
+
+    if not usable_frames:
+        return []
+
+    usable = np.stack(usable_frames)
+    if frame_width and frame_height and frame_width > 0 and frame_height > 0:
+        width_fraction = frame_width / max(frame_width, frame_height)
+        height_fraction = frame_height / max(frame_width, frame_height)
+        usable[:, :, 1] = (usable[:, :, 1] - (1.0 - width_fraction) / 2.0) / width_fraction
+        usable[:, :, 0] = (usable[:, :, 0] - (1.0 - height_fraction) / 2.0) / height_fraction
+
+    result: list[dict[str, float | str]] = []
+    for index, name in enumerate(KEYPOINT_NAMES):
+        points = usable[:, index, :]
+        valid = (
+            np.isfinite(points).all(axis=1)
+            & (points[:, 2] >= keypoint_threshold)
+            & (points[:, 0] >= 0.0)
+            & (points[:, 0] <= 1.0)
+            & (points[:, 1] >= 0.0)
+            & (points[:, 1] <= 1.0)
+        )
+        if not np.any(valid):
+            continue
+
+        result.append({
+            "name": name,
+            "x": round(float(np.mean(points[valid, 1])), 4),
+            "y": round(float(np.mean(points[valid, 0])), 4),
+            "confidence": round(float(np.mean(points[valid, 2])), 4),
+        })
+
+    return result
 
 
 def pose_is_trusted(summary: dict, *, minimum: float) -> bool:

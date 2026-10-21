@@ -17,4 +17,5 @@ export type {
   AnalyzeResultDiagnostics,
   HealthStatus,
   ModelInfo,
+  PoseKeypointSummary,
 } from "./generated/types";

@@ -64,6 +64,8 @@ export type Analysis = {
   qualityNotes?: string[];
   /** Registry ids for the steps that produced this walk. */
   aiUse?: string[];
+  /** Demo results are held in memory and must never be added to saved history. */
+  demo?: boolean;
 };
 
 /** The fields the app supplies itself, alongside the analysis result. */
