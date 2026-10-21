@@ -10,6 +10,6 @@ export type ModelInfoPipeline = typeof ModelInfoPipeline[keyof typeof ModelInfoP
 
 
 export const ModelInfoPipeline = {
-  movenet: 'movenet',
+  'rtmpose-ap10k': 'rtmpose-ap10k',
   'opencv-motion': 'opencv-motion',
 } as const;

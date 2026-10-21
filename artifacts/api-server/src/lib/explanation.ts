@@ -87,8 +87,10 @@ export function collectAllowedNumbers(context: ExplanationContext): number[] {
     context.measurements.asymmetryPercent,
     context.measurements.meanKeypointConfidence,
     context.measurements.hipStability,
-    context.measurements.leftAnkleMotion,
-    context.measurements.rightAnkleMotion,
+    context.measurements.leftHindPawMotion,
+    context.measurements.rightHindPawMotion,
+    context.measurements.leftForePawMotion,
+    context.measurements.rightForePawMotion,
   ];
 
   const allowed = new Set<number>();

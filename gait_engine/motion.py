@@ -1,8 +1,8 @@
 """Frame-to-frame motion signal for a video clip.
 
-This module only needs OpenCV, so it runs in environments where TensorFlow (and
-therefore MoveNet) is unavailable. It produces the movement time series that the
-feature layer turns into measurements.
+This module only needs OpenCV, so it runs when the quadruped pose model is
+unavailable. It produces the movement time series that the feature layer turns
+into measurements.
 """
 
 from __future__ import annotations

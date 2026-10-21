@@ -16,10 +16,10 @@ over time and, if needed, take to a veterinarian.
 
 - Pet profile (name, species, breed, age, weight, notes) stored in this browser
 - Walking-clip upload with file, size, and duration checks
-- Computer vision pipeline: frames → picture motion, and MoveNet pose when
-  TensorFlow is installed
-- Gait measurements (left/right ankle motion, stride symmetry) kept separate
-  from interpretation
+- Computer vision pipeline: frames → picture motion, and RTMPose-m animal
+  pose when ONNX Runtime is installed
+- Gait measurements (left/right paw motion, hind-paw stride symmetry) kept
+  separate from interpretation
 - Transparent factor scores (consistency, symmetry, mobility, activity, and
   change from the previous walk) blended into an overall 0–100 indicator
 - Rule-based observation text that only quotes measured values
@@ -55,13 +55,15 @@ The wording for each step lives in `lib/ai-use/registry.json` and is copied
 into the apps by `node scripts/sync-ai-use.mjs`. The generated page is
 `docs/AI_USE.md`. Pose limits are in `docs/MODEL_CARD.md`.
 
-- **MoveNet Thunder** finds 17 body keypoints on the analysis server when
-  TensorFlow is installed. It was trained on human bodies. Low confidence is
-  reported as “not measured”, not as a perfect score.
+- **RTMPose-m** finds 17 AP-10K animal keypoints on the analysis server when
+  ONNX Runtime is installed. OpenMMLab published it trained on AP-10K.
+  SilverPaws did not train it. Low confidence is reported as “not measured”,
+  not as a perfect score.
 - **OpenCV frame difference** runs on every clip. It is not a learned model.
-  When MoveNet is missing, it is the only movement measurement. When MoveNet
-  runs, it still supplies movement consistency and activity. Results from the
-  two pipelines are never mixed in a chart.
+  When the pose model is missing or below the confidence gate, it is the only
+  movement measurement. When the pose model runs, it still supplies movement
+  consistency and activity. Results from the two pipelines are never mixed in
+  a chart.
 - **Scores and the note** come from fixed formulas and templates in
   `gait_engine/wellness.py`. They are not an AI model.
 - **Optional language-model rewrite** in
@@ -78,7 +80,9 @@ into the apps by `node scripts/sync-ai-use.mjs`. The generated page is
 - Does not replace a veterinarian
 - Not for emergencies
 - One camera angle of one short clip is not a full picture of a pet
-- MoveNet is a human-pose model; treat pet limb detections cautiously
+- The pose model was trained on many animal species, not on this pet. Treat
+  limb numbers as a comparison with the same camera setup, not as a clinical
+  measurement
 - Beta data stays in this browser (`localStorage`), not a shared database
 
 ## How to run
@@ -96,12 +100,12 @@ pip install -r requirements-opencv.txt
 `requirements-opencv.txt` pins OpenCV and NumPy for Python 3.10–3.12. That
 path measures picture motion only and labels the result `opencv-motion`.
 
-For pose landmarks, use Python 3.10 or 3.11 (TensorFlow 2.15 does not support
-3.12) and warm the model cache so the first request does not download it:
+For pose landmarks, use Python 3.10, 3.11, or 3.12 and warm the checkpoint
+cache so the first request does not download it:
 
 ```bash
 pip install -r requirements.txt
-python scripts/cache_movenet.py
+python scripts/cache_quadruped.py
 ```
 
 See `docs/MODEL_CARD.md` for what each model is and what it cannot do.

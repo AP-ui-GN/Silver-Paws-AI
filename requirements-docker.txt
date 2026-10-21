@@ -1,12 +1,11 @@
 # Container install for the analysis API.
 #
-# Python 3.11 (the python3 in node:20-bookworm). TensorFlow 2.15 does not
-# support Python 3.12.
+# Python 3.11 (the python3 in node:20-bookworm). ONNX Runtime 1.20.1 also
+# runs on Python 3.10 and 3.12.
 #
 # The laptop install in requirements.txt uses opencv-python, which expects a
 # display. This file uses opencv-python-headless at the same version because
-# the container has no screen. NumPy and TensorFlow pins match requirements.txt.
-tensorflow==2.15.1
-tensorflow-hub==0.16.1
+# the container has no screen.
+onnxruntime==1.20.1
 opencv-python-headless==4.10.0.84
 numpy==1.26.4

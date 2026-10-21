@@ -1,8 +1,10 @@
 """MoveNet Thunder loading and video keypoint extraction.
 
-This module intentionally has no FastAPI or database dependencies. Keeping
-inference here makes it possible to validate the model in Colab before the
-backend is introduced.
+Dog clips do not use this module. The analysis path is ``gait_engine.quadruped``.
+This file remains so the older human-pose check in ``scripts/validate_movenet.py``
+can still load Thunder. Its 17 joints are human labels and are not dog anatomy.
+
+This module intentionally has no FastAPI or database dependencies.
 """
 
 from __future__ import annotations

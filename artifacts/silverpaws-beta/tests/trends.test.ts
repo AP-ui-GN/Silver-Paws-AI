@@ -52,10 +52,10 @@ test("many walks are ordered oldest first and a missing score is not zero", () =
   assert.equal(layout.segments.length, 0);
 });
 
-test("movenet and opencv-motion walks are never charted together", () => {
+test("rtmpose-ap10k and opencv-motion walks are never charted together", () => {
   const series = trendSeries([
     walk({ id: "motion", createdAt: "2026-10-02T12:00:00.000Z", pipeline: "opencv-motion" }),
-    walk({ id: "pose", createdAt: "2026-10-03T12:00:00.000Z", pipeline: "movenet", overallScore: 70 }),
+    walk({ id: "pose", createdAt: "2026-10-03T12:00:00.000Z", pipeline: "rtmpose-ap10k", overallScore: 70 }),
   ]);
 
   assert.equal(series.length, 2);

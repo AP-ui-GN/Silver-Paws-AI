@@ -2,8 +2,8 @@ import type { AnalysisFactors } from './types.ts';
 
 export const FACTOR_LABELS: { key: keyof AnalysisFactors; label: string; help: string }[] = [
   { key: 'movementConsistency', label: 'Movement consistency', help: 'How steady the amount of movement stayed between frames.' },
-  { key: 'symmetry', label: 'Stride symmetry', help: 'How similar the left and right leg movement looked.' },
-  { key: 'mobility', label: 'Mobility', help: 'Hip steadiness and stride balance, when pose landmarks were reliable enough to measure.' },
+  { key: 'symmetry', label: 'Stride symmetry', help: 'How similar the left and right hind-paw movement looked.' },
+  { key: 'mobility', label: 'Mobility', help: 'Hip-point steadiness and hind-paw balance, when the quadruped pose was reliable enough to measure.' },
   { key: 'activity', label: 'Activity', help: 'Share of the clip that contained visible movement.' },
   { key: 'historicalChange', label: 'Change from baseline', help: 'How this walk compares with the previous walk measured the same way. A first walk is not scored.' },
 ];
@@ -15,6 +15,7 @@ export const SIGNAL_LABELS: Record<string, string> = {
 };
 
 export const PIPELINE_LABELS: Record<string, string> = {
+  'rtmpose-ap10k': 'Quadruped pose (RTMPose-m)',
   movenet: 'Pose landmarks (MoveNet)',
   'opencv-motion': 'Picture motion only',
 };

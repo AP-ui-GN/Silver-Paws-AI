@@ -53,7 +53,7 @@ class ConfidenceSummaryTests(unittest.TestCase):
         array = keypoints(2, 0.9)
         array[0, 5, :2] = (0.2, 0.4)
         array[1, 5, :2] = (0.6, 0.8)
-        array[:, 6, 2] = 0.1
+        array[:, 8, 2] = 0.1
 
         points = summarize_pose_coordinates(
             array,
@@ -61,14 +61,14 @@ class ConfidenceSummaryTests(unittest.TestCase):
             keypoint_threshold=0.2,
         )
 
-        left_shoulder = next(point for point in points if point["name"] == "left_shoulder")
+        left_shoulder = next(point for point in points if point["name"] == "L_Shoulder")
         self.assertEqual(left_shoulder, {
-            "name": "left_shoulder",
+            "name": "L_Shoulder",
             "x": 0.6,
             "y": 0.4,
             "confidence": 0.9,
         })
-        self.assertNotIn("right_shoulder", {point["name"] for point in points})
+        self.assertNotIn("R_Shoulder", {point["name"] for point in points})
 
     def test_pose_coordinates_omit_low_confidence_and_out_of_frame_points(self):
         array = keypoints(1, 0.1)
@@ -88,9 +88,9 @@ class ConfidenceSummaryTests(unittest.TestCase):
             frame_threshold=0.3,
             keypoint_threshold=0.2,
         )
-        self.assertNotIn("nose", {point["name"] for point in points})
+        self.assertNotIn("L_Eye", {point["name"] for point in points})
 
-    def test_pose_coordinates_map_letterboxed_landmarks_to_source_frame(self):
+    def test_pose_coordinates_keep_source_frame_positions_unless_letterbox_is_requested(self):
         array = keypoints(1, 0.9)
         array[0, 0, :2] = (0.3, 0.5)
         points = summarize_pose_coordinates(
@@ -101,9 +101,21 @@ class ConfidenceSummaryTests(unittest.TestCase):
             frame_height=9,
         )
 
-        nose = next(point for point in points if point["name"] == "nose")
-        self.assertAlmostEqual(nose["x"], 0.5)
-        self.assertAlmostEqual(nose["y"], (0.3 - 0.21875) / 0.5625, places=4)
+        eye = next(point for point in points if point["name"] == "L_Eye")
+        self.assertAlmostEqual(eye["x"], 0.5)
+        self.assertAlmostEqual(eye["y"], 0.3)
+
+        corrected = summarize_pose_coordinates(
+            array,
+            frame_threshold=0.3,
+            keypoint_threshold=0.2,
+            frame_width=16,
+            frame_height=9,
+            correct_letterbox=True,
+        )
+        corrected_eye = next(point for point in corrected if point["name"] == "L_Eye")
+        self.assertAlmostEqual(corrected_eye["x"], 0.5)
+        self.assertAlmostEqual(corrected_eye["y"], (0.3 - 0.21875) / 0.5625, places=4)
 
 
 class ClipQualityTests(unittest.TestCase):
@@ -186,9 +198,134 @@ class OpenCvResultTests(unittest.TestCase):
         self.assertNotIn("development", result["aiUse"])
 
 
+class QuadrupedPipelineTests(unittest.TestCase):
+    def test_a_missing_pose_model_does_not_invent_limb_scores(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "walk.avi"
+            write_clip(path)
+
+            from gait_engine import pipeline as pipeline_module
+
+            original = pipeline_module._try_pose
+            pipeline_module._try_pose = lambda *_args, **_kwargs: (
+                None,
+                "RuntimeError: pose model unavailable",
+                None,
+            )
+            try:
+                result = analyze_clip(path)
+            finally:
+                pipeline_module._try_pose = original
+
+        self.assertEqual(result["pipeline"], "opencv-motion")
+        self.assertNotIn("pose-model", result["aiUse"])
+        self.assertIsNone(result["measurements"]["leftHindPawMotion"])
+        self.assertIsNone(result["measurements"]["rightHindPawMotion"])
+        self.assertIsNone(result["measurements"]["leftForePawMotion"])
+        self.assertIsNone(result["measurements"]["rightForePawMotion"])
+        self.assertIsNone(result["measurements"]["strideSymmetry"])
+        self.assertIsNone(result["measurements"]["hipStability"])
+        self.assertFalse(result["lowConfidence"])
+        self.assertNotEqual(result["measurements"]["leftHindPawMotion"], 0)
+        self.assertNotIn("MoveNet", result["limitations"])
+
+    def test_low_confidence_pose_keeps_the_quadruped_label_and_skips_limbs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "walk.avi"
+            write_clip(path)
+            low = np.full((8, 17, 3), 0.05, dtype=np.float32)
+            low[:, 13, 0] = 0.4
+            low[:, 16, 0] = 0.8
+
+            from gait_engine import pipeline as pipeline_module
+
+            original = pipeline_module._try_pose
+            pipeline_module._try_pose = lambda *_args, **_kwargs: (low, None, "rtmpose-m_simcc-ap10k_pt-aic-coco_210e-256x256-7a041aa1_20230206")
+            try:
+                result = analyze_clip(path)
+            finally:
+                pipeline_module._try_pose = original
+
+        self.assertEqual(result["pipeline"], "rtmpose-ap10k")
+        self.assertEqual(result["modelInfo"]["pipeline"], "rtmpose-ap10k")
+        self.assertEqual(result["modelInfo"]["modelName"], "RTMPose-m")
+        self.assertTrue(result["lowConfidence"])
+        self.assertIsNone(result["measurements"]["leftHindPawMotion"])
+        self.assertIsNone(result["measurements"]["rightHindPawMotion"])
+        self.assertIsNone(result["measurements"]["strideSymmetry"])
+        self.assertIsNone(result["factors"]["symmetry"])
+        self.assertNotEqual(result["measurements"]["strideSymmetry"], 0)
+        self.assertEqual(result["aiUse"][0], "pose-model")
+        self.assertIn("veterinarian", result["limitations"].lower())
+        self.assertNotIn("diagnos", result["observation"].lower())
+
+    def test_confident_hind_paws_score_stride_from_those_keypoints(self):
+        from gait_engine.quadruped import L_HIND_PAW_INDEX, R_HIND_PAW_INDEX
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "walk.avi"
+            write_clip(path, frames=12)
+            points = np.zeros((12, 17, 3), dtype=np.float32)
+            points[:, :, 2] = 0.9
+            points[:, L_HIND_PAW_INDEX, 0] = np.linspace(0.2, 0.8, 12)
+            points[:, R_HIND_PAW_INDEX, 0] = np.linspace(0.2, 0.8, 12)
+            points[:, 11, 0] = 0.4
+            points[:, 14, 0] = 0.4
+
+            from gait_engine import pipeline as pipeline_module
+
+            original = pipeline_module._try_pose
+            pipeline_module._try_pose = lambda *_args, **_kwargs: (
+                points,
+                None,
+                "rtmpose-m_simcc-ap10k_pt-aic-coco_210e-256x256-7a041aa1_20230206",
+            )
+            try:
+                result = analyze_clip(path)
+            finally:
+                pipeline_module._try_pose = original
+
+        self.assertEqual(result["pipeline"], "rtmpose-ap10k")
+        self.assertFalse(result["lowConfidence"])
+        self.assertEqual(result["measurements"]["strideSymmetry"], 1.0)
+        self.assertGreater(result["measurements"]["leftHindPawMotion"], 0)
+        self.assertEqual(
+            result["measurements"]["leftHindPawMotion"],
+            result["measurements"]["rightHindPawMotion"],
+        )
+        names = {point["name"] for point in result["measurements"]["poseKeypoints"]}
+        self.assertIn("L_B_Paw", names)
+        self.assertIn("R_B_Paw", names)
+        self.assertNotIn("left_ankle", names)
+        self.assertNotIn("right_ankle", names)
+
+    def test_a_generated_clip_uses_the_quadruped_pipeline_label(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "walk.avi"
+            write_clip(path, frames=6)
+            result = analyze_clip(path)
+
+        self.assertEqual(
+            result["pipeline"],
+            "rtmpose-ap10k",
+            result["diagnostics"].get("poseSkipReason"),
+        )
+        self.assertEqual(result["modelInfo"]["modelName"], "RTMPose-m")
+        self.assertIn("ap10k", result["modelInfo"]["modelVersion"])
+        self.assertEqual(result["aiUse"][0], "pose-model")
+        self.assertNotIn("MoveNet", result["modelInfo"]["modelName"])
+        if result["lowConfidence"]:
+            self.assertIsNone(result["measurements"]["leftHindPawMotion"])
+            self.assertIsNone(result["measurements"]["rightHindPawMotion"])
+            self.assertIsNone(result["measurements"]["leftForePawMotion"])
+            self.assertIsNone(result["measurements"]["rightForePawMotion"])
+            self.assertIsNone(result["measurements"]["strideSymmetry"])
+            self.assertIsNone(result["measurements"]["hipStability"])
+
+
 class AiUseIdTests(unittest.TestCase):
     def test_a_pose_run_lists_pose_and_the_motion_measurement(self):
-        ids = ai_use_ids("movenet")
+        ids = ai_use_ids("rtmpose-ap10k")
 
         self.assertEqual(
             ids,

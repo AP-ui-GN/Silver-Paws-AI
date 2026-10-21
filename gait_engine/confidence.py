@@ -11,7 +11,7 @@ import math
 
 import numpy as np
 
-from .movenet import KEYPOINT_NAMES
+from .quadruped import KEYPOINT_NAMES
 
 
 def summarize_keypoints(keypoints, *, frame_threshold: float) -> dict:
@@ -68,8 +68,13 @@ def summarize_pose_coordinates(
     keypoint_threshold: float,
     frame_width: int | None = None,
     frame_height: int | None = None,
+    correct_letterbox: bool = False,
 ) -> list[dict[str, float | str]]:
-    """Average source-frame-normalized coordinates over confident pose frames."""
+    """Average source-frame-normalized coordinates over confident pose frames.
+
+    ``correct_letterbox`` undoes square padding. The quadruped model already
+    returns source-frame coordinates, so the dog path leaves this off.
+    """
 
     array = np.asarray(keypoints, dtype=np.float32)
     if array.ndim != 3 or array.shape[-1] < 3:
@@ -95,7 +100,13 @@ def summarize_pose_coordinates(
         return []
 
     usable = np.stack(usable_frames)
-    if frame_width and frame_height and frame_width > 0 and frame_height > 0:
+    if (
+        correct_letterbox
+        and frame_width
+        and frame_height
+        and frame_width > 0
+        and frame_height > 0
+    ):
         width_fraction = frame_width / max(frame_width, frame_height)
         height_fraction = frame_height / max(frame_width, frame_height)
         usable[:, :, 1] = (usable[:, :, 1] - (1.0 - width_fraction) / 2.0) / width_fraction

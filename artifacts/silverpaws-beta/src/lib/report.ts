@@ -74,6 +74,7 @@ const FACTOR_REPORT_LABELS: [keyof NonNullable<Analysis['factors']>, string][] =
 ];
 
 const PIPELINE_REPORT_LABELS: Record<string, string> = {
+  'rtmpose-ap10k': 'Quadruped pose (RTMPose-m)',
   movenet: 'Pose landmarks (MoveNet)',
   'opencv-motion': 'Picture motion only',
 };
@@ -140,7 +141,11 @@ function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
     addText(lines, `Mean frame motion: ${formatMeasurement(analysis.measurements.motionMean)}`, { size: 10, gapAfter: 2 });
     addText(lines, `Motion variation: ${formatMeasurement(analysis.measurements.motionStd)}`, { size: 10, gapAfter: 2 });
     addText(lines, `Frames with movement: ${formatMeasurement(analysis.measurements.motionCoverage)}`, { size: 10, gapAfter: 2 });
-    addText(lines, `Hip stability: ${formatMeasurement(analysis.measurements.hipStability)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Hip point stability: ${formatMeasurement(analysis.measurements.hipStability)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Left hind paw motion: ${formatMeasurement(analysis.measurements.leftHindPawMotion)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Right hind paw motion: ${formatMeasurement(analysis.measurements.rightHindPawMotion)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Left fore paw motion: ${formatMeasurement(analysis.measurements.leftForePawMotion)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Right fore paw motion: ${formatMeasurement(analysis.measurements.rightForePawMotion)}`, { size: 10, gapAfter: 2 });
   }
   addText(lines, 'A value of "Not measured" means the clip did not support that measurement. It does not mean zero.', {
     size: 8,

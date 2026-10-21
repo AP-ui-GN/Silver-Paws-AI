@@ -13,8 +13,8 @@ type Props = { pets: Pet[]; analyses: Analysis[]; deleteAnalysis: (id: string) =
 
 const FACTOR_LABELS: { key: keyof NonNullable<Analysis['factors']>; label: string; help: string }[] = [
   { key: 'movementConsistency', label: 'Movement consistency', help: 'How steady the amount of movement stayed between frames.' },
-  { key: 'symmetry', label: 'Stride symmetry', help: 'How similar the left and right leg movement looked.' },
-  { key: 'mobility', label: 'Mobility', help: 'Hip steadiness and stride balance, when pose landmarks were reliable enough to measure.' },
+  { key: 'symmetry', label: 'Stride symmetry', help: 'How similar the left and right hind-paw movement looked.' },
+  { key: 'mobility', label: 'Mobility', help: 'Hip-point steadiness and hind-paw balance, when the quadruped pose was reliable enough to measure.' },
   { key: 'activity', label: 'Activity', help: 'Share of the clip that contained visible movement.' },
   { key: 'historicalChange', label: 'Change from baseline', help: 'How this walk compares with the previous walk measured the same way. A first walk is not scored.' },
 ];
@@ -34,23 +34,29 @@ const SIGNAL_LABELS: Record<string, string> = {
 };
 
 const PIPELINE_LABELS: Record<string, string> = {
+  'rtmpose-ap10k': 'Quadruped pose (RTMPose-m)',
   movenet: 'Pose landmarks (MoveNet)',
   'opencv-motion': 'Picture motion only',
 };
 
 const POSE_CONNECTIONS = [
-  ['left_shoulder', 'right_shoulder'],
-  ['left_shoulder', 'left_elbow'],
-  ['left_elbow', 'left_wrist'],
-  ['right_shoulder', 'right_elbow'],
-  ['right_elbow', 'right_wrist'],
-  ['left_shoulder', 'left_hip'],
-  ['right_shoulder', 'right_hip'],
-  ['left_hip', 'right_hip'],
-  ['left_hip', 'left_knee'],
-  ['left_knee', 'left_ankle'],
-  ['right_hip', 'right_knee'],
-  ['right_knee', 'right_ankle'],
+  ['L_Eye', 'R_Eye'],
+  ['L_Eye', 'Nose'],
+  ['R_Eye', 'Nose'],
+  ['Nose', 'Neck'],
+  ['Neck', 'Root of tail'],
+  ['Neck', 'L_Shoulder'],
+  ['L_Shoulder', 'L_Elbow'],
+  ['L_Elbow', 'L_F_Paw'],
+  ['Neck', 'R_Shoulder'],
+  ['R_Shoulder', 'R_Elbow'],
+  ['R_Elbow', 'R_F_Paw'],
+  ['Root of tail', 'L_Hip'],
+  ['L_Hip', 'L_Knee'],
+  ['L_Knee', 'L_B_Paw'],
+  ['Root of tail', 'R_Hip'],
+  ['R_Hip', 'R_Knee'],
+  ['R_Knee', 'R_B_Paw'],
 ] as const;
 
 type PosePoint = NonNullable<NonNullable<Analysis['measurements']>['poseKeypoints']>[number];
@@ -106,9 +112,9 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   const byName = new Map(points.map((point) => [point.name, point]));
 
   return (
-    <section className="panel panel-padded mt-5" aria-label="MoveNet pose landmark summary">
+    <section className="panel panel-padded mt-5" aria-label="Quadruped pose landmark summary">
       <div className="eyebrow">Computer vision activity</div>
-      <h2 className="display-title text-2xl mt-2">MoveNet landmark summary</h2>
+      <h2 className="display-title text-2xl mt-2">Quadruped landmark summary</h2>
       <p className="body-muted text-sm mt-2">
         Mean normalized landmark positions from confident pose frames—not a diagnosis or a clinical measurement.
       </p>
@@ -120,7 +126,7 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
               style={{ aspectRatio: '10 / 7' }}
               viewBox="0 0 100 70"
               role="img"
-              aria-label={`${points.length} averaged MoveNet keypoint markers`}
+              aria-label={`${points.length} averaged quadruped keypoint markers`}
             >
               <title>Confidence-filtered average pose landmarks</title>
               {POSE_CONNECTIONS.map(([from, to]) => {
@@ -365,7 +371,11 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Frame Motion Coverage</div><div className="font-bold text-lg mt-1">{formatMeasure(typeof measurements.motionCoverage === 'number' ? measurements.motionCoverage * 100 : undefined, '%', 0)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Stride symmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.strideSymmetry)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Asymmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.asymmetryPercent, '%', 2)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Hip stability</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Hip point stability</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Left hind paw</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.leftHindPawMotion)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Right hind paw</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.rightHindPawMotion)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Left fore paw</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.leftForePawMotion)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Right fore paw</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.rightForePawMotion)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Pose confidence</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.confidence, '%', 1)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Confident frames</div><div className="font-bold text-lg mt-1">{formatPoseFrames(analysis.framesUsed, analysis.framesTotal)}</div></div>
         </div>

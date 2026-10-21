@@ -100,7 +100,7 @@ pnpm --filter @workspace/silverpaws-beta run dev
 
 ## What to test
 
-On a saved result, the AI-use lines should name only the steps that produced that walk: MoveNet when pose ran, frame-to-frame motion (it runs on every clip), fixed scores and a fixed note, and a language-model reword only when the server kept one.
+On a saved result, the AI-use lines should name only the steps that produced that walk: RTMPose-m when pose ran, frame-to-frame motion (it runs on every clip), fixed scores and a fixed note, and a language-model reword only when the server kept one.
 
 ## Manual checklist (for teammates)
 
@@ -110,8 +110,8 @@ On a saved result, the AI-use lines should name only the steps that produced tha
       mentions the score difference
 - [ ] Delete an observation and visit its old URL
 - [ ] Stop the API and confirm the analyze page shows a reachable-service error
-- [ ] Confirm MoveNet path (`pipeline: "movenet"`) on a machine with
-      TensorFlow 2.15 + Python 3.10/3.11
+- [ ] Confirm the quadruped path (`pipeline: "rtmpose-ap10k"`) on a machine
+      with ONNX Runtime and the cached RTMPose-m checkpoint
 
 ## Pet form and trends (automated)
 
@@ -125,7 +125,7 @@ That command covers:
 - pet form: age or weight that is present but not a positive number is rejected
 - pet form: a blank age and weight, with a name, can be saved
 - history trends: an empty list produces no series
-- history trends: walks from `movenet` and `opencv-motion` stay in separate series
+- history trends: walks from `rtmpose-ap10k` and `opencv-motion` stay in separate series
 - history trends: a missing score stays null and is not drawn as zero
 
 The history page still shows the empty-state “Record a walk” link when no
@@ -153,7 +153,7 @@ That test expects `CHROMIUM_PATH` and is not required for a local Windows run.
 
 ## What is not tested here
 
-- Live TensorFlow Hub download of MoveNet (this environment has OpenCV only)
+- A hosted download of the RTMPose checkpoint during image build (the cache script is `scripts/cache_quadruped.py`; this list was written before that path)
 - Live LLM provider (the request is unit-tested with a mock; no live endpoint was configured)
 - `lib/db` — unused in the beta
 
@@ -174,14 +174,14 @@ Checks that passed in this environment:
 - Low-confidence keypoints, from `tests/test_model_phase.py`: confidence 0.1 is not trusted, `framesUsed` is 0, and the summary is not treated as missing. A missing score is the words "Not measured" or "Not scored", not zero (`mobile/src/lib/format.ts`, trend tests, report test).
 - Non-video upload: `POST /api/analyze` with `notes.txt` returned 400, "That file is not a video SilverPaws can read. MP4, MOV, and WebM work best."
 - Oversized upload: the server was started with `MAX_UPLOAD_MB=1` (the default in code is 60). A body over that cap returned 413, "That clip is larger than the 1 MB beta limit. Try a shorter clip."
-- OpenCV was attempted. A generated moving rectangle (not a pet, and not a file from the repo) was analyzed with `analyze_clip(..., use_pose=False)` and again through `POST /api/analyze`. Both returned `pipeline: "opencv-motion"`, `aiUse: ["motion-fallback", "scoring", "observation-rules"]`, and null stride symmetry. The same file with pose requested also returned `opencv-motion`, because TensorFlow is not installed.
+- OpenCV was attempted. A generated moving rectangle (not a pet, and not a file from the repo) was analyzed with `analyze_clip(..., use_pose=False)` and again through `POST /api/analyze`. Both returned `pipeline: "opencv-motion"`, `aiUse: ["motion-fallback", "scoring", "observation-rules"]`, and null stride symmetry.
 - The screen lines for that `aiUse` list, from `aiUseResultLines`, are the registry sentences for motion, scoring, and rules. `development` is not included. The phone screen was not opened, so the pixels were not compared.
 
 Checks that were not run, and are not passed:
 
 - UI → API → pipeline with a real walking clip. The repository has no `.mp4`, `.mov`, or `.webm`. No phone or browser was used.
-- MoveNet on a real clip. `import tensorflow` fails with `ModuleNotFoundError`. Pose was not measured.
-- The low-confidence banner on a phone. The banner code is in the Analyze and walk-detail screens. It was not shown, because MoveNet did not run.
+- A real pet clip through RTMPose-m. The repository has no dog video. `tests/test_model_phase.py` runs a generated rectangle: the pipeline label is `rtmpose-ap10k`, and low confidence leaves paw scores unset.
+- The low-confidence banner on a phone. The banner code is in the Analyze and walk-detail screens. It was not shown on a device.
 - Server down → the phone's offline note, Retry, and the kept clip. The API process was stopped and `curl` to it failed. The phone UI was not opened. The Analyze screen keeps `clip` on error and shows Try again; that path was not exercised on a device.
 - Demo mode on a phone. Unit tests drop the sample from history, trends helpers, and the vet summary. The Demo screen was not opened.
 - A live language-model provider. No endpoint was configured.

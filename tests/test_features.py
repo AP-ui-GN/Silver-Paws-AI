@@ -14,14 +14,16 @@ from gait_engine.metrics import compute_gait_metrics
 
 
 def build_keypoints(frames, *, hip_offsets=None, confidence=0.9):
-    """Build a (frames, 17, 3) MoveNet-shaped array of (y, x, confidence)."""
+    """Build a (frames, 17, 3) AP-10K array of (y, x, confidence)."""
+
+    from gait_engine.quadruped import L_HIP_INDEX, R_HIP_INDEX
 
     keypoints = np.zeros((frames, 17, 3), dtype=np.float32)
     keypoints[:, :, 2] = confidence
     for index in range(frames):
         offset = 0.0 if hip_offsets is None else hip_offsets[index]
-        keypoints[index, 11, 0] = 0.5 + offset  # left hip y
-        keypoints[index, 12, 0] = 0.5 + offset  # right hip y
+        keypoints[index, L_HIP_INDEX, 0] = 0.5 + offset
+        keypoints[index, R_HIP_INDEX, 0] = 0.5 + offset
     return keypoints
 
 
@@ -75,38 +77,56 @@ class HipStabilityTests(unittest.TestCase):
 
 
 class GaitSymmetryTests(unittest.TestCase):
-    """Guards the existing MoveNet symmetry metric."""
+    """Stride uses AP-10K back paws, not a human ankle index."""
 
-    def test_identical_sides_are_symmetric(self):
+    def _blank(self):
         keypoints = np.zeros((6, 17, 3), dtype=np.float32)
         keypoints[:, :, 2] = 0.9
+        return keypoints
+
+    def test_identical_hind_paws_are_symmetric(self):
+        from gait_engine.quadruped import L_HIND_PAW_INDEX, R_HIND_PAW_INDEX
+
+        keypoints = self._blank()
         motion = [0.0, 0.1, 0.2, 0.1, 0.0, 0.1]
-        keypoints[:, 15, 0] = motion
-        keypoints[:, 16, 0] = motion
+        keypoints[:, L_HIND_PAW_INDEX, 0] = motion
+        keypoints[:, R_HIND_PAW_INDEX, 0] = motion
 
         metrics = compute_gait_metrics(keypoints)
 
-        self.assertEqual(metrics.stride_symmetry_score, 1.0)
-        self.assertEqual(metrics.asymmetry_percent, 0.0)
+        self.assertEqual(metrics.hind.symmetry_score, 1.0)
+        self.assertEqual(metrics.hind.asymmetry_percent, 0.0)
 
     def test_a_still_pet_is_reported_as_unavailable_not_perfect(self):
-        keypoints = np.zeros((6, 17, 3), dtype=np.float32)
-        keypoints[:, :, 2] = 0.9
+        metrics = compute_gait_metrics(self._blank())
+
+        self.assertIsNone(metrics.hind.symmetry_score)
+        self.assertIsNone(metrics.hind.asymmetry_percent)
+
+    def test_one_sided_hind_paw_motion_is_reported_as_asymmetric(self):
+        from gait_engine.quadruped import L_HIND_PAW_INDEX
+
+        keypoints = self._blank()
+        keypoints[:, L_HIND_PAW_INDEX, 0] = [0.0, 0.1, 0.2, 0.1, 0.0, 0.1]
 
         metrics = compute_gait_metrics(keypoints)
 
-        self.assertIsNone(metrics.stride_symmetry_score)
-        self.assertIsNone(metrics.asymmetry_percent)
+        self.assertEqual(metrics.hind.symmetry_score, 0.0)
+        self.assertEqual(metrics.hind.asymmetry_percent, 100.0)
 
-    def test_one_sided_motion_is_reported_as_asymmetric(self):
-        keypoints = np.zeros((6, 17, 3), dtype=np.float32)
-        keypoints[:, :, 2] = 0.9
-        keypoints[:, 15, 0] = [0.0, 0.1, 0.2, 0.1, 0.0, 0.1]
+    def test_knee_motion_is_not_reported_as_hind_paw_stride(self):
+        from gait_engine.quadruped import KEYPOINT_NAMES
+
+        keypoints = self._blank()
+        motion = [0.0, 0.1, 0.2, 0.1, 0.0, 0.1]
+        keypoints[:, KEYPOINT_NAMES.index("L_Knee"), 0] = motion
+        keypoints[:, KEYPOINT_NAMES.index("R_Knee"), 0] = motion
 
         metrics = compute_gait_metrics(keypoints)
 
-        self.assertEqual(metrics.stride_symmetry_score, 0.0)
-        self.assertEqual(metrics.asymmetry_percent, 100.0)
+        self.assertIsNone(metrics.hind.symmetry_score)
+        self.assertEqual(metrics.hind.left_motion, 0.0)
+        self.assertEqual(metrics.hind.right_motion, 0.0)
 
 
 if __name__ == "__main__":

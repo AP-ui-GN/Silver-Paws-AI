@@ -1,2 +1,2 @@
-- [Pet pose validation](movenet-validation.md) — MoveNet Thunder can run end to end, but human-pose confidence is unreliable for pet gait and must gate any score.
+- [Pet pose validation](movenet-validation.md) — older human-pose check only. Dog clips use RTMPose-m on AP-10K (`docs/MODEL_CARD.md`). Low confidence stays unmeasured.
 - [Local report export](report-export.md) — Keep browser PDF exports dependency-free, separate measurements from interpretation, and preserve cautious metadata.

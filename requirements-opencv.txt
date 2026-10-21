@@ -1,5 +1,5 @@
 # OpenCV-only path for SilverPaws AI.
-# Python 3.10, 3.11, or 3.12. This does not install TensorFlow, so clips are
+# Python 3.10, 3.11, or 3.12. This does not install ONNX Runtime, so clips are
 # measured with the opencv-motion pipeline and labeled that way.
 opencv-python==4.10.0.84
 numpy==1.26.4

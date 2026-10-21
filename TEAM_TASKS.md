@@ -31,7 +31,7 @@ TEAM MEMBER: Sudarshan
 TASK: Score mobility and historical change, then calibrate the weights
 FILE / MODULE: `gait_engine/wellness.py` (`mobility_factor`, `historical_change_factor`, `DEFAULT_WEIGHTS`)
 WHAT TO IMPLEMENT:
-- `mobility_factor(measurements)` — return a 0–100 score (or `None`) from pose measurements the pipeline already saves: `hipStability`, `leftAnkleMotion`, `rightAnkleMotion`, `strideSymmetry`.
+- `mobility_factor(measurements)` — return a 0–100 score (or `None`) from pose measurements the pipeline already saves: `hipStability`, `leftHindPawMotion`, `rightHindPawMotion`, `strideSymmetry`.
 - `historical_change_factor(overall, previous_overall)` — turn the change against the previous saved walk into a 0–100 factor, or `None` on a first walk. The pipeline already calls this after the overall score is computed (`gait_engine/pipeline.py`).
 - Add `"mobility"` and `"historicalChange"` entries to `DEFAULT_WEIGHTS` once those functions return real scores. Until a weight exists, `overall_score()` ignores that factor.
 - Review `CONCERNING_DROP` and `CONCERNING_ASYMMETRY`. Decide whether those thresholds still make sense.
@@ -56,7 +56,7 @@ COMPLETION CRITERIA:
 # ==================================================
 
 STATUS: Done. The web and phone trend panels compare saved walks and keep
-`movenet` and `opencv-motion` apart. Pet forms block a blank name and an
+different pipelines apart. The pose pipeline is now `rtmpose-ap10k`. Pet forms block a blank name and an
 age or weight that is present but not a positive number. Automated checks:
 `pnpm --filter @workspace/silverpaws-beta run test`.
 
@@ -67,7 +67,7 @@ FILE / MODULE:
 - `artifacts/silverpaws-beta/src/pages/pet.tsx` (web) and `mobile/app/pet/[id].tsx` (phone)
 - `TESTING.md`
 WHAT TO IMPLEMENT:
-1. **Trend panel** — replace the placeholder in `trend-panel.tsx` with a real comparison of saved walks. Show date, overall score, movement consistency, and symmetry. Only compare records that share the same `pipeline` (`movenet` vs `opencv-motion`). Handle empty, one-walk, and many-walk states. Do not invent chart data. Start with the web version; the phone version receives the same `analyses` prop (already newest-first), so the same logic ports over with React Native `View`/`Text` instead of HTML.
+1. **Trend panel** — replace the placeholder in `trend-panel.tsx` with a real comparison of saved walks. Show date, overall score, movement consistency, and symmetry. Only compare records that share the same `pipeline` (`rtmpose-ap10k` vs `opencv-motion`). Handle empty, one-walk, and many-walk states. Do not invent chart data. Start with the web version; the phone version receives the same `analyses` prop (already newest-first), so the same logic ports over with React Native `View`/`Text` instead of HTML.
 2. **Pet form validation** — in `pet.tsx` / `pet/[id].tsx`, show a visible message when name is blank, or when age/weight is present but not a positive number. Do not save until those checks pass. (The phone form disables Save on a blank name; the age/weight messages are still yours.)
 3. **Testing** — add a short automated check (Playwright, Vitest, or a node test) for one of: pet save, clip-type rejection, or history empty state. Update the checklist in `TESTING.md`.
 WHY IT MATTERS:

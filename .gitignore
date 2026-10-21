@@ -20,8 +20,9 @@ outputs/
 *.mp4
 *.mov
 *.avi
-# MoveNet Hub cache from scripts/cache_movenet.py. Do not commit the weights.
+# Pose weight caches. Do not commit the weights.
 models/tfhub/
+models/rtmpose/
 
 # Firebase credentials — never commit service-account keys
 firebase-service-account*.json

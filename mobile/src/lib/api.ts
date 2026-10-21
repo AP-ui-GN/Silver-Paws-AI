@@ -353,8 +353,10 @@ export function isAnalyzeResult(value: unknown): value is AnalyzeResult {
     typeof measurements.symmetryReliable === 'boolean' &&
     hasOptionalNullableNumbers(measurements, [
       'meanKeypointConfidence',
-      'leftAnkleMotion',
-      'rightAnkleMotion',
+      'leftHindPawMotion',
+      'rightHindPawMotion',
+      'leftForePawMotion',
+      'rightForePawMotion',
       'strideSymmetry',
       'asymmetryPercent',
       'hipStability',
@@ -362,7 +364,7 @@ export function isAnalyzeResult(value: unknown): value is AnalyzeResult {
     validPoseKeypoints;
   return (
     result.ok === true &&
-    (result.pipeline === 'movenet' || result.pipeline === 'opencv-motion') &&
+    (result.pipeline === 'rtmpose-ap10k' || result.pipeline === 'opencv-motion') &&
     (result.signalQuality === 'good' || result.signalQuality === 'limited' || result.signalQuality === 'unusable') &&
     typeof result.signalNote === 'string' &&
     typeof result.observation === 'string' &&
@@ -377,7 +379,7 @@ export function isAnalyzeResult(value: unknown): value is AnalyzeResult {
     (result.confidence === undefined || isNullableNumber(result.confidence)) &&
     validWeights &&
     modelInfo !== null &&
-    (modelInfo.pipeline === 'movenet' || modelInfo.pipeline === 'opencv-motion') &&
+    (modelInfo.pipeline === 'rtmpose-ap10k' || modelInfo.pipeline === 'opencv-motion') &&
     typeof modelInfo.modelName === 'string' &&
     typeof modelInfo.modelVersion === 'string' &&
     modelInfo.runsOn === 'server' &&

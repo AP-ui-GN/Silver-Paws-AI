@@ -116,10 +116,10 @@ components:
           nullable: true
           description: >-
             Confidence-filtered mean keypoint coordinates across usable pose
-            frames. Coordinates are normalized to the source frame from 0 to 1
-            with the origin at its top-left, after correcting MoveNet's
-            letterboxing. Null when pose did not run; an empty array means pose
-            ran but no point passed the confidence filters.
+            frames. Names are the AP-10K labels the pose model outputs.
+            Coordinates are normalized to the source frame from 0 to 1
+            with the origin at its top-left. Null when pose did not run; an
+            empty array means pose ran but no point passed the confidence filters.
           items:
             $ref: "#/components/schemas/PoseKeypointSummary"
         frameCount:
@@ -131,12 +131,22 @@ components:
         meanKeypointConfidence:
           type: number
           nullable: true
-        leftAnkleMotion:
+        leftHindPawMotion:
           type: number
           nullable: true
-        rightAnkleMotion:
+          description: Vertical motion of AP-10K L_B_Paw. Null when not measured.
+        rightHindPawMotion:
           type: number
           nullable: true
+          description: Vertical motion of AP-10K R_B_Paw. Null when not measured.
+        leftForePawMotion:
+          type: number
+          nullable: true
+          description: Vertical motion of AP-10K L_F_Paw. Null when not measured.
+        rightForePawMotion:
+          type: number
+          nullable: true
+          description: Vertical motion of AP-10K R_F_Paw. Null when not measured.
         strideSymmetry:
           type: number
           nullable: true
@@ -152,6 +162,9 @@ components:
         hipStability:
           type: number
           nullable: true
+          description: >-
+            Vertical steadiness of the model's L_Hip and R_Hip points, from 0 to 1.
+            Null when those points were not confident enough. Not a veterinary hip measurement.
         symmetryReliable:
           type: boolean
       required:
@@ -163,7 +176,7 @@ components:
         - symmetryReliable
     PoseKeypointSummary:
       type: object
-      description: Mean normalized location for one MoveNet keypoint.
+      description: Mean normalized location for one AP-10K keypoint.
       properties:
         name:
           type: string
@@ -212,7 +225,7 @@ components:
         pipeline:
           type: string
           enum:
-            - movenet
+            - rtmpose-ap10k
             - opencv-motion
         modelName:
           type: string
@@ -249,10 +262,10 @@ components:
         pipeline:
           type: string
           description: >-
-            movenet when pose landmarks were used, opencv-motion when only
-            frame-to-frame picture change could be measured.
+            rtmpose-ap10k when RTMPose-m AP-10K landmarks were used,
+            opencv-motion when only frame-to-frame picture change could be measured.
           enum:
-            - movenet
+            - rtmpose-ap10k
             - opencv-motion
         signalQuality:
           type: string

@@ -11,13 +11,33 @@ silently.
 
 | Path | When | What it measures |
 | --- | --- | --- |
-| `movenet` | TensorFlow is installed and MoveNet Thunder loads | 17 body keypoints, then hip stability and left/right ankle motion |
-| `opencv-motion` | TensorFlow is missing, or the pose model cannot run | Frame-to-frame picture change only |
+| `rtmpose-ap10k` | ONNX Runtime is installed and the published RTMPose-m checkpoint loads | 17 AP-10K animal keypoints, then hip-point steadiness and left/right paw motion |
+| `opencv-motion` | ONNX Runtime is missing, the checkpoint cannot load, or pose confidence is below the gate | Frame-to-frame picture change only |
 
-**MoveNet Thunder** is Google's single-pose model, TensorFlow Hub
-`movenet/singlepose/thunder/4`. Input is 256×256. Output is 17 keypoints in
-`(y, x, confidence)` order, the same labels the model was trained with (nose,
-eyes, ears, shoulders, elbows, wrists, hips, knees, ankles).
+**RTMPose-m** is OpenMMLab's animal pose model from MMPose, checkpoint
+`rtmpose-m_simcc-ap10k_pt-aic-coco_210e-256x256-7a041aa1_20230206`.
+Input is 256×256. Output is SimCC maps for 17 keypoints. The keypoint names
+and order are the AP-10K labels in the MMPose dataset meta:
+
+`L_Eye`, `R_Eye`, `Nose`, `Neck`, `Root of tail`, `L_Shoulder`, `L_Elbow`,
+`L_F_Paw`, `R_Shoulder`, `R_Elbow`, `R_F_Paw`, `L_Hip`, `L_Knee`, `L_B_Paw`,
+`R_Hip`, `R_Knee`, `R_B_Paw`.
+
+MMPose's RTMPose project page says this checkpoint was trained on AP-10K and
+lists 72.2 AP on that dataset. That figure is theirs, not a SilverPaws result.
+AP-10K, from its own repository, is 10,015 images from 23 animal families and
+54 species (Yu et al., NeurIPS 2021 Datasets and Benchmarks). The checkpoint
+name and the published training config initialize the CSPNeXt backbone from a
+model trained on AI Challenger and COCO. SilverPaws did not train or fine-tune
+this model. This project has no private dog videos.
+
+The clip is treated as one animal filling the frame, which is the filming
+instruction. There is no second detector. Hind-paw stride uses `L_B_Paw` and
+`R_B_Paw`. Fore-paw motion uses `L_F_Paw` and `R_F_Paw`. Hip-point steadiness
+uses `L_Hip` and `R_Hip`. AP-10K's own notes say that for digitigrade animals,
+including dogs, those hip and knee labels follow a visual convention rather
+than a veterinary bone name. The app keeps the model's names and does not
+rename them to ankles.
 
 **OpenCV frame difference** downscales the clip to 320 px, blurs it, and records
 the mean absolute grayscale change between frames. There are no limbs in that
@@ -30,26 +50,26 @@ and store the JSON. `modelInfo.runsOn` is always `"server"`.
 
 | Piece | Pinned version | Python |
 | --- | --- | --- |
-| TensorFlow | 2.15.1 | 3.10 or 3.11 only. Not 3.12. |
-| TensorFlow Hub | 0.16.1 | same |
+| ONNX Runtime | 1.20.1 | 3.10–3.12 |
 | OpenCV | 4.10.0.84 | 3.10–3.12 for the motion-only install |
 | NumPy | 1.26.4 | same as the install you chose |
+| RTMPose-m AP-10K | `7a041aa1_20230206` | the ONNX file above |
 
 `requirements.txt` is the pose install. `requirements-opencv.txt` is the
 motion-only install. Do not float these versions: a different build would
 change the numbers without saying so.
 
-Warm the MoveNet cache before the first request, at build or deploy time:
+Warm the checkpoint cache before the first request, at build or deploy time:
 
 ```bash
-python scripts/cache_movenet.py
+python scripts/cache_quadruped.py
 ```
 
-That fills `models/tfhub` (or `SILVERPAWS_MOVENET_CACHE`). `load_movenet()`
-points `TFHUB_CACHE_DIR` at the same directory, so a warmed cache is reused.
-If the cache is empty and TensorFlow is installed, the first pose request
-still downloads Thunder once. If TensorFlow is not installed, the clip is
-labeled `opencv-motion` and no download is attempted.
+That fills `models/rtmpose` (or `SILVERPAWS_RTMPOSE_CACHE`). `load_quadruped()`
+reads the same file, so a warmed cache is reused. If the cache is empty and
+ONNX Runtime is installed, the first pose request still downloads the
+checkpoint once. If ONNX Runtime is not installed, the clip is labeled
+`opencv-motion` and no download is attempted.
 
 ## Intended use
 
@@ -58,22 +78,25 @@ labeled `opencv-motion` and no download is attempted.
   large, to take to a veterinarian.
 - It is educational observation software.
 
-## Human-trained limits
+## What this model is not
 
-MoveNet was trained on human bodies. A dog or cat is not that training set.
-Legs, a tail, and a coat can be assigned to the wrong human joint, or to none.
-Low confidence is reported as not measured. It is not filled in, and it is not
-shown as zero.
+It was not trained by SilverPaws. A dog breed that is rare in AP-10K can still
+be a weak detection. Low confidence is reported as not measured. It is not
+filled in, and it is not shown as zero.
 
 ## Confidence gating
 
 Two thresholds are already in the pipeline and were kept:
 
-- `0.2` — a single keypoint below this is ignored inside hip stability and
-  ankle motion. It is not treated as a real joint position.
+- `0.2` — a single keypoint below this is ignored inside hip-point steadiness
+  and paw motion. It is not treated as a real joint position.
 - `0.3` — mean keypoint confidence. Below this, or when no frame reaches it,
   limb measurements stay unset (`null`), `lowConfidence` is true, and the
   result screen says **Low confidence — try a clearer clip**.
+
+The stored confidence is the SimCC score from the checkpoint, clamped to 0–1
+so the API contract stays in that range. Clamping does not turn a low score
+into a passing one.
 
 `modelConfidence` is that mean, from 0 to 1. `null` means pose did not run.
 The older `confidence` field is the same number on a 0–100 scale so existing
@@ -98,17 +121,17 @@ a warning. A clip that is too short or has no visible movement is not scored.
 **Measured** (or explicitly not measured): frame count, duration, motion mean
 and spread, motion coverage, brightness used only for the quality note,
 keypoint confidence, frames used, and — when pose confidence is high enough —
-ankle motion, stride symmetry, asymmetry, and hip stability.
+fore-paw motion, hind-paw motion, hind-paw stride symmetry, asymmetry, and
+hip-point steadiness.
 
-When MoveNet runs, the API also returns `measurements.poseKeypoints`: a compact
-per-joint mean of source-frame-normalized `(x, y)` positions across frames whose
-mean pose confidence reaches the existing trust threshold. Coordinates are
-corrected for the padding MoveNet adds around frames that do not match its
-square input. Individual points must also pass the existing keypoint-confidence
-threshold and fall inside the frame. These coordinates are a visual summary,
-not a frame-by-frame recording, and they do not feed or change any score. They
-are saved with the local analysis record so the detail screen can render the
-same summary later. The app does not retain or replay the uploaded video. The
+When RTMPose-m runs, the API also returns `measurements.poseKeypoints`: a
+compact per-joint mean of source-frame-normalized `(x, y)` positions across
+frames whose mean pose confidence reaches the existing trust threshold.
+Individual points must also pass the existing keypoint-confidence threshold
+and fall inside the frame. These coordinates are a visual summary, not a
+frame-by-frame recording, and they do not feed or change any score. They are
+saved with the local analysis record so the detail screen can render the same
+summary later. The app does not retain or replay the uploaded video. The
 OpenCV-only path has no pose points; its detail screen instead displays frame
 motion coverage.
 
@@ -124,9 +147,10 @@ numbers, diagnoses, certainty, and a dropped vet recommendation.
   that hides the legs. Pose confidence drops and limb values are not measured.
 - The clip is dark, blown out, very small, or mostly still. A quality note
   explains what to change. Scores from a still clip are withheld.
-- MoveNet draws a human skeleton onto a pet. Even a high confidence can be
-  the wrong joint. Treat limb numbers as a rough comparison with the same
-  camera setup, not as a clinical measurement.
+- The animal does not fill the frame. The model sees the whole picture as one
+  box, so a small subject can fall below the confidence gate.
+- AP-10K covers many species. A high score is still one camera angle, not a
+  clinical measurement.
 - One angle of one short clip is not the whole animal.
 - OpenCV motion cannot tell left from right. Those factors stay unset.
 - The first 120 pose frames are the ones that are read, not a sample spread

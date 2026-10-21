@@ -79,7 +79,11 @@ export function walkReportHtml(analysis: Analysis, pets: Pet[]): string {
     ${row('Frames read', formatMeasure(measurements.frameCount, '', 0))}
     ${row('Clip length', formatMeasure(measurements.durationSeconds, ' s', 1))}
     ${row('Mean frame motion', formatMeasure(measurements.motionMean))}
-    ${row('Hip stability', formatMeasure(measurements.hipStability))}
+    ${row('Hip point stability', formatMeasure(measurements.hipStability))}
+    ${row('Left hind paw motion', formatMeasure(measurements.leftHindPawMotion))}
+    ${row('Right hind paw motion', formatMeasure(measurements.rightHindPawMotion))}
+    ${row('Left fore paw motion', formatMeasure(measurements.leftForePawMotion))}
+    ${row('Right fore paw motion', formatMeasure(measurements.rightForePawMotion))}
     ${row('Stride symmetry (raw)', formatMeasure(measurements.strideSymmetry))}
     ${row('Model confidence', formatMeasure(analysis.modelConfidence))}
   </table>

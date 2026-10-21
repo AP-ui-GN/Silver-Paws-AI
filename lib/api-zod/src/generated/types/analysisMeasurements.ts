@@ -11,18 +11,25 @@ import type { PoseKeypointSummary } from './poseKeypointSummary';
  * Raw measurements from the clip. These describe what was measured and carry no interpretation.
  */
 export interface AnalysisMeasurements {
-  /** Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left, after correcting MoveNet's letterboxing. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters. */
+  /** Confidence-filtered mean keypoint coordinates across usable pose frames. Names are the AP-10K labels the pose model outputs. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters. */
   poseKeypoints?: PoseKeypointSummary[] | null;
   frameCount: number;
   durationSeconds: number;
   meanKeypointConfidence?: number | null;
-  leftAnkleMotion?: number | null;
-  rightAnkleMotion?: number | null;
+  /** Vertical motion of AP-10K L_B_Paw. Null when not measured. */
+  leftHindPawMotion?: number | null;
+  /** Vertical motion of AP-10K R_B_Paw. Null when not measured. */
+  rightHindPawMotion?: number | null;
+  /** Vertical motion of AP-10K L_F_Paw. Null when not measured. */
+  leftForePawMotion?: number | null;
+  /** Vertical motion of AP-10K R_F_Paw. Null when not measured. */
+  rightForePawMotion?: number | null;
   strideSymmetry?: number | null;
   asymmetryPercent?: number | null;
   motionMean: number;
   motionStd: number;
   motionCoverage: number;
+  /** Vertical steadiness of the model's L_Hip and R_Hip points, from 0 to 1. Null when those points were not confident enough. Not a veterinary hip measurement. */
   hipStability?: number | null;
   symmetryReliable: boolean;
 }

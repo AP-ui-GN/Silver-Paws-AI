@@ -53,9 +53,9 @@ def parse_args() -> argparse.Namespace:
         help="Skip pose detection and measure picture motion only.",
     )
     parser.add_argument(
-        "--model-url",
+        "--pose-model",
         default=None,
-        help="Override the TensorFlow Hub URL for the pose model.",
+        help="Path to the published RTMPose-m AP-10K ONNX file. Defaults to the cache.",
     )
     parser.add_argument(
         "--output-json",
@@ -79,7 +79,7 @@ def main() -> int:
             previous_overall=args.previous_overall,
             previous_pipeline=args.previous_pipeline,
             use_pose=not args.no_pose,
-            model_url=args.model_url,
+            pose_model_path=args.pose_model,
         )
         exit_code = 0
     except (FileNotFoundError, ValueError) as exc:

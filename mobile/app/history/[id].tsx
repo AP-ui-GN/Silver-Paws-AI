@@ -42,18 +42,23 @@ function Measure({ label, value }: { label: string; value: string }) {
 }
 
 const POSE_CONNECTIONS = [
-  ['left_shoulder', 'right_shoulder'],
-  ['left_shoulder', 'left_elbow'],
-  ['left_elbow', 'left_wrist'],
-  ['right_shoulder', 'right_elbow'],
-  ['right_elbow', 'right_wrist'],
-  ['left_shoulder', 'left_hip'],
-  ['right_shoulder', 'right_hip'],
-  ['left_hip', 'right_hip'],
-  ['left_hip', 'left_knee'],
-  ['left_knee', 'left_ankle'],
-  ['right_hip', 'right_knee'],
-  ['right_knee', 'right_ankle'],
+  ['L_Eye', 'R_Eye'],
+  ['L_Eye', 'Nose'],
+  ['R_Eye', 'Nose'],
+  ['Nose', 'Neck'],
+  ['Neck', 'Root of tail'],
+  ['Neck', 'L_Shoulder'],
+  ['L_Shoulder', 'L_Elbow'],
+  ['L_Elbow', 'L_F_Paw'],
+  ['Neck', 'R_Shoulder'],
+  ['R_Shoulder', 'R_Elbow'],
+  ['R_Elbow', 'R_F_Paw'],
+  ['Root of tail', 'L_Hip'],
+  ['L_Hip', 'L_Knee'],
+  ['L_Knee', 'L_B_Paw'],
+  ['Root of tail', 'R_Hip'],
+  ['R_Hip', 'R_Knee'],
+  ['R_Knee', 'R_B_Paw'],
 ] as const;
 
 const WEIGHT_LABELS: Record<string, string> = {
@@ -124,7 +129,7 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   return (
     <Card>
       <Eyebrow>Computer vision activity</Eyebrow>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>MoveNet landmark summary</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Quadruped landmark summary</Text>
       <Muted>Mean normalized landmark positions from confident pose frames—not a diagnosis or a clinical measurement.</Muted>
       {points.length ? (
         <>
@@ -331,9 +336,11 @@ export default function WalkDetailScreen() {
             />
             <Measure label="Stride symmetry" value={formatMeasure(measurements.strideSymmetry)} />
             <Measure label="Asymmetry" value={formatMeasure(measurements.asymmetryPercent, '%', 1)} />
-            <Measure label="Hip stability" value={formatMeasure(measurements.hipStability)} />
-            <Measure label="Left ankle motion" value={formatMeasure(measurements.leftAnkleMotion)} />
-            <Measure label="Right ankle motion" value={formatMeasure(measurements.rightAnkleMotion)} />
+            <Measure label="Hip point stability" value={formatMeasure(measurements.hipStability)} />
+            <Measure label="Left hind paw motion" value={formatMeasure(measurements.leftHindPawMotion)} />
+            <Measure label="Right hind paw motion" value={formatMeasure(measurements.rightHindPawMotion)} />
+            <Measure label="Left fore paw motion" value={formatMeasure(measurements.leftForePawMotion)} />
+            <Measure label="Right fore paw motion" value={formatMeasure(measurements.rightForePawMotion)} />
             <Measure label="Keypoint confidence" value={formatMeasure(measurements.meanKeypointConfidence)} />
             <Measure label="Confident frames" value={formatPoseFrames(analysis.framesUsed, analysis.framesTotal)} />
             <Measure label="Symmetry reliable" value={typeof measurements.symmetryReliable === 'boolean' ? (measurements.symmetryReliable ? 'Yes' : 'No') : 'Not measured'} />

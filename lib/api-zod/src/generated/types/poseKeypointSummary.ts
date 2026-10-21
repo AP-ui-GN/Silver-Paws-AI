@@ -7,7 +7,7 @@
  */
 
 /**
- * Mean normalized location for one MoveNet keypoint.
+ * Mean normalized location for one AP-10K keypoint.
  */
 export interface PoseKeypointSummary {
   name: string;

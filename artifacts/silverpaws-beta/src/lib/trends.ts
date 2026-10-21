@@ -34,6 +34,7 @@ export type TrendSeries = {
 export type SparkPoint = { x: number; y: number; score: number };
 
 const PIPELINE_LABELS: Record<string, string> = {
+  "rtmpose-ap10k": "Quadruped pose (RTMPose-m)",
   movenet: "Pose landmarks (MoveNet)",
   "opencv-motion": "Picture motion only",
   unspecified: "Measurement method not recorded",

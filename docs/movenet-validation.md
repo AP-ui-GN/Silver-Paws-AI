@@ -1,6 +1,12 @@
 # MoveNet Thunder validation
 
-This is the first SilverPaws AI milestone: run pretrained MoveNet Thunder on
+Dog clips are not measured with this script. The analysis path is RTMPose-m
+on AP-10K, described in `docs/MODEL_CARD.md`. This page is the older human-pose
+check. `requirements.txt` no longer installs TensorFlow, so the commands below
+need a separate TensorFlow 2.15 environment on Python 3.10 or 3.11. Do not
+label its ankle output as a dog measurement.
+
+This was the first SilverPaws AI milestone: run pretrained MoveNet Thunder on
 video frames, print the detected keypoints, and calculate one explainable
 left/right motion metric. It is intentionally independent of FastAPI,
 Firestore, and any frontend.

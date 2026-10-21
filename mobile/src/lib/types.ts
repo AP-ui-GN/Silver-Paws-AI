@@ -5,7 +5,7 @@
  * truth. If the API contract changes, update the spec first and then this file.
  */
 
-export type Pipeline = 'movenet' | 'opencv-motion';
+export type Pipeline = 'rtmpose-ap10k' | 'opencv-motion';
 
 export type SignalQuality = 'good' | 'limited' | 'unusable';
 
@@ -35,8 +35,10 @@ export type AnalysisMeasurements = {
   frameCount: number;
   durationSeconds: number;
   meanKeypointConfidence?: number | null;
-  leftAnkleMotion?: number | null;
-  rightAnkleMotion?: number | null;
+  leftHindPawMotion?: number | null;
+  rightHindPawMotion?: number | null;
+  leftForePawMotion?: number | null;
+  rightForePawMotion?: number | null;
   strideSymmetry?: number | null;
   asymmetryPercent?: number | null;
   motionMean: number;

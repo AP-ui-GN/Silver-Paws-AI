@@ -5,10 +5,10 @@
 
 Two pipelines are supported and the best available one is chosen per clip:
 
-* ``movenet``       pose landmarks, so left/right stride symmetry can be measured.
-* ``opencv-motion`` frame-to-frame picture change only. Used whenever TensorFlow
-                    or the pose model is unavailable, which keeps the product
-                    usable on a machine with just OpenCV installed.
+* ``rtmpose-ap10k`` AP-10K keypoints from RTMPose-m, so hind-paw stride can be measured.
+* ``opencv-motion`` frame-to-frame picture change only. Used whenever ONNX Runtime
+                    or the pose model is unavailable, or the pose confidence is
+                    too low to score limbs. Low confidence stays unmeasured.
 
 The returned dictionary matches the ``AnalyzeResult`` schema in
 `lib/api-spec/openapi.yaml`, so the API server can validate it before replying.
@@ -26,7 +26,7 @@ from .confidence import pose_is_trusted, summarize_keypoints, summarize_pose_coo
 from .features import MOTION_FLOOR, hip_stability, motion_statistics
 from .metrics import compute_gait_metrics
 from .motion import read_motion_signal
-from .movenet import DEFAULT_MODEL_URL, MOVENET_MODEL_NAME, MOVENET_MODEL_VERSION
+from .quadruped import MODEL_NAME, MODEL_VERSION, PIPELINE_ID
 from .wellness import (
     DEFAULT_WEIGHTS,
     build_limitations,
@@ -47,33 +47,19 @@ POSE_CONFIDENCE_THRESHOLD = 0.2
 # Pose detections below this mean confidence are reported but not trusted enough
 # to score left/right symmetry from.
 MIN_POSE_CONFIDENCE = 0.3
-MIN_ANKLE_FRAMES = 10
+MIN_PAW_FRAMES = 10
 
 MIN_COMPARABLE_FRAMES = 5
 
 
-def _pose_model_identity(model_url: str | None) -> tuple[str, str]:
-    """Name and version for the pose model that was actually requested.
-
-    A different URL is not labeled as MoveNet Thunder. The fallback path never
-    claims to be pose.
-    """
-
-    url = (model_url or DEFAULT_MODEL_URL).rstrip("/")
-    if url == DEFAULT_MODEL_URL.rstrip("/"):
-        return MOVENET_MODEL_NAME, MOVENET_MODEL_VERSION
-    return "MoveNet", url
-
-
-def _model_info(pipeline: str, model_url: str | None) -> dict[str, str]:
+def _model_info(pipeline: str, model_version: str | None = None) -> dict[str, str]:
     """Describe the model that produced this result. Inference stays on the server."""
 
-    if pipeline == "movenet":
-        name, version = _pose_model_identity(model_url)
+    if pipeline == PIPELINE_ID:
         return {
-            "pipeline": "movenet",
-            "modelName": name,
-            "modelVersion": version,
+            "pipeline": PIPELINE_ID,
+            "modelName": MODEL_NAME,
+            "modelVersion": model_version or MODEL_VERSION,
             "runsOn": "server",
         }
 
@@ -89,12 +75,12 @@ def ai_use_ids(pipeline: str) -> list[str]:
     """Registry ids for the steps that produced one result.
 
     Frame-difference motion runs on every successful clip, including when
-    MoveNet also runs. ``development`` is a product fact, not a per-clip step.
+    RTMPose-m also runs. ``development`` is a product fact, not a per-clip step.
     ``llm-rewrite`` is added by the API only when a validated rewrite is kept.
     """
 
     shared = ["motion-fallback", "scoring", "observation-rules"]
-    if pipeline == "movenet":
+    if pipeline == PIPELINE_ID:
         return ["pose-model", *shared]
     return shared
 
@@ -111,31 +97,31 @@ def _clean_pet_name(pet_name: str | None) -> str | None:
 def _try_pose(
     video_path: Path,
     *,
-    model_url: str | None,
+    pose_model_path: str | None,
     max_frames: int,
-) -> tuple[Any | None, str | None]:
-    """Try to extract pose landmarks. Returns (keypoints, skip_reason)."""
+) -> tuple[Any | None, str | None, str | None]:
+    """Try to extract AP-10K landmarks. Returns (keypoints, skip_reason, version)."""
 
     try:
-        from .movenet import DEFAULT_MODEL_URL, extract_keypoints_from_video, load_movenet
+        from .quadruped import describe_model, extract_keypoints_from_video, load_quadruped
     except ImportError as exc:
-        return None, f"pose modules unavailable: {exc}"
+        return None, f"pose modules unavailable: {exc}", None
 
     try:
-        model = load_movenet(model_url or DEFAULT_MODEL_URL)
+        session, resolved = load_quadruped(pose_model_path)
+        _name, version = describe_model(resolved)
         keypoints, _fps = extract_keypoints_from_video(
             video_path,
-            model,
-            min_confidence=POSE_CONFIDENCE_THRESHOLD,
+            session,
             max_frames=max_frames,
         )
     except Exception as exc:  # noqa: BLE001 - any pose failure must fall back
-        # Missing TensorFlow, no network for the model download, an unreadable
+        # Missing ONNX Runtime, no network for the checkpoint, an unreadable
         # frame: none of these should fail the request, because the motion
         # pipeline can still measure the clip.
-        return None, f"{type(exc).__name__}: {exc}"
+        return None, f"{type(exc).__name__}: {exc}", None
 
-    return keypoints, None
+    return keypoints, None, version
 
 
 def _assess_signal(pipeline: str, measurements: dict) -> tuple[str, str]:
@@ -163,7 +149,7 @@ def _assess_signal(pipeline: str, measurements: dict) -> tuple[str, str]:
     if not measurements["symmetryReliable"]:
         return (
             "limited",
-            "Pose landmarks were found, but the leg detections were not confident enough "
+            "Pose landmarks were found, but the paw detections were not confident enough "
             "to compare the two sides.",
         )
 
@@ -180,7 +166,7 @@ def analyze_clip(
     previous_overall: float | None = None,
     previous_pipeline: str | None = None,
     use_pose: bool = True,
-    model_url: str | None = None,
+    pose_model_path: str | None = None,
 ) -> dict[str, Any]:
     """Analyze one movement clip and return an ``AnalyzeResult`` dictionary.
 
@@ -198,8 +184,10 @@ def analyze_clip(
         "frameCount": signal.frames_read,
         "durationSeconds": signal.duration_seconds,
         "meanKeypointConfidence": None,
-        "leftAnkleMotion": None,
-        "rightAnkleMotion": None,
+        "leftHindPawMotion": None,
+        "rightHindPawMotion": None,
+        "leftForePawMotion": None,
+        "rightForePawMotion": None,
         "strideSymmetry": None,
         "asymmetryPercent": None,
         "motionMean": motion_mean,
@@ -211,19 +199,20 @@ def analyze_clip(
 
     pipeline = "opencv-motion"
     pose_skip_reason: str | None = "pose extraction was disabled for this run"
+    pose_model_version: str | None = None
     model_confidence: float | None = None
     frames_used: int | None = None
     frames_total: int | None = None
     low_confidence = False
 
     if use_pose:
-        keypoints, pose_skip_reason = _try_pose(
+        keypoints, pose_skip_reason, pose_model_version = _try_pose(
             path,
-            model_url=model_url,
+            pose_model_path=pose_model_path,
             max_frames=MAX_POSE_FRAMES,
         )
         if keypoints is not None:
-            pipeline = "movenet"
+            pipeline = PIPELINE_ID
             summary = summarize_keypoints(
                 keypoints,
                 frame_threshold=MIN_POSE_CONFIDENCE,
@@ -235,8 +224,6 @@ def analyze_clip(
                 keypoints,
                 frame_threshold=MIN_POSE_CONFIDENCE,
                 keypoint_threshold=POSE_CONFIDENCE_THRESHOLD,
-                frame_width=signal.width,
-                frame_height=signal.height,
             )
             measurements["meanKeypointConfidence"] = model_confidence
             # Below the trust line, limb numbers are left unset. They are not
@@ -246,19 +233,21 @@ def analyze_clip(
                     keypoints,
                     confidence_threshold=POSE_CONFIDENCE_THRESHOLD,
                 )
-                measurements["leftAnkleMotion"] = gait.left_ankle_motion
-                measurements["rightAnkleMotion"] = gait.right_ankle_motion
-                measurements["strideSymmetry"] = gait.stride_symmetry_score
-                measurements["asymmetryPercent"] = gait.asymmetry_percent
+                measurements["leftHindPawMotion"] = gait.hind.left_motion
+                measurements["rightHindPawMotion"] = gait.hind.right_motion
+                measurements["leftForePawMotion"] = gait.fore.left_motion
+                measurements["rightForePawMotion"] = gait.fore.right_motion
+                measurements["strideSymmetry"] = gait.hind.symmetry_score
+                measurements["asymmetryPercent"] = gait.hind.asymmetry_percent
                 measurements["hipStability"] = hip_stability(
                     keypoints,
                     confidence_threshold=POSE_CONFIDENCE_THRESHOLD,
                 )
                 measurements["symmetryReliable"] = bool(
-                    gait.stride_symmetry_score is not None
+                    gait.hind.symmetry_score is not None
                     and gait.mean_keypoint_confidence >= MIN_POSE_CONFIDENCE
-                    and gait.valid_left_ankle_frames >= MIN_ANKLE_FRAMES
-                    and gait.valid_right_ankle_frames >= MIN_ANKLE_FRAMES
+                    and gait.hind.valid_left_frames >= MIN_PAW_FRAMES
+                    and gait.hind.valid_right_frames >= MIN_PAW_FRAMES
                 )
             else:
                 low_confidence = True
@@ -267,7 +256,7 @@ def analyze_clip(
     if low_confidence and signal_quality != "unusable":
         signal_quality = "limited"
         signal_note = (
-            "Pose landmarks were found, but confidence was too low to measure the legs. "
+            "Pose landmarks were found, but confidence was too low to measure the paws. "
             "Try a clearer clip, filmed from the side with the whole body in frame."
         )
 
@@ -344,7 +333,7 @@ def analyze_clip(
         "concerningChange": concerning,
         "usedLlm": False,
         "weightsUsed": weights_used(factors),
-        "modelInfo": _model_info(pipeline, model_url),
+        "modelInfo": _model_info(pipeline, pose_model_version),
         "modelConfidence": model_confidence,
         "framesUsed": frames_used,
         "framesTotal": frames_total,

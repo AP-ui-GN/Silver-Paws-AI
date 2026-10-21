@@ -83,26 +83,27 @@ def _to_score(value: float | None) -> float | None:
 
 
 def mobility_factor(measurements: dict) -> float | None:
-    """Score hip and ankle mobility from pose measurements, from 0 to 100.
+    """Score hip-point and hind-paw mobility from pose measurements, from 0 to 100.
 
-    Uses hipStability, leftAnkleMotion, rightAnkleMotion, and strideSymmetry.
+    Uses hipStability, leftHindPawMotion, rightHindPawMotion, and strideSymmetry.
     Returns None when the pose was not reliable, or when stride symmetry or
-    either ankle motion was not measured. A missing value is left out of the
+    either hind paw was not measured. A missing value is left out of the
     average. It is never filled in as zero.
 
-    Ankle motion is a raw energy, not a 0-1 quality score, and it depends on
+    Hind-paw motion is a raw energy, not a 0-1 quality score, and it depends on
     camera distance and clip length. Both sides must have been measured. Their
     balance is already stored as strideSymmetry, so that balance is not scored
-    a second time. Hip stability is averaged with stride symmetry when it was
-    measured, and omitted when it was not.
+    a second time. Hip-point stability is averaged with stride symmetry when it
+    was measured, and omitted when it was not. Fore-paw motion is reported
+    separately and is not folded into this score.
     """
 
     if not measurements.get("symmetryReliable"):
         return None
 
     symmetry = _unit(measurements.get("strideSymmetry"))
-    left = measurements.get("leftAnkleMotion")
-    right = measurements.get("rightAnkleMotion")
+    left = measurements.get("leftHindPawMotion")
+    right = measurements.get("rightHindPawMotion")
     if symmetry is None or not _is_number(left) or not _is_number(right):
         return None
 
@@ -329,10 +330,17 @@ def build_limitations(pipeline: str, signal_quality: str) -> str:
             "No pet pose landmarks were used for this clip, so the measurements describe "
             "overall picture movement rather than individual limbs."
         )
+    elif pipeline == "rtmpose-ap10k":
+        parts.append(
+            "Limb points come from RTMPose-m, a published model trained on the AP-10K "
+            "animal pose dataset. SilverPaws did not train it. For dogs, AP-10K's own "
+            "notes say its hip and knee labels follow a visual convention rather than "
+            "a veterinary bone name. These values are not a diagnosis and do not detect pain or injury."
+        )
     else:
         parts.append(
-            "Pose landmarks come from a model trained on human bodies, so limb detections "
-            "on pets can be unreliable."
+            "Pose landmarks were not produced by the quadruped model, so they are not a "
+            "veterinary measurement."
         )
 
     if signal_quality != "good":

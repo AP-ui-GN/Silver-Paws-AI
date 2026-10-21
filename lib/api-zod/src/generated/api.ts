@@ -32,7 +32,7 @@ export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceM
 
 export const AnalyzeMovementClipResponse = zod.object({
   "ok": zod.boolean(),
-  "pipeline": zod.enum(['movenet', 'opencv-motion']).describe('movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.'),
+  "pipeline": zod.enum(['rtmpose-ap10k', 'opencv-motion']).describe('rtmpose-ap10k when RTMPose-m AP-10K landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.'),
   "signalQuality": zod.enum(['good', 'limited', 'unusable']).describe('How much the measurements from this clip can be trusted.'),
   "signalNote": zod.string().describe('Plain-language reason for signalQuality, safe to display.'),
   "measurements": zod.object({
@@ -41,18 +41,20 @@ export const AnalyzeMovementClipResponse = zod.object({
   "x": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemXMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemXMax),
   "y": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMax),
   "confidence": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMax)
-}).describe('Mean normalized location for one MoveNet keypoint.')).nullish().describe('Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left, after correcting MoveNet\'s letterboxing. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters.'),
+}).describe('Mean normalized location for one AP-10K keypoint.')).nullish().describe('Confidence-filtered mean keypoint coordinates across usable pose frames. Names are the AP-10K labels the pose model outputs. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters.'),
   "frameCount": zod.number(),
   "durationSeconds": zod.number(),
   "meanKeypointConfidence": zod.number().nullish(),
-  "leftAnkleMotion": zod.number().nullish(),
-  "rightAnkleMotion": zod.number().nullish(),
+  "leftHindPawMotion": zod.number().nullish().describe('Vertical motion of AP-10K L_B_Paw. Null when not measured.'),
+  "rightHindPawMotion": zod.number().nullish().describe('Vertical motion of AP-10K R_B_Paw. Null when not measured.'),
+  "leftForePawMotion": zod.number().nullish().describe('Vertical motion of AP-10K L_F_Paw. Null when not measured.'),
+  "rightForePawMotion": zod.number().nullish().describe('Vertical motion of AP-10K R_F_Paw. Null when not measured.'),
   "strideSymmetry": zod.number().nullish(),
   "asymmetryPercent": zod.number().nullish(),
   "motionMean": zod.number(),
   "motionStd": zod.number(),
   "motionCoverage": zod.number(),
-  "hipStability": zod.number().nullish(),
+  "hipStability": zod.number().nullish().describe('Vertical steadiness of the model\'s L_Hip and R_Hip points, from 0 to 1. Null when those points were not confident enough. Not a veterinary hip measurement.'),
   "symmetryReliable": zod.boolean()
 }).describe('Raw measurements from the clip. These describe what was measured and carry no interpretation.'),
   "factors": zod.object({
@@ -78,7 +80,7 @@ export const AnalyzeMovementClipResponse = zod.object({
   "historicalChange": zod.number().optional()
 }).optional().describe('Weights used to blend the available factors into overallScore.'),
   "modelInfo": zod.object({
-  "pipeline": zod.enum(['movenet', 'opencv-motion']),
+  "pipeline": zod.enum(['rtmpose-ap10k', 'opencv-motion']),
   "modelName": zod.string(),
   "modelVersion": zod.string(),
   "runsOn": zod.enum(['server'])

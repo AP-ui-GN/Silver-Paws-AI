@@ -7,6 +7,10 @@ This document records what changed in the productionization pass, the measured
 impact of those changes, and exactly what each teammate still needs to do. It
 pairs with `TEAM_TASKS.md` (short task cards) and `TESTING.md` (how to verify).
 
+The pose path described below as MoveNet is the earlier state. Dog clips are
+now measured with RTMPose-m on AP-10K (`pipeline: "rtmpose-ap10k"`). See
+`docs/MODEL_CARD.md`.
+
 ---
 
 ## 1. Where the project stood before this pass

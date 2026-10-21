@@ -24,8 +24,10 @@ def measurements(**overrides):
         "frameCount": 60,
         "durationSeconds": 4.0,
         "meanKeypointConfidence": None,
-        "leftAnkleMotion": None,
-        "rightAnkleMotion": None,
+        "leftHindPawMotion": None,
+        "rightHindPawMotion": None,
+        "leftForePawMotion": None,
+        "rightForePawMotion": None,
         "strideSymmetry": None,
         "asymmetryPercent": None,
         "motionMean": 0.02,
@@ -131,8 +133,8 @@ class MobilityFactorTests(unittest.TestCase):
         base = measurements(
             symmetryReliable=True,
             strideSymmetry=0.8,
-            leftAnkleMotion=0.4,
-            rightAnkleMotion=0.35,
+            leftHindPawMotion=0.4,
+            rightHindPawMotion=0.35,
             hipStability=0.6,
         )
         base.update(overrides)
@@ -141,9 +143,9 @@ class MobilityFactorTests(unittest.TestCase):
     def test_unreliable_pose_is_not_scored_even_when_numbers_are_present(self):
         self.assertIsNone(mobility_factor(self.pose(symmetryReliable=False)))
 
-    def test_a_missing_ankle_is_not_treated_as_zero_motion(self):
-        self.assertIsNone(mobility_factor(self.pose(leftAnkleMotion=None)))
-        self.assertIsNone(mobility_factor(self.pose(rightAnkleMotion=None)))
+    def test_a_missing_hind_paw_is_not_treated_as_zero_motion(self):
+        self.assertIsNone(mobility_factor(self.pose(leftHindPawMotion=None)))
+        self.assertIsNone(mobility_factor(self.pose(rightHindPawMotion=None)))
 
     def test_hip_and_symmetry_are_averaged_onto_the_0_to_100_scale(self):
         # (0.8 symmetry + 0.6 hip) / 2 * 100
@@ -154,9 +156,9 @@ class MobilityFactorTests(unittest.TestCase):
 
         self.assertEqual(scored, 80.0)
 
-    def test_measured_zero_ankle_motion_can_still_be_scored(self):
+    def test_measured_zero_hind_paw_motion_can_still_be_scored(self):
         scored = mobility_factor(
-            self.pose(leftAnkleMotion=0.0, rightAnkleMotion=0.0, hipStability=None)
+            self.pose(leftHindPawMotion=0.0, rightHindPawMotion=0.0, hipStability=None)
         )
 
         self.assertEqual(scored, 80.0)
@@ -284,8 +286,8 @@ class ObservationTextTests(unittest.TestCase):
             measurements=measurements(
                 symmetryReliable=True,
                 strideSymmetry=0.8,
-                leftAnkleMotion=0.4,
-                rightAnkleMotion=0.35,
+                leftHindPawMotion=0.4,
+                rightHindPawMotion=0.35,
                 hipStability=None,
             ),
         )
