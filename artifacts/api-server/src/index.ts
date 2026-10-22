@@ -2,6 +2,7 @@ import app from "./app";
 import { createGracefulShutdown } from "./lib/graceful-shutdown";
 import { logger } from "./lib/logger";
 import { stopActiveAnalyses } from "./lib/analysis-runner";
+import { positiveInteger } from "./lib/hosting";
 
 const rawPort = process.env["PORT"] ?? "8080";
 const port = Number(rawPort);
@@ -22,7 +23,7 @@ server.on("error", (err: Error) => {
 const shutdown = createGracefulShutdown(server, {
   logger,
   stopActiveWork: stopActiveAnalyses,
-  timeoutMs: Number(process.env["SHUTDOWN_TIMEOUT_MS"] ?? 15_000),
+  timeoutMs: positiveInteger(process.env["SHUTDOWN_TIMEOUT_MS"], 15_000, 1_000),
 });
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
