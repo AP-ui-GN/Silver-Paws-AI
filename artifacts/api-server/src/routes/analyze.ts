@@ -16,7 +16,7 @@ import { AnalyzeMovementClipResponse, type AnalyzeError } from "@workspace/api-z
 
 import { aiUseForResult } from "../lib/ai-use";
 import { runAnalysis } from "../lib/analysis-runner";
-import { gateAnalyzeUpload, positiveInteger, trustProxyEnabled } from "../lib/hosting";
+import { ANALYSIS_BUSY_MESSAGE, gateAnalyzeUpload, positiveInteger, trustProxyEnabled } from "../lib/hosting";
 import { explainObservation } from "../lib/explanation";
 import { logger } from "../lib/logger";
 import { MultipartError, parseBoundary, parseMultipart } from "../lib/multipart";
@@ -30,8 +30,8 @@ const KNOWN_PIPELINES = ["dog-pose", "movenet", "opencv-motion"];
 
 const router: IRouter = Router();
 
-function sendError(res: Response, status: number, error: string) {
-  const body: AnalyzeError = { ok: false, error };
+function sendError(res: Response, status: number, error: string, code: string) {
+  const body: AnalyzeError = { ok: false, error, code };
   res.status(status).json(body);
 }
 
@@ -73,7 +73,17 @@ function gateAnalyzeRequest(
       remoteAddress: req.socket.remoteAddress,
       trustProxy: trustProxyEnabled(),
       now: Date.now(),
-      writeRefusal: (status, error) => sendError(res, status, error),
+      writeRefusal: (status, error) =>
+        sendError(
+          res,
+          status,
+          error,
+          status === 429
+            ? error === ANALYSIS_BUSY_MESSAGE
+              ? "ANALYSIS_BUSY"
+              : "RATE_LIMITED"
+            : "UPLOAD_REJECTED",
+        ),
       afterResponse: (fn) => {
         res.on("finish", fn);
       },
@@ -101,7 +111,7 @@ router.post(
   async (req: Request, res: Response) => {
     const boundary = parseBoundary(req.headers["content-type"]);
     if (!boundary || !Buffer.isBuffer(req.body)) {
-      sendError(res, 400, "The upload was not sent as a video form submission.");
+      sendError(res, 400, "The upload was not sent as a video form submission.", "INVALID_MULTIPART");
       return;
     }
 
@@ -110,7 +120,7 @@ router.post(
       form = parseMultipart(req.body, boundary);
     } catch (error) {
       if (error instanceof MultipartError) {
-        sendError(res, 400, `${error.message} Please try the upload again.`);
+        sendError(res, 400, `${error.message} Please try the upload again.`, "INVALID_MULTIPART");
         return;
       }
       throw error;
@@ -118,7 +128,7 @@ router.post(
 
     const video = form.files.find((file) => file.fieldName === "video");
     if (!video || video.data.length === 0) {
-      sendError(res, 400, "Choose a video file to analyze.");
+      sendError(res, 400, "Choose a video file to analyze.", "VIDEO_REQUIRED");
       return;
     }
 
@@ -127,6 +137,7 @@ router.post(
         res,
         400,
         "That file is not a video SilverPaws can read. MP4, MOV, and WebM work best.",
+        "UNSUPPORTED_VIDEO",
       );
       return;
     }
@@ -144,10 +155,11 @@ router.post(
         petName: readPetName(form.fields["petName"]),
         previousOverall: readPreviousOverall(form.fields["previousOverall"]),
         previousPipeline: readPreviousPipeline(form.fields["previousPipeline"]),
+        requestId: req.id,
       });
 
       if (!outcome.ok) {
-        sendError(res, outcome.status, outcome.error);
+        sendError(res, outcome.status, outcome.error, outcome.code);
         return;
       }
 
@@ -163,7 +175,7 @@ router.post(
 
       if (explanation.rejectedReason) {
         logger.warn(
-          { reason: explanation.rejectedReason },
+          { requestId: req.id, reason: explanation.rejectedReason },
           "Model rewrite not used; showing the rule-based observation",
         );
       }
@@ -178,10 +190,10 @@ router.post(
 
       if (!finalResult.success) {
         logger.error(
-          { issues: finalResult.error.issues.slice(0, 5) },
+          { requestId: req.id, issues: finalResult.error.issues.slice(0, 5) },
           "Final analysis payload failed validation",
         );
-        sendError(res, 502, "The analysis result could not be prepared for display.");
+        sendError(res, 502, "The analysis result could not be prepared for display.", "SCHEMA_MISMATCH");
         return;
       }
 
@@ -215,12 +227,13 @@ router.use(
         res,
         413,
         `That clip is larger than the ${MAX_UPLOAD_MB} MB beta limit. Try a shorter clip.`,
+        "UPLOAD_TOO_LARGE",
       );
       return;
     }
 
-    logger.error({ err: error }, "Unexpected failure while analyzing a clip");
-    sendError(res, 502, "Something went wrong while analyzing this clip.");
+    logger.error({ requestId: _req.id, err: error }, "Unexpected failure while analyzing a clip");
+    sendError(res, 502, "Something went wrong while analyzing this clip.", "ANALYSIS_FAILED");
   },
 );
 
