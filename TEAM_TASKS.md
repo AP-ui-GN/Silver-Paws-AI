@@ -1,9 +1,11 @@
 # TEAM TASKS
 
 Sudarshan, Kavin, and the explanation-request part of Abhi's card were finished
-on October 18, 2026. The markers in those files were removed. The copy review
-below is still open, and Abhi's live provider walk-through has not been run.
-Optional follow-ups stay in `docs/PROJECT_STATUS.md`.
+on October 18, 2026. The markers in those files were removed. The observational
+copy review was completed on October 22, 2026 for the web/mobile pose labels,
+movement report headings, model disclosures, and generated API descriptions.
+Abhi's live provider walk-through remains open because this environment has no
+provider credentials. Optional follow-ups stay in `docs/PROJECT_STATUS.md`.
 
 The markers in the listed files look like:
 
@@ -117,20 +119,19 @@ COMPLETION CRITERIA:
 ---
 
 # ==================================================
-# TEAM TASK: PRODUCT / RESEARCH
-# PURPOSE:
-# Keep the wording observational.
-# ==================================================
+STATUS: Done on October 22, 2026 for the reviewed web/mobile results, model
+labels, report headings, and API descriptions. The current COCO-17 checkpoint is
+not described as an AP-10K canine head, and unsupported stride/symmetry
+measurements remain visibly unavailable. The live provider integration remains
+a separate open task because no provider credentials were available.
 
 TEAM MEMBER: All three
 TASK: Review user-facing copy and disclaimers
-FILE / MODULE: `artifacts/silverpaws-beta/src/lib/disclaimers.ts`, observation text, report PDF
-WHAT TO IMPLEMENT:
-- Confirm the app never claims a diagnosis or emergency role
-- Confirm a concerning change points to a veterinarian
-WHY IT MATTERS:
-- Trust depends on honest language.
-DEPENDENCIES:
-- Current copy in the footer, history detail, and PDF report
-COMPLETION CRITERIA:
-- A stranger reading the app can tell this is a wellness note, not a medical result
+FILES: UI result labels, generated AI-use registry, API descriptions, and reports
+OUTCOME:
+- Current pose output is labeled COCO-17; canine anatomical interpretation is
+  explicitly unvalidated.
+- Stride length and left/right symmetry remain unmeasured with this checkpoint.
+- Reports describe observational movement data, not validated clinical results.
+- Concerning changes continue to direct users to a veterinarian.
+- Automated copy/schema consistency checks are included in CI.
