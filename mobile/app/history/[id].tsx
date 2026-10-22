@@ -405,7 +405,7 @@ export default function WalkDetailScreen() {
         <Button label="PDF report" icon="document-outline" variant="secondary" onPress={() => void savePdf()} style={{ flex: 1 }} />
         <Button label="Delete" icon="trash-outline" variant="danger" onPress={confirmDelete} />
       </View>
-      <Button label="Vet summary of recent walks" variant="secondary" onPress={() => void saveVetSummary()} />
+      <Button label="Movement report for recent walks" variant="secondary" onPress={() => void saveVetSummary()} />
 
       <DisclaimerFooter />
     </ScrollView>
