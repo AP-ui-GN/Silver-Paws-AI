@@ -190,6 +190,8 @@ Checks that were not run, and are not passed:
 - `node artifacts/silverpaws-beta/tests/report-download.browser.mjs` — needs `CHROMIUM_PATH`.
 - Local Docker CLI is still not installed. The hosted Docker build and synthetic `POST /api/analyze` smoke check now pass in GitHub Actions; this is not a real-dog validation.
 
+The standalone timing script now has a unit-tested schema guard: AP-10K gait formulas are skipped unless the result schema is `ap10k`. Its peak-RSS probe is optional on platforms without Python's POSIX `resource` module. This does not constitute a new performance benchmark.
+
 The static copy review was completed on October 22, 2026 for the pose-output labels, report titles, and safety/disclaimer wording. These labels now describe observational movement information rather than validated clinical measurements. The hosted smoke fixture was synthetic; it does not close the real-dog validation or live language-model provider checks. Abhi's live provider walk-through stays open.
 
 ## Browser checks (October 18, 2026)
