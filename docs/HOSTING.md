@@ -35,13 +35,13 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | --- | --- | --- |
 | `PORT` | `8080` | Listen port |
 | `NODE_ENV` | unset | `production` turns on the HTTPS check |
-| `MAX_UPLOAD_MB` | `60` | Largest clip accepted |
+| `MAX_UPLOAD_MB` | `60` | Largest clip accepted; configurable integer is bounded to 1–120 MB |
 | `TRUST_PROXY` | unset | Set to `1` only behind a proxy that sets `X-Forwarded-Proto` |
 | `ALLOWED_ORIGINS` | Development defaults when unset outside production; empty allow-list in production | Comma-separated exact browser origins, e.g. `https://app.example.com`; do not include paths. Production web clients must be listed explicitly. |
 | `ANALYSIS_TIMEOUT_MS` | `600000` | Stop the pipeline after this many milliseconds. A motion result written before pose starts is returned if pose is still running |
 | `SHUTDOWN_TIMEOUT_MS` | `15000` | Grace period for in-flight requests during SIGTERM/SIGINT before active Python analysis is stopped |
 | `ANALYZE_RATE_LIMIT_PER_MINUTE` | `10` | Analyses allowed per client address each minute |
-| `ANALYZE_MAX_CONCURRENT` | `2` | Pipelines running at once. Extra uploads are refused before the body is read |
+| `ANALYZE_MAX_CONCURRENT` | `1` | Concurrent analysis requests; configured integer is bounded to 1–4. Defaults to one because a CPU pose process measured about 1.6 GB RSS |
 | `SILVERPAWS_PYTHON` | `/opt/venv/bin/python` in the image | Python that runs the pipeline |
 | `SILVERPAWS_REPO_ROOT` | `/app` in the image | Where `gait_engine` and `scripts` live |
 | `HF_HOME` | `/app/models/hf` in the image | Detector and pose weight cache |
