@@ -125,5 +125,46 @@ class SubjectTests(unittest.TestCase):
         self.assertTrue(saw_person)
 
 
+class InferenceCachePolicyTests(unittest.TestCase):
+    def test_detector_loading_is_local_only_after_explicit_setup(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock, patch
+        import tempfile
+        import sys
+
+        from gait_engine.pose_backend import DETECTOR_ID, QuadPoseBackend
+
+        class FakeDetector:
+            config = SimpleNamespace(id2label={0: "person", 16: "dog"})
+
+            def to(self, _device):
+                return self
+
+            def eval(self):
+                return self
+
+        processor_loader = Mock(return_value=object())
+        detector_loader = Mock(return_value=FakeDetector())
+        transformers = SimpleNamespace(
+            RTDetrImageProcessor=SimpleNamespace(from_pretrained=processor_loader),
+            RTDetrForObjectDetection=SimpleNamespace(from_pretrained=detector_loader),
+        )
+        torch = SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: False))
+        backend = QuadPoseBackend()
+
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.dict(sys.modules, {"torch": torch, "transformers": transformers}),
+                patch("gait_engine.pose_backend.hf_home", return_value=Path(directory)),
+                patch("gait_engine.pose_backend._revision", return_value=None),
+                patch("gait_engine.quadpose.load_quadpose", return_value=object()),
+            ):
+                backend._ensure_loaded()
+
+        self.assertTrue(backend._loaded)
+        processor_loader.assert_called_once_with(DETECTOR_ID, local_files_only=True)
+        detector_loader.assert_called_once_with(DETECTOR_ID, local_files_only=True)
+
+
 if __name__ == "__main__":
     unittest.main()
