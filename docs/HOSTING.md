@@ -23,7 +23,7 @@ While the image builds, `scripts/cache_models.py` downloads the dog detector
 and the pose model into `/app/models/hf` (`HF_HOME`). A later request reuses
 that cache.
 
-The container listens on port 8080. `GET /api/healthz` returns `{ "status": "ok" }` and is a liveness check only. `GET /api/readyz` checks the local Python/OpenCV setup using a cached, no-download probe. It returns HTTP 200 when the motion-only fallback is available, even if optional pose weights are absent; the response explains which capabilities are available. It returns HTTP 503 when the required fallback is unavailable. Readiness is cached for up to 60 seconds.
+The container listens on port 8080 and defaults to a ten-minute `ANALYSIS_TIMEOUT_MS` ceiling, matching the documented API behavior. Invalid timeout values fall back to the ten-minute default; valid overrides are bounded from one second to one hour. `GET /api/healthz` returns `{ "status": "ok" }` and is a liveness check only. `GET /api/readyz` checks the local Python/OpenCV setup using a cached, no-download probe. It returns HTTP 200 when the motion-only fallback is available, even if optional pose weights are absent; the response explains which capabilities are available. It returns HTTP 503 when the required fallback is unavailable. Readiness is cached for up to 60 seconds.
 That path stays on plain HTTP so the Docker healthcheck can call localhost.
 Every other path requires HTTPS when `NODE_ENV=production`. The host's proxy
 sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
