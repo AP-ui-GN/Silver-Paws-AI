@@ -10,11 +10,36 @@ export interface HealthStatus {
 }
 
 /**
+ * Stable machine-readable error code; optional for compatibility with older clients.
+ */
+export type AnalyzeErrorCode = typeof AnalyzeErrorCode[keyof typeof AnalyzeErrorCode];
+
+
+export const AnalyzeErrorCode = {
+  HTTPS_REQUIRED: 'HTTPS_REQUIRED',
+  INVALID_MULTIPART: 'INVALID_MULTIPART',
+  VIDEO_REQUIRED: 'VIDEO_REQUIRED',
+  UNSUPPORTED_VIDEO: 'UNSUPPORTED_VIDEO',
+  UPLOAD_TOO_LARGE: 'UPLOAD_TOO_LARGE',
+  UPLOAD_REJECTED: 'UPLOAD_REJECTED',
+  ANALYSIS_BUSY: 'ANALYSIS_BUSY',
+  RATE_LIMITED: 'RATE_LIMITED',
+  PIPELINE_UNAVAILABLE: 'PIPELINE_UNAVAILABLE',
+  PIPELINE_TIMEOUT: 'PIPELINE_TIMEOUT',
+  INVALID_VIDEO: 'INVALID_VIDEO',
+  PIPELINE_INVALID_OUTPUT: 'PIPELINE_INVALID_OUTPUT',
+  SCHEMA_MISMATCH: 'SCHEMA_MISMATCH',
+  ANALYSIS_FAILED: 'ANALYSIS_FAILED',
+} as const;
+
+/**
  * A message the app can show to the user as-is.
  */
 export interface AnalyzeError {
   ok: boolean;
   error: string;
+  /** Stable machine-readable error code; optional for compatibility with older clients. */
+  code?: AnalyzeErrorCode;
 }
 
 /**
@@ -110,7 +135,7 @@ export interface AnalysisMeasurements {
   headBobAsymmetry?: number | null;
   pelvisAsymmetry?: number | null;
   notMeasuredReasons?: string[];
-  /** One sampled frame, 17 AP-10K points normalized to that frame's dog box from 0 to 1. This is not the uploaded video and stores no pixels. */
+  /** One sampled frame, 17 COCO-17 joint outputs normalized to the detected dog box from 0 to 1. They use COCO-17 human joint names, not validated canine anatomical landmarks. This checkpoint does not emit AP-10K neck or root-of-tail points. This is not the uploaded video and stores no pixels. */
   poseSample?: PoseKeypointSummary[] | null;
 }
 
@@ -163,7 +188,7 @@ export interface AnalysisWeights {
 }
 
 /**
- * dog-pose when the dog detector and animal pose model ran, opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.
+ * dog-pose when the dog detector and ViTPose++ COCO-17 output path ran. The labels are human COCO-17 joint names applied inside a detected dog box and are not validated canine anatomical landmarks; stride length and left/right gait symmetry remain unmeasured. opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.
  */
 export type AnalyzeResultPipeline = typeof AnalyzeResultPipeline[keyof typeof AnalyzeResultPipeline];
 
@@ -193,7 +218,7 @@ export type AnalyzeResultDiagnostics = { [key: string]: unknown };
 
 export interface AnalyzeResult {
   ok: boolean;
-  /** dog-pose when the dog detector and animal pose model ran, opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet. */
+  /** dog-pose when the dog detector and ViTPose++ COCO-17 output path ran. The labels are human COCO-17 joint names applied inside a detected dog box and are not validated canine anatomical landmarks; stride length and left/right gait symmetry remain unmeasured. opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet. */
   pipeline: AnalyzeResultPipeline;
   /** How much the measurements from this clip can be trusted. */
   signalQuality: AnalyzeResultSignalQuality;

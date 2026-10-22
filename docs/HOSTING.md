@@ -100,7 +100,7 @@ took 4.02 seconds of wall time (3.552 seconds after the process had started).
 That is under 20 seconds, so the API still starts Python once per request.
 No persistent worker was added.
 
-The API handles SIGTERM/SIGINT by stopping new accepts, allowing in-flight requests to drain, and terminating remaining Python analysis processes after `SHUTDOWN_TIMEOUT_MS`. The Docker image was not built. The `docker` command is not installed here.
+The API handles SIGTERM/SIGINT by stopping new accepts, allowing in-flight requests to drain, and terminating remaining Python analysis processes after `SHUTDOWN_TIMEOUT_MS`. This checkout's local environment does not have the `docker` command, so local image build and memory measurements were not performed. GitHub Actions later built and smoke-tested the image; that synthetic run did not measure hosted memory.
 1665 MB is this CPU run, not a measurement from a hosted container.
 
 To see what a real clip uses:
@@ -122,6 +122,12 @@ docker compose up --build
 Then open `http://127.0.0.1:8080/api/healthz`.
 
 This environment did not have a `docker` command, so this image was not built here.
+
+## Hosted Docker/API smoke check
+
+On October 22, 2026, [the main-branch container-smoke workflow](https://github.com/AP-ui-GN/Silver-Paws-AI/actions/runs/39818601906) successfully built the Docker image, checked `/api/healthz` and `/api/readyz`, and submitted a generated synthetic motion clip to `POST /api/analyze`.
+
+The fixture was a moving-shape video, not a dog. This verifies container packaging, readiness, and the API-to-Python response path only. It does not validate canine pose accuracy, a real dog-walk through the browser UI, a production deployment, or peak hosted memory.
 
 ## Deploy on Render
 

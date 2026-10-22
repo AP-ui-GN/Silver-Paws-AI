@@ -30,7 +30,7 @@ const KNOWN_PIPELINES = ["dog-pose", "movenet", "opencv-motion"];
 
 const router: IRouter = Router();
 
-function sendError(res: Response, status: number, error: string, code: string) {
+function sendError(res: Response, status: number, error: string, code: NonNullable<AnalyzeError["code"]>) {
   const body: AnalyzeError = { ok: false, error, code };
   res.status(status).json(body);
 }

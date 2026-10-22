@@ -10,6 +10,7 @@ export * from './analysisFactors';
 export * from './analysisMeasurements';
 export * from './analysisWeights';
 export * from './analyzeError';
+export * from './analyzeErrorCode';
 export * from './analyzeMovementClipBody';
 export * from './analyzeResult';
 export * from './analyzeResultDiagnostics';

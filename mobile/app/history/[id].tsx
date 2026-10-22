@@ -151,10 +151,10 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   const byName = new Map(points.map((point) => [point.name, point]));
   const cocoNamed = points.some((point) => point.name === 'right_ear' || point.name === 'left_wrist');
   const connections = cocoNamed ? COCO_EDGES : POSE_CONNECTIONS;
-  const title = analysis.pipeline === 'dog-pose' ? 'COCO joint summary' : analysis.pipeline === 'movenet' ? 'MoveNet landmark summary' : 'Saved landmark summary';
+  const title = analysis.pipeline === 'dog-pose' ? 'COCO-17 output summary' : analysis.pipeline === 'movenet' ? 'MoveNet landmark summary' : 'Saved landmark summary';
   const caption = analysis.pipeline === 'dog-pose'
-    ? 'Mean positions from confident frames. These names are COCO joints. The base of the tail is not in this head. This is not a diagnosis.'
-    : 'Mean normalized landmark positions from confident pose frames—not a diagnosis or a clinical measurement.';
+    ? 'Mean positions from confident frames. These are COCO-17 human joint labels applied inside a detected dog box, not validated canine anatomical landmarks. The head has no neck or tail-base point, so stride length and left/right gait symmetry are not measured.'
+    : 'Mean normalized COCO-17 landmark positions from confident frames; canine anatomical interpretation is unvalidated.';
   return (
     <Card>
       <Eyebrow>Computer vision activity</Eyebrow>
@@ -405,7 +405,7 @@ export default function WalkDetailScreen() {
         <Button label="PDF report" icon="document-outline" variant="secondary" onPress={() => void savePdf()} style={{ flex: 1 }} />
         <Button label="Delete" icon="trash-outline" variant="danger" onPress={confirmDelete} />
       </View>
-      <Button label="Vet summary of recent walks" variant="secondary" onPress={() => void saveVetSummary()} />
+      <Button label="Movement report for recent walks" variant="secondary" onPress={() => void saveVetSummary()} />
 
       <DisclaimerFooter />
     </ScrollView>

@@ -28,12 +28,12 @@ const TOUR_STEPS = [
   {
     targetId: 'factor-scores',
     title: 'Gait scores',
-    description: 'Multi-factor telemetry evaluates stride symmetry, hip steadiness, and consistency.',
+    description: 'Scores summarize the available measurements. Pose-dependent factors are only shown when the clip supports them.'
   },
   {
     targetId: 'vet-summary-export',
     title: 'Vet PDF & care',
-    description: 'Export a clinical summary for your vet or find physical therapy specialists nearby.',
+    description: 'Export a movement-observation report to discuss with your veterinarian, or find physical therapy specialists nearby.'
   },
 ];
 

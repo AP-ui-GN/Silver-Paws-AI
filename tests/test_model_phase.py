@@ -13,7 +13,7 @@ from gait_engine.confidence import (
     summarize_keypoints,
     summarize_pose_coordinates,
 )
-from gait_engine.pipeline import MIN_POSE_CONFIDENCE, ai_use_ids, analyze_clip
+from gait_engine.pipeline import MIN_POSE_CONFIDENCE, _model_info, ai_use_ids, analyze_clip
 
 
 def keypoints(frames, confidence):
@@ -187,6 +187,23 @@ class OpenCvResultTests(unittest.TestCase):
         self.assertNotIn("pose-model", result["aiUse"])
         self.assertNotIn("llm-rewrite", result["aiUse"])
         self.assertNotIn("development", result["aiUse"])
+
+
+class ModelInfoTests(unittest.TestCase):
+    def test_current_pose_head_is_not_mislabeled_as_ap10k(self):
+        info = _model_info(
+            "dog-pose",
+            {
+                "pose_id": "usyd-community/vitpose-plus-base",
+                "pose_revision": None,
+                "detector_id": "PekingU/rtdetr_r50vd_coco_o365",
+                "detector_revision": None,
+            },
+        )
+
+        self.assertIn("COCO-17 output", info["modelName"])
+        self.assertIn("canine pose unvalidated", info["modelName"])
+        self.assertNotIn("AP-10K", info["modelName"])
 
 
 class AiUseIdTests(unittest.TestCase):
