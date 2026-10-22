@@ -8,6 +8,7 @@ import ProductTour from '@/components/ProductTour';
 import { findBaseline, toAnalysisRecord, type Analysis, type Pet } from '@/lib/storage';
 import { checkClip, describeAnalysisError, MAX_UPLOAD_MB, requestAnalysis } from '@/lib/analysis-api';
 import { formatDuration } from '@/lib/format';
+import { observationFromResult } from '@/lib/saved-observation';
 import { createSampleAnalysis } from '@/lib/sample-analysis';
 
 type Props = {
@@ -24,7 +25,6 @@ type Phase = 'upload' | 'review' | 'processing' | 'done';
 // "Finalizing your observation" the whole time, including while pose was still
 // loading. The service owns the deadline now.
 const PROCESSING_STATUS = 'Measuring this clip';
-const STANDARD_OBSERVATION = 'Gait analysis completed. Numerical telemetry recorded; plain-language AI summary unavailable.';
 
 export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis }: Props) {
   const [, setLocation] = useLocation();
@@ -161,23 +161,14 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
       });
       const poseTimedOut = result.signalNote?.includes('Pose analysis exceeded its time limit') ?? false;
       if (poseTimedOut) {
-        toast.info('Pose analysis timed out; your result is ready with motion-only telemetry.', {
+        toast.info('Pose analysis timed out. Picture motion was measured. Stride length and symmetry were not measured.', {
           duration: 6000,
         });
       }
-      if (!result.usedLlm) {
-        console.warn(
-          poseTimedOut
-            ? 'Pose analysis timed out; saving the motion-only fallback result.'
-            : 'Plain-language summary unavailable; saving numerical telemetry with the standard note.',
-        );
-        record.observation = STANDARD_OBSERVATION;
-        if (!poseTimedOut) {
-          toast.info('AI summary unavailable; completed using standard telemetry template.', {
-          duration: 6000,
-          });
-        }
-      }
+      // usedLlm false means the server kept its rule-based note. That note is
+      // the saved observation. It is not replaced with a generic success line,
+      // and an opencv-motion result stays labeled as picture motion.
+      record.observation = observationFromResult(result);
       const saved = addAnalysis(record);
 
       setPhase('done');

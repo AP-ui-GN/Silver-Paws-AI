@@ -76,6 +76,55 @@ class TrackAssociationTests(unittest.TestCase):
         self.assertEqual(decisions[1].state, "tracked")
         self.assertEqual(decisions[1].box, moved)
 
+    def test_stable_ids_hold_across_several_overlapping_frames(self):
+        boxes = [(10.0 + index, 10.0, 40.0, 40.0) for index in range(4)]
+        decisions = associate_tracks([[box] for box in boxes])
+        self.assertEqual(decisions[0].state, "new_segment")
+        self.assertTrue(all(item.state == "tracked" for item in decisions[1:]))
+        self.assertEqual({item.segment_id for item in decisions}, {decisions[0].segment_id})
+        self.assertEqual([item.box for item in decisions], boxes)
+
+    def test_reappearance_inside_the_gap_keeps_the_segment(self):
+        first = (10.0, 10.0, 40.0, 40.0)
+        back = (12.0, 11.0, 40.0, 40.0)
+        decisions = associate_tracks([[first], [], [back]], max_continuous_gap=5)
+        self.assertEqual(decisions[2].state, "tracked")
+        self.assertEqual(decisions[2].box, back)
+        self.assertEqual(decisions[2].segment_id, decisions[0].segment_id)
+
+    def test_aging_turns_an_expired_empty_frame_into_no_dog(self):
+        first = (10.0, 10.0, 40.0, 40.0)
+        decisions = associate_tracks([[first], [], [], []], max_continuous_gap=2)
+        self.assertEqual(
+            [item.state for item in decisions],
+            ["new_segment", "missing", "missing", "no_dog"],
+        )
+        self.assertTrue(all(item.box is None for item in decisions[1:]))
+        self.assertIsNone(decisions[3].segment_id)
+
+    def test_ambiguity_does_not_refresh_the_track_so_it_still_expires(self):
+        first = (0.0, 0.0, 100.0, 100.0)
+        twin_a = (0.0, 0.0, 100.0, 100.0)
+        twin_b = (4.0, 0.0, 100.0, 100.0)
+        later = (2.0, 0.0, 100.0, 100.0)
+        decisions = associate_tracks(
+            [[first], [twin_a, twin_b], [], [later]],
+            max_continuous_gap=2,
+        )
+        self.assertEqual(decisions[1].state, "ambiguous")
+        self.assertIsNone(decisions[1].box)
+        self.assertEqual(decisions[2].state, "missing")
+        self.assertEqual(decisions[3].state, "new_segment")
+        self.assertNotEqual(decisions[3].segment_id, decisions[0].segment_id)
+
+    def test_calls_do_not_share_segment_ids(self):
+        box = (10.0, 10.0, 40.0, 40.0)
+        first_job = associate_tracks([[box], [box], [box]])
+        second_job = associate_tracks([[box]])
+        self.assertEqual(second_job[0].segment_id, 1)
+        self.assertEqual(second_job[0].segment_id, first_job[0].segment_id)
+        self.assertEqual(second_job[0].state, "new_segment")
+
 
 if __name__ == "__main__":
     unittest.main()

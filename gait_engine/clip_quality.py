@@ -67,7 +67,10 @@ def quality_notes(
     elif duration_known and duration_seconds > LONG_CLIP_SECONDS:
         notes.append(
             f"This clip is {duration_seconds} seconds long, past the 120 second limit. "
-            f"Only the opening is measured. {USEFUL_WALK} {SIDE_ON}"
+            "Picture motion is read from the start of the file until the frame cap. "
+            "When pose runs, it keeps the busiest 20-second window, not the whole clip "
+            "and not automatically the opening. "
+            f"{USEFUL_WALK} {SIDE_ON}"
         )
 
     if width > 0 and height > 0 and min(width, height) < MIN_SHORT_SIDE:

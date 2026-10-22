@@ -1,10 +1,13 @@
 """Choose the frames a pose model actually sees.
 
-Timestamps come from ``CAP_PROP_POS_MSEC`` when OpenCV reports them, and from
-frame index divided by fps otherwise. The clip is resampled to
-``TARGET_ANALYSIS_FPS``. A clip longer than ``MAX_ANALYZED_SECONDS`` keeps the
-20-second window with the highest OpenCV motion coverage. Frames are not
-taken as "the first 120".
+Container timestamps come from ``CAP_PROP_POS_MSEC`` when that clock is
+strictly increasing. A missing or backwards reading stays NaN. It is not
+replaced with ``index / fps`` inside an otherwise real clock, and a time gap
+is not filled with a "stopped" sample. ``index / fps`` is used only when the
+file has no usable container clock, and that series is an estimate.
+The clip is resampled to ``TARGET_ANALYSIS_FPS``. A clip longer than
+``MAX_ANALYZED_SECONDS`` keeps the 20-second window with the highest OpenCV
+motion coverage. Frames are not taken as "the first 120".
 
 Phone rotation is applied only when the container reports an orientation and
 OpenCV is not already rotating the decoded frame. This was not checked on a
@@ -37,6 +40,9 @@ class SampledFrame:
     height: int
     # Motion against the previous decoded frame, 0-1. None on the first frame.
     motion: float | None
+    # "container" is observed. "frame-index-estimate" is index/fps for a file
+    # with no usable container clock. "unmeasured" means neither clock exists.
+    timestamp_source: str = "container"
 
 
 def _orientation_degrees(capture: cv2.VideoCapture) -> int:
@@ -71,13 +77,50 @@ def apply_rotation(frame_bgr: np.ndarray, degrees: int) -> np.ndarray:
     return frame_bgr
 
 
-def _best_window(timestamps: np.ndarray, motions: np.ndarray) -> tuple[float, float]:
-    """Return (start, end) seconds of the busiest 20-second span."""
+def assemble_timestamps(reported_seconds: list[float], fps: float) -> tuple[np.ndarray, str]:
+    """Separate an observed container clock from an index/fps estimate.
 
-    if timestamps.size == 0:
+    A usable container reading is finite, not negative, and strictly later
+    than the previous observed time. The first reading may be 0. A later
+    missing, non-finite, or non-increasing reading stays NaN. Those gaps are
+    not filled, and they are not evidence that the dog stopped.
+
+    ``index / fps`` is returned only when the file has no increasing container
+    clock. That array is an estimate. When neither clock exists, every value
+    is NaN.
+    """
+
+    count = len(reported_seconds)
+    observed = np.full(count, np.nan, dtype=np.float64)
+    previous: float | None = None
+    for index, value in enumerate(reported_seconds):
+        if not np.isfinite(value) or value < 0:
+            continue
+        if previous is not None and value <= previous:
+            continue
+        observed[index] = float(value)
+        previous = float(value)
+
+    finite = observed[np.isfinite(observed)]
+    if finite.size >= 2 and float(finite[-1]) > float(finite[0]):
+        return observed, "container"
+    if fps > 0:
+        return np.arange(count, dtype=np.float64) / float(fps), "frame-index-estimate"
+    return np.full(count, np.nan, dtype=np.float64), "unmeasured"
+
+
+def _best_window(timestamps: np.ndarray, motions: np.ndarray) -> tuple[float, float]:
+    """Return (start, end) seconds of the busiest 20-second span.
+
+    Frames with a NaN timestamp are left out of the window. A gap is not
+    counted as a zero-motion sample.
+    """
+
+    finite_times = timestamps[np.isfinite(timestamps)]
+    if finite_times.size == 0:
         return 0.0, 0.0
-    start_time = float(timestamps[0])
-    end_time = float(timestamps[-1])
+    start_time = float(finite_times[0])
+    end_time = float(finite_times[-1])
     span = end_time - start_time
     if span <= MAX_ANALYZED_SECONDS or motions.size == 0:
         return start_time, end_time
@@ -85,13 +128,15 @@ def _best_window(timestamps: np.ndarray, motions: np.ndarray) -> tuple[float, fl
     # Slide by one source frame. Coverage uses the pairs inside the window.
     best_start = start_time
     best_coverage = -1.0
-    for origin in timestamps:
+    for origin in finite_times:
         window_end = float(origin) + MAX_ANALYZED_SECONDS
         if window_end > end_time + 1e-6:
             break
-        # Pair i sits between frame i and frame i+1, so both timestamps must
-        # fall inside the window.
-        inside = (timestamps[:-1] >= origin) & (timestamps[1:] <= window_end)
+        # Pair i sits between frame i and frame i+1. Both times must be
+        # observed and inside the window. A NaN end is a gap, not stillness.
+        left = timestamps[:-1]
+        right = timestamps[1:]
+        inside = np.isfinite(left) & np.isfinite(right) & (left >= origin) & (right <= window_end)
         if not np.any(inside):
             coverage = 0.0
         else:
@@ -146,7 +191,7 @@ def sample_video(video_path: str | Path) -> list[SampledFrame]:
         fps = 0.0
     degrees = 0 if _auto_rotation_enabled(capture) else _orientation_degrees(capture)
 
-    timestamps: list[float] = []
+    reported_seconds: list[float] = []
     motions: list[float] = []
     previous = None
     index = 0
@@ -157,14 +202,10 @@ def sample_video(video_path: str | Path) -> list[SampledFrame]:
                 break
             frame = apply_rotation(frame, degrees)
             msec = float(capture.get(cv2.CAP_PROP_POS_MSEC))
-            if np.isfinite(msec) and msec > 0:
-                timestamps.append(msec / 1000.0)
-            elif fps > 0:
-                timestamps.append(index / fps)
+            if np.isfinite(msec) and msec >= 0:
+                reported_seconds.append(msec / 1000.0)
             else:
-                # No clock in the file. Keep order with a zero time base so
-                # the caller can still see that duration was not measured.
-                timestamps.append(0.0)
+                reported_seconds.append(float("nan"))
             current = _to_analysis_frame(frame)
             if previous is not None:
                 difference = cv2.absdiff(current, previous)
@@ -179,12 +220,7 @@ def sample_video(video_path: str | Path) -> list[SampledFrame]:
             "No video frames could be read from this file. It may be corrupted."
         )
 
-    stamps = np.asarray(timestamps, dtype=np.float64)
-    # A file that never reports time collapses onto 0. Spread those frames by
-    # index/fps when fps exists; otherwise leave them, and the selector keeps
-    # the first frame only. That is an unmeasured clock, not a guessed 30 fps.
-    if fps > 0 and np.all(stamps == 0):
-        stamps = np.arange(index, dtype=np.float64) / fps
+    stamps, timestamp_source = assemble_timestamps(reported_seconds, fps)
 
     motion = np.asarray(motions, dtype=np.float64)
     window = _best_window(stamps, motion)
@@ -217,10 +253,13 @@ def sample_video(video_path: str | Path) -> list[SampledFrame]:
                 samples.append(
                     SampledFrame(
                         image_bgr=frame,
-                        timestamp_seconds=float(stamps[index]),
+                        timestamp_seconds=(
+                            float(stamps[index]) if np.isfinite(stamps[index]) else float("nan")
+                        ),
                         width=int(width),
                         height=int(height),
                         motion=motion_value,
+                        timestamp_source=timestamp_source,
                     )
                 )
             previous = current
