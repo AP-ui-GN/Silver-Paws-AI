@@ -136,3 +136,9 @@ Render is the host described here because a Docker web service, a health check, 
 7. Copy the `https://` address Render shows. Serve the web build from that origin, or point the web build at it. Do not invent an address in the repo.
 
 The web build does not contain `SILVERPAWS_LLM_KEY` or any other server secret.
+
+## Hosted container smoke test
+
+On October 22, 2026, GitHub Actions successfully built the Docker image and exercised `/api/healthz`, `/api/readyz`, and `POST /api/analyze` on the main branch. See [the container-smoke run](https://github.com/AP-ui-GN/Silver-Paws-AI/actions/runs/39818601906).
+
+The uploaded test clip was a generated moving-shape fixture, not a dog video. This verifies container packaging, readiness, and the API-to-Python response path only. It does not validate canine pose accuracy, a real dog-walk UI flow, a production deployment, or peak hosted memory. The local environment used for the measurements below still did not have Docker installed.
