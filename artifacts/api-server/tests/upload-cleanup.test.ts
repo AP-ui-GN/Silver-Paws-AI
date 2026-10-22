@@ -85,8 +85,9 @@ test("an uploaded video is deleted after the request finishes", async () => {
       response.status === 400 || response.status === 502,
       `expected the fake clip to be rejected, got ${response.status}`,
     );
-    const payload = (await response.json()) as { error?: string };
+    const payload = (await response.json()) as { error?: string; code?: string };
     assert.equal(typeof payload.error, "string");
+    assert.equal(typeof payload.code, "string");
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
     assert.equal(response.headers.get("x-frame-options"), "DENY");
     assert.equal(response.headers.get("referrer-policy"), "no-referrer");
