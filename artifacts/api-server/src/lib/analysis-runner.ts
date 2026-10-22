@@ -36,6 +36,12 @@ const ANALYSIS_SCRIPT = path.join(REPOSITORY_ROOT, "scripts", "analyze_clip.py")
 const CLIP_PROBLEM_EXIT_CODE = 2;
 
 const STDERR_LOG_LIMIT = 4000;
+const activePipelines = new Set<ChildProcess>();
+
+/** Stop in-flight Python workers when graceful shutdown reaches its deadline. */
+export function stopActiveAnalyses(): void {
+  for (const child of activePipelines) stopPipeline(child);
+}
 
 function stopPipeline(child: ChildProcess): void {
   const pid = child.pid;
@@ -123,6 +129,7 @@ function runPython(command: string, args: string[]): Promise<ProcessOutcome> {
       cwd: REPOSITORY_ROOT,
       detached: process.platform !== "win32",
     });
+    activePipelines.add(child);
 
     let stdout = "";
     let stderr = "";
@@ -146,6 +153,7 @@ function runPython(command: string, args: string[]): Promise<ProcessOutcome> {
     });
 
     child.on("close", (exitCode) => {
+      activePipelines.delete(child);
       clearTimeout(timer);
       resolve({ exitCode, stdout, stderr, timedOut, spawnError });
     });
@@ -278,7 +286,7 @@ export async function runAnalysis(
         requestId,
         pipeline: parsed.data.pipeline,
         durationMs: Date.now() - startedAt,
-        degraded: parsed.data.pipeline === "opencv-motion" && !request.previousPipeline,
+        fallbackUsed: parsed.data.pipeline === "opencv-motion",
       },
       "Analysis completed",
     );
