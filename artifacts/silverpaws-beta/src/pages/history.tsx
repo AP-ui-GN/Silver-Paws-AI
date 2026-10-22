@@ -44,7 +44,7 @@ const SIGNAL_LABELS: Record<string, string> = {
 };
 
 const PIPELINE_LABELS: Record<string, string> = {
-  'dog-pose': 'COCO-17 output (canine interpretation unvalidated)',
+  'dog-pose': 'QuadPose F2 (AP-10K; gait estimates experimental)',
   movenet: 'Pose landmarks (older saved walk)',
   'opencv-motion': 'Picture motion only',
 };
@@ -165,11 +165,11 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   return (
     <section id="movenet-card" className="panel panel-padded mt-5 telemetry-card" aria-label={sampleFrame ? 'Sample pose frame' : 'Saved pose landmark summary'}>
       <div className="eyebrow">Computer vision activity</div>
-      <h2 className="display-title text-2xl mt-2">{sampleFrame ? 'COCO-17 output summary' : 'Legacy pose landmark summary'}</h2>
+      <h2 className="display-title text-2xl mt-2">{sampleFrame ? 'AP-10K landmark summary' : 'Legacy pose landmark summary'}</h2>
       <p className="body-muted text-sm mt-2">
         {sampleFrame
-          ? 'Sample frame (not your video). These are COCO-17 human joint labels normalized to the detected dog box, not validated canine anatomical landmarks. This head has no neck or tail-base point, so stride length and left/right gait symmetry are not measured.'
-          : 'Mean normalized COCO-17 landmark positions from confident frames; canine anatomical interpretation is unvalidated.'}
+          ? 'Landmark sample, not the source video. These are QuadPose F2 AP-10K-order animal landmark estimates normalized to the detected dog box. Gait formulas and thresholds are experimental and have not been validated on a labeled set of dog-walking clips.'
+          : 'Mean normalized AP-10K landmark estimates from confident frames. Derived gait values are experimental and are not a diagnosis.'}
       </p>
       {points.length ? (
         <>
@@ -238,13 +238,13 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
                 </div>
               </div>
               <div className="soft-note p-4">
-                <div className="font-semibold text-sm">Checkpoint label groups</div>
+                <div className="font-semibold text-sm">AP-10K landmark groups</div>
                 <ul className="body-muted text-sm mt-3 flex flex-col gap-3">
-                  <li>Head labels: nose, eyes, ears</li>
-                  <li>Upper-body labels: shoulders, elbows, wrists</li>
-                  <li>Lower-body labels: hips, knees, ankles</li>
+                  <li>Head and trunk: eyes, nose, neck, tail root</li>
+                  <li>Front limbs: shoulders, elbows, front paws</li>
+                  <li>Rear limbs: hips, knees, rear paws</li>
                 </ul>
-                <p className="body-muted text-xs mt-3">These are the checkpoint's COCO-17 labels, not validated canine anatomy. Wrists and ankles must not be interpreted as paws or hocks.</p>
+                <p className="body-muted text-xs mt-3">These are model estimates. Gait thresholds remain experimental until tested against labeled dog-walking clips.</p>
               </div>
             </div>
           </div>
