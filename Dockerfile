@@ -36,7 +36,7 @@ WORKDIR /app
 
 COPY --from=build /app/artifacts/api-server/dist ./artifacts/api-server/dist
 COPY gait_engine ./gait_engine
-COPY scripts/analyze_clip.py scripts/cache_models.py ./scripts/
+COPY scripts/analyze_clip.py scripts/cache_models.py scripts/check_setup.py ./scripts/
 COPY requirements-docker.txt ./
 
 RUN python3 -m venv /opt/venv \
