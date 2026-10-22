@@ -190,20 +190,21 @@ class OpenCvResultTests(unittest.TestCase):
 
 
 class ModelInfoTests(unittest.TestCase):
-    def test_current_pose_head_is_not_mislabeled_as_ap10k(self):
+    def test_quadpose_model_identity_is_reported_with_experimental_gait_caveat(self):
         info = _model_info(
             "dog-pose",
             {
-                "pose_id": "usyd-community/vitpose-plus-base",
-                "pose_revision": None,
+                "pose_id": "QuadPose F2",
+                "pose_revision": "52f0329b5c9af513",
                 "detector_id": "PekingU/rtdetr_r50vd_coco_o365",
                 "detector_revision": None,
             },
         )
 
-        self.assertIn("COCO-17 output", info["modelName"])
-        self.assertIn("canine pose unvalidated", info["modelName"])
-        self.assertNotIn("AP-10K", info["modelName"])
+        self.assertIn("QuadPose F2", info["modelName"])
+        self.assertIn("AP-10K", info["modelName"])
+        self.assertIn("gait estimates experimental", info["modelName"])
+        self.assertNotIn("COCO-17", info["modelName"])
 
 
 class AiUseIdTests(unittest.TestCase):
