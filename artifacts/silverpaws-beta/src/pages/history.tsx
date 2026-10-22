@@ -45,7 +45,7 @@ const SIGNAL_LABELS: Record<string, string> = {
 };
 
 const PIPELINE_LABELS: Record<string, string> = {
-  'dog-pose': 'Dog pose',
+  'dog-pose': 'COCO-17 output (canine interpretation unvalidated)',
   movenet: 'Pose landmarks (older saved walk)',
   'opencv-motion': 'Picture motion only',
 };
@@ -166,11 +166,11 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   return (
     <section id="movenet-card" className="panel panel-padded mt-5 telemetry-card" aria-label={sampleFrame ? 'Sample pose frame' : 'Saved pose landmark summary'}>
       <div className="eyebrow">Computer vision activity</div>
-      <h2 className="display-title text-2xl mt-2">{sampleFrame ? 'Pose landmark summary' : 'MoveNet landmark summary'}</h2>
+      <h2 className="display-title text-2xl mt-2">{sampleFrame ? 'COCO-17 output summary' : 'Legacy pose landmark summary'}</h2>
       <p className="body-muted text-sm mt-2">
         {sampleFrame
-          ? 'Sample frame (not your video). These names are the pose head\'s COCO joints, scaled to the dog box. The base of the tail is not in this head. This is not a diagnosis.'
-          : 'Mean normalized landmark positions from confident pose frames—not a diagnosis or a clinical measurement.'}
+          ? 'Sample frame (not your video). These are COCO-17 human joint labels normalized to the detected dog box, not validated canine anatomical landmarks. This head has no neck or tail-base point, so stride length and left/right gait symmetry are not measured.'
+          : 'Mean normalized COCO-17 landmark positions from confident frames; canine anatomical interpretation is unvalidated.'}
       </p>
       {points.length ? (
         <>
@@ -227,7 +227,7 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="soft-note p-3">
                   <div className="font-bold text-lg">{points.length}</div>
-                  <div className="body-muted text-xs mt-1">Joint Keypoints Tracked</div>
+                  <div className="body-muted text-xs mt-1">Keypoint outputs</div>
                 </div>
                 <div className="soft-note p-3">
                   <div className="font-bold text-lg">
@@ -239,12 +239,13 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
                 </div>
               </div>
               <div className="soft-note p-4">
-                <div className="font-semibold text-sm">Joint groupings</div>
+                <div className="font-semibold text-sm">Checkpoint label groups</div>
                 <ul className="body-muted text-sm mt-3 flex flex-col gap-3">
-                  <li>Top nodes: Spine &amp; Hip alignment</li>
-                  <li>Middle nodes: Knee &amp; Stifle joints</li>
-                  <li>Lower nodes: Paw &amp; Hock contact points</li>
+                  <li>Head labels: nose, eyes, ears</li>
+                  <li>Upper-body labels: shoulders, elbows, wrists</li>
+                  <li>Lower-body labels: hips, knees, ankles</li>
                 </ul>
+                <p className="body-muted text-xs mt-3">These are the checkpoint's COCO-17 labels, not validated canine anatomy. Wrists and ankles must not be interpreted as paws or hocks.</p>
               </div>
             </div>
           </div>
@@ -339,7 +340,7 @@ function ResultDetail({
     <div className="flex flex-wrap items-end justify-between gap-5 mt-6 stagger">
       <div><div className="eyebrow">{analysis.demo ? 'Demo result' : `Saved observation · ${formatDate(analysis.createdAt)}`}</div><h1 className="display-title text-5xl mt-3">A closer look at<br /><span className="accent-label">{analysis.demo ? 'the sample pet' : pet?.name ?? 'your pet'}’s walk.</span></h1></div>
        <div className="flex flex-wrap gap-2">
-         <button id="vet-summary-export" type="button" className="btn-secondary" onClick={() => setShowReport(true)} data-testid={`button-vet-summary-report-${analysis.id}`}>Export Vet Summary PDF</button>
+         <button id="vet-summary-export" type="button" className="btn-secondary" onClick={() => setShowReport(true)} data-testid={`button-vet-summary-report-${analysis.id}`}>Export Movement Report PDF</button>
          {!analysis.demo && <button className="btn-quiet" onClick={() => { if (window.confirm('Remove this saved observation from this device?')) onDelete(); }} data-testid={`button-delete-analysis-${analysis.id}`}><Trash2 size={15} /> Remove</button>}
        </div>
     </div>
@@ -354,7 +355,7 @@ function ResultDetail({
             onClick={() => downloadAnalysisReport(analysis, pet)}
             data-testid={`button-download-report-${analysis.id}`}
           >
-            <Download size={15} /> Download Clinical PDF Report
+            <Download size={15} /> Download Movement Observation PDF
           </button>
           <div className="relative">
             <button
@@ -471,7 +472,7 @@ function ResultDetail({
     </div>
 
     <PipelineVisual analysis={analysis} />
-    <PoseFrameScrubber analysis={analysis} />
+    {/* The API stores aggregate keypoints, not per-frame tracks; do not draw a fake synchronized scrubber. */}
 
     {factors && (
       <section id="factor-scores" className="panel panel-padded mt-5 stagger-3 telemetry-card">
