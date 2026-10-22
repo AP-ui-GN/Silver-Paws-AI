@@ -12,12 +12,11 @@ NeurIPS 2021; annotations CC BY 4.0). This repository does not train or
 fine-tune it.
 
 The published ONNX graph expects a 256×256 RGB crop in 0–255, NCHW, and
-returns a 17×64×64 heatmap. Decoding follows that project's reference
-decoder: square crop with 1.25 padding, no UDP, DARK sub-pixel refinement.
-Snap's animal detector is not included; its license is separate and is not
-Apache-2.0. A frame is cropped to the region that changed since the previous
-frame, or to the whole frame when that region is too small or almost the
-entire picture.
+returns a 17×64×64 heatmap. Decoding follows the publisher's reference decoder:
+a square crop with 1.25 padding, no UDP, and DARK sub-pixel refinement. The
+main pipeline crops to the selected RT-DETR dog box. The standalone video
+diagnostic helper can use a frame-difference region when it has no detector
+box; that fallback is not used to select the main pipeline's target dog.
 
 Keypoints are AP-10K order. Hind paws (``L_B_Paw``, ``R_B_Paw``) are what the
 rest of the app stores as left and right ankle motion. Hips (``L_Hip``,
