@@ -41,7 +41,7 @@ export const analyzeMovementClipResponseMeasurementsPoseSampleItemConfidenceMax 
 
 export const AnalyzeMovementClipResponse = zod.object({
   "ok": zod.boolean(),
-  "pipeline": zod.enum(['dog-pose', 'movenet', 'opencv-motion']).describe('dog-pose when the dog detector and animal pose model ran, opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.'),
+  "pipeline": zod.enum(['dog-pose', 'movenet', 'opencv-motion']).describe('dog-pose when the dog detector and ViTPose++ COCO-17 output path ran. The labels are human COCO-17 joint names applied inside a detected dog box and are not validated canine anatomical landmarks; stride length and left/right gait symmetry remain unmeasured. opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.'),
   "signalQuality": zod.enum(['good', 'limited', 'unusable']).describe('How much the measurements from this clip can be trusted.'),
   "signalNote": zod.string().describe('Plain-language reason for signalQuality, safe to display.'),
   "measurements": zod.object({
@@ -110,7 +110,7 @@ export const AnalyzeMovementClipResponse = zod.object({
   "x": zod.number().min(analyzeMovementClipResponseMeasurementsPoseSampleItemXMin).max(analyzeMovementClipResponseMeasurementsPoseSampleItemXMax),
   "y": zod.number().min(analyzeMovementClipResponseMeasurementsPoseSampleItemYMin).max(analyzeMovementClipResponseMeasurementsPoseSampleItemYMax),
   "confidence": zod.number().min(analyzeMovementClipResponseMeasurementsPoseSampleItemConfidenceMin).max(analyzeMovementClipResponseMeasurementsPoseSampleItemConfidenceMax)
-}).describe('One keypoint. x and y are fractions from 0 to 1.')).nullish().describe('One sampled frame, 17 AP-10K points normalized to that frame\'s dog box from 0 to 1. This is not the uploaded video and stores no pixels.')
+}).describe('One keypoint. x and y are fractions from 0 to 1.')).nullish().describe('One sampled frame, 17 COCO-17 joint outputs normalized to the detected dog box from 0 to 1. They use COCO-17 human joint names, not validated canine anatomical landmarks. This checkpoint does not emit AP-10K neck or root-of-tail points. This is not the uploaded video and stores no pixels.')
 }).describe('Raw measurements from the clip. These describe what was measured and carry no interpretation.'),
   "factors": zod.object({
   "movementConsistency": zod.number().nullish(),
