@@ -24,7 +24,9 @@ over time and, if needed, take to a veterinarian.
   change from the previous walk) blended into an overall 0–100 indicator
 - Rule-based observation text that only quotes measured values
 - Optional language-model rewrite when `SILVERPAWS_LLM_URL` and
-  `SILVERPAWS_LLM_MODEL` are set; otherwise the rule-based note is shown
+  `SILVERPAWS_LLM_MODEL` are set; otherwise the rule-based note is shown. After
+  three consecutive provider failures, rewrites cool down for 30 seconds while
+  the rule-based note continues to work.
 - History of saved observations, PDF report, and a veterinarian prompt when
   a change looks concerning
 
