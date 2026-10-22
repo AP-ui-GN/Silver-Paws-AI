@@ -320,8 +320,14 @@ class QuadPoseBackend(PoseBackend):
         from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
 
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
-        self._detector_processor = RTDetrImageProcessor.from_pretrained(DETECTOR_ID)
-        self._detector = RTDetrForObjectDetection.from_pretrained(DETECTOR_ID)
+        # Inference must be reproducible/offline once setup is complete.
+        # Model downloads belong to scripts/cache_models.py, not user uploads.
+        self._detector_processor = RTDetrImageProcessor.from_pretrained(
+            DETECTOR_ID, local_files_only=True
+        )
+        self._detector = RTDetrForObjectDetection.from_pretrained(
+            DETECTOR_ID, local_files_only=True
+        )
         self._detector.to(self._device)
         self._detector.eval()
         labels = {value: key for key, value in self._detector.config.id2label.items()}
