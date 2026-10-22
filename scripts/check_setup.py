@@ -34,7 +34,7 @@ def main() -> int:
 
     report = collect_setup()
     if args.json:
-        sys.stdout.write(json.dumps(report, separators=(",", ":")) + "\\n")
+        sys.stdout.write(json.dumps(report, separators=(",", ":")) + "\n")
         # The readiness probe needs to inspect the report even when OpenCV is
         # unavailable, so JSON mode uses the report's fallbackReady field.
         return 0
