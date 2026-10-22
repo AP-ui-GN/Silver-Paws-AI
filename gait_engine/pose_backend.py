@@ -224,7 +224,7 @@ def crop_from_keypoints(
 ) -> tuple[float, float, float, float] | None:
     """COCO box around valid keypoints, expanded by ``expand`` on each side."""
 
-    if keypoints.shape != (len(AP10K_KEYPOINTS), 3):
+    if keypoints.shape != (len(MODEL_OUTPUT_KEYPOINTS), 3):
         return None
     valid = np.isfinite(keypoints[:, 0]) & np.isfinite(keypoints[:, 1]) & (keypoints[:, 2] >= min_score)
     if int(np.count_nonzero(valid)) < 2:
@@ -297,12 +297,12 @@ def dog_boxes_from_detections(
 
 
 def _empty_keypoints(count: int) -> np.ndarray:
-    array = np.full((count, len(AP10K_KEYPOINTS), 3), np.nan, dtype=np.float32)
+    array = np.full((count, len(MODEL_OUTPUT_KEYPOINTS), 3), np.nan, dtype=np.float32)
     array[:, :, 2] = 0.0
     return array
 
 
-class VitPoseAp10kBackend(PoseBackend):
+class VitPoseCoco17Backend(PoseBackend):
     """Top-down pose from the COCO-17 head. Models load once per process.
 
     Dataset index 3 selects a backbone expert. It does not switch this
@@ -509,10 +509,10 @@ def _first_pose(poses) -> np.ndarray | None:
         array = array[:, :2]
     else:
         return None
-    if array.ndim != 2 or array.shape[0] < len(AP10K_KEYPOINTS) or array.shape[1] < 2:
+    if array.ndim != 2 or array.shape[0] < len(MODEL_OUTPUT_KEYPOINTS) or array.shape[1] < 2:
         return None
-    points = np.zeros((len(AP10K_KEYPOINTS), 3), dtype=np.float32)
-    count = len(AP10K_KEYPOINTS)
+    points = np.zeros((len(MODEL_OUTPUT_KEYPOINTS), 3), dtype=np.float32)
+    count = len(MODEL_OUTPUT_KEYPOINTS)
     points[:, 0] = array[:count, 0]
     points[:, 1] = array[:count, 1]
     if score_array.shape[0] >= count:
@@ -540,13 +540,13 @@ def _revision(model_id: str) -> str | None:
     return parts[parts.index("snapshots") + 1]
 
 
-_BACKEND: VitPoseAp10kBackend | None = None
+_BACKEND: VitPoseCoco17Backend | None = None
 
 
-def get_pose_backend() -> VitPoseAp10kBackend:
+def get_pose_backend() -> VitPoseCoco17Backend:
     """Return the process-wide backend. Weights load on the first ``process``."""
 
     global _BACKEND
     if _BACKEND is None:
-        _BACKEND = VitPoseAp10kBackend()
+        _BACKEND = VitPoseCoco17Backend()
     return _BACKEND
