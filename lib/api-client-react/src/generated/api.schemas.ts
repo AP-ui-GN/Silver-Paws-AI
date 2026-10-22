@@ -110,7 +110,7 @@ export interface AnalysisMeasurements {
   headBobAsymmetry?: number | null;
   pelvisAsymmetry?: number | null;
   notMeasuredReasons?: string[];
-  /** One sampled frame, 17 AP-10K points normalized to that frame's dog box from 0 to 1. This is not the uploaded video and stores no pixels. */
+  /** One sampled frame, 17 COCO-17 joint outputs normalized to the detected dog box from 0 to 1. They use COCO-17 human joint names, not validated canine anatomical landmarks. This checkpoint does not emit AP-10K neck or root-of-tail points. This is not the uploaded video and stores no pixels. */
   poseSample?: PoseKeypointSummary[] | null;
 }
 
@@ -163,7 +163,7 @@ export interface AnalysisWeights {
 }
 
 /**
- * dog-pose when the dog detector and animal pose model ran, opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.
+ * dog-pose when the dog detector and ViTPose++ COCO-17 output path ran. The labels are human COCO-17 joint names applied inside a detected dog box and are not validated canine anatomical landmarks; stride length and left/right gait symmetry remain unmeasured. opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.
  */
 export type AnalyzeResultPipeline = typeof AnalyzeResultPipeline[keyof typeof AnalyzeResultPipeline];
 
