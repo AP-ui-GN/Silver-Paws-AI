@@ -66,6 +66,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyzeError"
+        "429":
+          description: Upload or analysis capacity was limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeError"
         "502":
           description: The analysis pipeline could not produce a usable result
           content:
@@ -102,6 +108,23 @@ components:
           type: boolean
         error:
           type: string
+        code:
+          type: string
+          description: Stable machine-readable error code; optional for compatibility with older clients.
+          enum:
+            - INVALID_MULTIPART
+            - VIDEO_REQUIRED
+            - UNSUPPORTED_VIDEO
+            - UPLOAD_TOO_LARGE
+            - UPLOAD_REJECTED
+            - ANALYSIS_BUSY
+            - RATE_LIMITED
+            - PIPELINE_UNAVAILABLE
+            - PIPELINE_TIMEOUT
+            - INVALID_VIDEO
+            - PIPELINE_INVALID_OUTPUT
+            - SCHEMA_MISMATCH
+            - ANALYSIS_FAILED
       required:
         - ok
         - error
