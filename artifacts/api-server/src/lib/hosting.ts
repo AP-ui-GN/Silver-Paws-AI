@@ -151,3 +151,51 @@ export function httpsOnlyApplies(nodeEnv: string | undefined, path: string): boo
   if (nodeEnv !== "production") return false;
   return path !== "/api/healthz" && path !== "/healthz";
 }
+
+/**
+ * Browser origins allowed to read API responses. Native mobile clients and
+ * same-origin/server-to-server requests do not send an Origin header, so they
+ * are not blocked by CORS. CORS is not authentication.
+ *
+ * In production, ALLOWED_ORIGINS must be configured explicitly. Development
+ * falls back to the documented Vite origins when the variable is unset.
+ */
+export function allowedCorsOrigins(
+  nodeEnv: string | undefined = process.env["NODE_ENV"],
+  configured: string | undefined = process.env["ALLOWED_ORIGINS"],
+): Set<string> {
+  if (configured === undefined) {
+    return new Set(
+      nodeEnv === "production"
+        ? []
+        : ["http://127.0.0.1:4173", "http://localhost:4173"],
+    );
+  }
+
+  const allowed = new Set<string>();
+  for (const entry of configured.split(",").map((value) => value.trim()).filter(Boolean)) {
+    let parsed: URL;
+    try {
+      parsed = new URL(entry);
+    } catch {
+      throw new Error(
+        "ALLOWED_ORIGINS must contain comma-separated origin URLs, such as https://app.example.com.",
+      );
+    }
+
+    if (
+      (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+      parsed.username !== "" ||
+      parsed.password !== "" ||
+      parsed.pathname !== "/" ||
+      parsed.search !== "" ||
+      parsed.hash !== ""
+    ) {
+      throw new Error(
+        `Invalid ALLOWED_ORIGINS entry "${entry}". Use only an origin such as https://app.example.com, without a path.`,
+      );
+    }
+    allowed.add(parsed.origin);
+  }
+  return allowed;
+}
