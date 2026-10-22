@@ -7,7 +7,7 @@
  */
 
 /**
- * dog-pose when the dog detector and ViTPose++ COCO-17 output path ran. The checkpoint's human COCO joint names are not validated canine anatomical landmarks; stride length and left/right gait symmetry remain unmeasured. opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.
+ * dog-pose when RT-DETR detection/tracking and QuadPose F2 AP-10K landmark estimation ran. Derived gait metrics are experimental and have not been validated on a labeled dog-walking set. opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.
  */
 export type AnalyzeResultPipeline = typeof AnalyzeResultPipeline[keyof typeof AnalyzeResultPipeline];
 
