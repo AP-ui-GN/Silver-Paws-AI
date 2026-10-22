@@ -6,12 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
+import type { AnalyzeErrorCode } from './analyzeErrorCode';
+
 /**
  * A message the app can show to the user as-is.
  */
 export interface AnalyzeError {
   ok: boolean;
   error: string;
-  /** Stable machine-readable error code. Absent for older servers. */
-  code?: string;
+  /** Stable machine-readable error code; optional for compatibility with older clients. */
+  code?: AnalyzeErrorCode;
 }
