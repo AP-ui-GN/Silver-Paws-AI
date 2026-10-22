@@ -53,6 +53,11 @@ def parse_args() -> argparse.Namespace:
         help="Skip pose detection and measure picture motion only.",
     )
     parser.add_argument(
+        "--request-id",
+        default=None,
+        help="Correlation ID supplied by the API for cross-process diagnostics.",
+    )
+    parser.add_argument(
         "--output-json",
         type=Path,
         default=None,
@@ -87,6 +92,10 @@ def main() -> int:
         output_path = args.output_json
 
         def motion_ready(result: dict, destination: Path = output_path) -> None:
+            if args.request_id:
+                diagnostics = result.get("diagnostics")
+                if isinstance(diagnostics, dict):
+                    diagnostics["requestId"] = args.request_id
             write_json(destination, result)
 
     try:
@@ -108,6 +117,14 @@ def main() -> int:
             "error": f"The analysis pipeline failed: {type(exc).__name__}: {exc}",
         }
         exit_code = 1
+
+    if args.request_id:
+        if result.get("ok") is True:
+            diagnostics = result.get("diagnostics")
+            if isinstance(diagnostics, dict):
+                diagnostics["requestId"] = args.request_id
+        else:
+            result["requestId"] = args.request_id
 
     if args.debug_video and exit_code == 0:
         from gait_engine.debug_video import write_debug_video
