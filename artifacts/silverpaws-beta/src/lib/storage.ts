@@ -11,6 +11,7 @@ import type {
   AnalysisWeights,
   AnalyzeResult,
 } from '@workspace/api-client-react';
+import type { CognitiveLog, HappinessEntry } from '@/lib/daily-wellness';
 
 export type Pet = {
   id: string;
@@ -80,6 +81,8 @@ export type ClipDetails = {
 
 const PETS_KEY = 'silverpaws:pets';
 const ANALYSES_KEY = 'silverpaws:analyses';
+const COGNITIVE_KEY = 'silverpaws:cognitive-logs';
+const HAPPINESS_KEY = 'silverpaws:happiness';
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -112,6 +115,22 @@ export function savePets(pets: Pet[]) {
 
 export function saveAnalyses(analyses: Analysis[]) {
   write(ANALYSES_KEY, analyses);
+}
+
+export function getCognitiveLogs() {
+  return read<CognitiveLog[]>(COGNITIVE_KEY, []);
+}
+
+export function saveCognitiveLogs(logs: CognitiveLog[]) {
+  write(COGNITIVE_KEY, logs);
+}
+
+export function getHappinessEntries() {
+  return read<HappinessEntry[]>(HAPPINESS_KEY, []);
+}
+
+export function saveHappinessEntries(entries: HappinessEntry[]) {
+  write(HAPPINESS_KEY, entries);
 }
 
 export function makeId(prefix: string) {

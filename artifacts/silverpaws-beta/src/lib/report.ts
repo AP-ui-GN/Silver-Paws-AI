@@ -1,4 +1,6 @@
 import { aiUseResultLines } from '@/lib/ai-use';
+import { dailyQualityOfLife } from '@/lib/daily-wellness';
+import { getAnalyses, getCognitiveLogs, getHappinessEntries } from '@/lib/storage';
 import { type Analysis, type Pet } from '@/lib/storage';
 
 type ReportLine = {
@@ -7,6 +9,7 @@ type ReportLine = {
   bold?: boolean;
   color?: string;
   gapAfter?: number;
+  pageBreak?: boolean;
 };
 
 const PAGE_WIDTH = 612;
@@ -241,7 +244,53 @@ function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
     color: MUTED_COLOR,
     gapAfter: 0,
   });
+  lines.push({ text: 'Last 30 days', size: 16, bold: true, color: MOSS_COLOR, gapAfter: 6, pageBreak: true });
+  appendLast30Days(lines, analysis, pet);
   return lines;
+}
+
+function appendLast30Days(lines: ReportLine[], analysis: Analysis, pet?: Pet) {
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const walks = (typeof window === 'undefined' ? [] : getAnalyses())
+    .filter((item) => item.petId === analysis.petId && Date.parse(item.createdAt) >= cutoff);
+  const logs = (typeof window === 'undefined' ? [] : getCognitiveLogs())
+    .filter((item) => item.petId === analysis.petId && Date.parse(item.createdAt) >= cutoff);
+  const happiness = (typeof window === 'undefined' ? [] : getHappinessEntries())
+    .filter((item) => item.petId === analysis.petId);
+  addText(lines, 'Walk scores and symmetry stay with the pipeline that measured them. A missing value is Not scored or Not measured. It is not zero.', {
+    size: 10,
+    color: MUTED_COLOR,
+    gapAfter: 8,
+  });
+  if (!walks.length) {
+    addText(lines, 'Walk scores: Not scored', { size: 10, gapAfter: 2 });
+  }
+  const byPipeline = new Map<string, Analysis[]>();
+  for (const walk of walks) {
+    const key = walk.pipeline || 'unspecified';
+    byPipeline.set(key, [...(byPipeline.get(key) ?? []), walk]);
+  }
+  for (const [pipeline, group] of byPipeline) {
+    addText(lines, `Walks measured with ${pipeline}:`, { size: 10, bold: true, gapAfter: 2 });
+    for (const walk of group) {
+      const score = typeof walk.overallScore === 'number' ? String(walk.overallScore) : 'Not scored';
+      const symmetry = typeof walk.measurements?.strideSymmetry === 'number'
+        ? String(walk.measurements.strideSymmetry)
+        : 'Not measured';
+      addText(lines, `${formatReportDate(walk.createdAt)} score ${score}, symmetry ${symmetry}`, { size: 10, gapAfter: 2 });
+    }
+  }
+  const latestCognitive = logs.find((log) => typeof log.score === 'number');
+  addText(lines, `Cognitive score: ${latestCognitive ? latestCognitive.score : 'Not scored'}`, { size: 10, gapAfter: 2 });
+  const today = new Date().toISOString().slice(0, 10);
+  const happinessToday = happiness.find((entry) => entry.day === today)?.score;
+  const qol = dailyQualityOfLife(analysis.factors?.mobility, latestCognitive?.score, happinessToday);
+  addText(lines, `Quality of life: ${qol === null ? 'Not scored' : qol}`, { size: 10, gapAfter: 8 });
+  addText(lines, 'This page is not a diagnosis and cannot rule out pain or injury. A concerning change is a reason to ask a veterinarian.', {
+    size: 10,
+    gapAfter: 4,
+  });
+  void pet;
 }
 
 function buildPageContent(lines: ReportLine[]) {
@@ -253,6 +302,10 @@ function buildPageContent(lines: ReportLine[]) {
     const wrapped = wrapText(line.text, size);
     const lineHeight = size * 1.45;
     const requiredHeight = wrapped.length * lineHeight + (line.gapAfter ?? 4);
+    if (line.pageBreak && pages[pages.length - 1].length) {
+      pages.push([]);
+      y = PAGE_HEIGHT - TOP_MARGIN;
+    }
     if (y - requiredHeight < BOTTOM_MARGIN && pages[pages.length - 1].length) {
       pages.push([]);
       y = PAGE_HEIGHT - TOP_MARGIN;

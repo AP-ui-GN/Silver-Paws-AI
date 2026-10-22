@@ -8,6 +8,7 @@ import Analyze from '@/pages/analyze';
 import History from '@/pages/history';
 import AiUsePage from '@/pages/ai-use';
 import PetProfile from '@/pages/pet';
+import CognitivePage from '@/pages/cognitive';
 import NotFound from '@/pages/not-found';
 import { useLocalData } from '@/hooks/use-local-data';
 import { Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
@@ -37,6 +38,16 @@ function Router() {
           <Route path="/history" component={() => <History pets={data.pets} analyses={data.analyses} deleteAnalysis={data.deleteAnalysis} demoAnalysis={demoAnalysis} />} />
           <Route path="/history/:id" component={() => <History pets={data.pets} analyses={data.analyses} deleteAnalysis={data.deleteAnalysis} demoAnalysis={demoAnalysis} />} />
           <Route path="/ai-use" component={AiUsePage} />
+          <Route path="/cognitive" component={() => (
+            <CognitivePage
+              pets={data.pets}
+              analyses={data.analyses}
+              cognitiveLogs={data.cognitiveLogs}
+              happinessEntries={data.happinessEntries}
+              addCognitiveLog={data.addCognitiveLog}
+              saveHappiness={data.saveHappiness}
+            />
+          )} />
           <Route path="/pet">
             <PetProfile pets={data.pets} addPet={data.addPet} updatePet={data.updatePet} />
           </Route>

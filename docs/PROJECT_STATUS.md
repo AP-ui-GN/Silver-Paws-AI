@@ -568,3 +568,99 @@ symmetries from `gait_engine/gait.py` (`(1 - S) * 100`), not to the old ankle
 motion-energy score. Sudarshan needs to re-review both thresholds, and the
 placeholder peak and phase cutoffs in `docs/GAIT_METRICS.md`, after a labeled
 clip set is measured. They were not changed in this pass.
+
+---
+
+## 16. Dog gait rebuild (October 21, 2026)
+
+Branch `dog-gait-rebuild`, from `origin/main` at `d9cd426`. Not pushed.
+
+### What changed
+
+0. Baseline only. Nothing was fixed. `python` was not on PATH until
+   `python-is-python3` was installed for this machine. After that, typecheck
+   passed, API tests were 35 passed / 0 failed, web tests were 12 passed /
+   0 failed, and Python tests were 58 passed.
+1. The separate phone client was removed. The web app is the only client.
+   Commit `868e6f6`. API tests after that: 28 passed / 0 failed. Web tests:
+   12 passed / 0 failed.
+2. Dog detector plus ViTPose++ AP-10K pose replaced the human pose path.
+   If pose cannot run, the clip stays on `opencv-motion` and the process
+   exits 0. Commit `e0e1294`.
+3. Stride metrics come from an AP-10K keypoint array. Missing values stay
+   null. Commit `342dd45`. Python tests: 65 passed.
+4. The API contract, walk screen, PDF, and explanation guard know the new
+   measurements. Older saved walks still validate. Commit `dba89ae`.
+   API tests: 30 passed / 0 failed. Web tests: 12 passed / 0 failed.
+   `pnpm build` passed.
+5. Debug video, empty-folder validation script, and a timed CPU run.
+   Commit `53ce6b0`.
+6. Daily check page, quality of life, and a last-30-days PDF page. The
+   cognitive weights sum to 14.5. A planning note used 17.5. The score uses
+   14.5. These are team-defined weights, not a clinical scale.
+
+### What ran
+
+- Final web tests after the daily check: 17 passed / 0 failed.
+- API tests stayed 30 passed / 0 failed through phase 5. The daily check
+  does not change the API.
+- Python tests: 65 passed.
+- `pnpm build` passed in phase 4.
+- With torch installed, `analyze_clip.py` on a generated rectangle and on
+  a real side-view dog clip returned `pipeline: "dog-pose"`.
+- With torch not installed, a clean virtualenv returned `pipeline:
+  "opencv-motion"` and exit 0.
+- `scripts/check_pose_backend.py` wrote 8 frames for one 5-second side-view
+  dog clip. Dog box share 1.0. A person was also in frame. Back-paw-below-hip
+  printed yes. Nose-to-tail was 73.1 px and the farther eye-to-tail was
+  91.0 px, so the nose was not farther from the tail than the eyes. Looking
+  at the images, several AP-10K names were not on those body parts.
+- `scripts/validate_gait.py` on an empty folder printed how to add clips and
+  exited 0.
+- `--debug-video` wrote `outputs/debug.mp4` (1,360,855 bytes). That file is
+  gitignored. The API does not return video.
+
+### What did not run
+
+- Docker. The `docker` command is not installed. The image was not built.
+- Labeled validation. `validation_clips/` had no clips.
+- A real phone file with rotation metadata. A generated rotate tag stayed at
+  0 in OpenCV. Pixel rotation is covered by a unit test only.
+- A browser pass of the daily-check page. The score math is unit-tested.
+- A live language-model provider.
+
+### Measured time and memory
+
+See `docs/HOSTING.md`. Short version, from this CPU, on a 15.000-second
+30 fps file made by repeating a 5-second clip (not one continuous walk):
+
+- sample 0.949 s, pose including weight load 39.162 s, gait math 0.015 s,
+  total 40.127 s
+- peak RSS 1665.3 MB
+- one-shot `analyze_clip.py` 37.543 s, `pipeline: dog-pose`
+- new process until both models were loaded, no clip: 4.02 s wall
+  (3.552 s inside the process)
+
+That load time is under 20 seconds, so the API still starts Python once
+per request. No persistent worker was added.
+
+### Where this prompt disagreed with the repo
+
+- The lockfile still records an optional SQLite peer on `drizzle-orm` whose
+  package name belongs to the removed client. It is published metadata.
+  Regenerating the lockfile puts the line back. The workspace does not
+  install that package.
+- `requirements-opencv.txt` does not install torch or transformers. Those
+  pins are in `requirements.txt` and `requirements-docker.txt`, so a
+  motion-only install can still fall back.
+- `orval` appends a star export that collides with the zod barrel.
+  `lib/api-spec/keep-zod-barrel.mjs` removes that line after codegen.
+
+### Open decisions
+
+- Sudarshan should re-review `CONCERNING_ASYMMETRY` (still 20) and
+  `CONCERNING_DROP` (still 10), plus the placeholder peak, spacing, and
+  phase cutoffs in `docs/GAIT_METRICS.md`, after a labeled clip set exists.
+- Confirm the AP-10K expert index (docs say 3) and the keypoint order from
+  `outputs/pose-check/` images. Those images were not committed. On the one
+  clip that was drawn, the names did not match the body parts.
