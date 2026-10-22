@@ -8,7 +8,6 @@ import { formatDate, formatDuration, formatPoseFrames, formatRelative } from '@/
 import { downloadAnalysisReport } from '@/lib/report';
 import { downloadTelemetryCsv, downloadTelemetryJson } from '@/lib/telemetry-export';
 import { TrendPanel } from '@/components/trend-panel';
-import PoseFrameScrubber from '@/components/PoseFrameScrubber';
 import ProductTour from '@/components/ProductTour';
 import VetReportModal from '@/components/VetReportModal';
 import { SAMPLE_DATA_LABEL } from '@/lib/sample-analysis';
