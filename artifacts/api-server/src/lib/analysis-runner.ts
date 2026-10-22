@@ -26,7 +26,7 @@ export { ANALYSIS_TIMEOUT_MS, DEFAULT_ANALYSIS_TIMEOUT_MS } from "./saved-result
 
 // This file is bundled to artifacts/api-server/dist, so the repository root is
 // three levels up. SILVERPAWS_REPO_ROOT overrides it for other layouts.
-const REPOSITORY_ROOT =
+export const REPOSITORY_ROOT =
   process.env["SILVERPAWS_REPO_ROOT"] ??
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
@@ -59,11 +59,20 @@ export interface AnalysisRequest {
   petName?: string;
   previousOverall?: number;
   previousPipeline?: string;
+  requestId?: string;
 }
+
+export type AnalysisErrorCode =
+  | "PIPELINE_UNAVAILABLE"
+  | "PIPELINE_TIMEOUT"
+  | "INVALID_VIDEO"
+  | "PIPELINE_INVALID_OUTPUT"
+  | "SCHEMA_MISMATCH"
+  | "ANALYSIS_FAILED";
 
 export type AnalysisOutcome =
   | { ok: true; result: AnalyzeResult }
-  | { ok: false; status: 400 | 502; error: string };
+  | { ok: false; status: 400 | 502; error: string; code: AnalysisErrorCode };
 
 /**
  * Pick the Python interpreter to run. A project virtual environment is used when
@@ -95,6 +104,7 @@ function buildArguments(request: AnalysisRequest, outputPath: string): string[] 
   if (request.previousPipeline) {
     args.push("--previous-pipeline", request.previousPipeline);
   }
+  if (request.requestId) args.push("--request-id", request.requestId);
 
   return args;
 }
@@ -173,6 +183,8 @@ export async function runAnalysis(
   request: AnalysisRequest,
 ): Promise<AnalysisOutcome> {
   const command = resolvePythonCommand();
+  const startedAt = Date.now();
+  const requestId = request.requestId;
   const outputDirectory = await mkdtemp(path.join(tmpdir(), "silverpaws-result-"));
   const outputPath = path.join(outputDirectory, "analysis.json");
 
@@ -181,12 +193,13 @@ export async function runAnalysis(
 
     if (outcome.spawnError) {
       logger.error(
-        { err: outcome.spawnError, command },
+        { requestId, err: outcome.spawnError, command },
         "Could not start the analysis pipeline",
       );
       return {
         ok: false,
         status: 502,
+        code: "PIPELINE_UNAVAILABLE",
         error:
           "The analysis service is not available. Check that Python and the " +
           "requirements in requirements.txt are installed.",
@@ -200,28 +213,33 @@ export async function runAnalysis(
         const saved = AnalyzeMovementClipResponse.safeParse(payload);
         if (saved.success && saved.data.ok === true) {
           logger.warn(
-            { timeoutMs: ANALYSIS_TIMEOUT_MS },
+            { requestId, timeoutMs: ANALYSIS_TIMEOUT_MS, durationMs: Date.now() - startedAt },
             "Pose was stopped after the motion result was saved",
           );
           return { ok: true, result: saved.data };
         }
       }
-      logger.error({ timeoutMs: ANALYSIS_TIMEOUT_MS }, "Analysis pipeline timed out");
+      logger.error(
+        { requestId, timeoutMs: ANALYSIS_TIMEOUT_MS, durationMs: Date.now() - startedAt },
+        "Analysis pipeline timed out",
+      );
       return {
         ok: false,
         status: 502,
+        code: "PIPELINE_TIMEOUT",
         error: "Analysis took too long and was stopped. Try a shorter clip.",
       };
     }
 
     if (payload === null) {
       logger.error(
-        { exitCode: outcome.exitCode, stderr: outcome.stderr },
+        { requestId, exitCode: outcome.exitCode, stderr: outcome.stderr },
         "Analysis pipeline returned no readable JSON",
       );
       return {
         ok: false,
         status: 502,
+        code: "PIPELINE_INVALID_OUTPUT",
         error: "The analysis service returned an unreadable result.",
       };
     }
@@ -230,12 +248,13 @@ export async function runAnalysis(
     const failure = readPipelineFailure(payload);
     if (failure !== null) {
       logger.warn(
-        { exitCode: outcome.exitCode, message: failure },
+        { requestId, exitCode: outcome.exitCode, message: failure },
         "Analysis pipeline failed",
       );
       return {
         ok: false,
         status: outcome.exitCode === CLIP_PROBLEM_EXIT_CODE ? 400 : 502,
+        code: outcome.exitCode === CLIP_PROBLEM_EXIT_CODE ? "INVALID_VIDEO" : "ANALYSIS_FAILED",
         error: failure,
       };
     }
@@ -243,16 +262,26 @@ export async function runAnalysis(
     const parsed = AnalyzeMovementClipResponse.safeParse(payload);
     if (!parsed.success) {
       logger.error(
-        { issues: parsed.error.issues.slice(0, 5) },
+        { requestId, issues: parsed.error.issues.slice(0, 5) },
         "Analysis result did not match the API contract",
       );
       return {
         ok: false,
         status: 502,
+        code: "SCHEMA_MISMATCH",
         error: "The analysis result did not match the expected format.",
       };
     }
 
+    logger.info(
+      {
+        requestId,
+        pipeline: parsed.data.pipeline,
+        durationMs: Date.now() - startedAt,
+        degraded: parsed.data.pipeline === "opencv-motion" && !request.previousPipeline,
+      },
+      "Analysis completed",
+    );
     return { ok: true, result: parsed.data };
   } finally {
     await rm(outputDirectory, { recursive: true, force: true });
