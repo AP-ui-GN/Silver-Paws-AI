@@ -16,12 +16,12 @@ import { AnalyzeMovementClipResponse, type AnalyzeError } from "@workspace/api-z
 
 import { aiUseForResult } from "../lib/ai-use";
 import { runAnalysis } from "../lib/analysis-runner";
-import { ANALYSIS_BUSY_MESSAGE, gateAnalyzeUpload, positiveInteger, trustProxyEnabled } from "../lib/hosting";
+import { ANALYSIS_BUSY_MESSAGE, boundedPositiveInteger, gateAnalyzeUpload, trustProxyEnabled } from "../lib/hosting";
 import { explainObservation } from "../lib/explanation";
 import { logger } from "../lib/logger";
 import { MultipartError, parseBoundary, parseMultipart } from "../lib/multipart";
 
-const MAX_UPLOAD_MB = positiveInteger(process.env["MAX_UPLOAD_MB"], 60, 1);
+const MAX_UPLOAD_MB = boundedPositiveInteger(process.env["MAX_UPLOAD_MB"], 60, 1, 120);
 const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 
 const MAX_PET_NAME_LENGTH = 40;
