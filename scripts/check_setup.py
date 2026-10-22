@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Report Python, OpenCV, and whether pose weights are already on disk.
+"""Report the local fallback, detector, and QuadPose readiness without downloads.
 
     python scripts/check_setup.py
+    python scripts/check_setup.py --json
 
-The command reads the local Hugging Face cache only. It does not download
-weights and it does not run the pose model. Exit 0 when OpenCV imports.
-Exit 1 when OpenCV is missing. Missing weights are reported and are not a
-failure, because a new clone does not have them.
+The setup check inspects local dependency/cache state. It does not download
+weights or run pose inference. Missing pose weights are reported as an
+unavailable optional capability; OpenCV fallback may still be ready.
 """
 
 from __future__ import annotations
