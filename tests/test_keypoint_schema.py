@@ -1,99 +1,48 @@
-"""The loaded pose head is COCO-17. AP-10K names are a different index order."""
+"""Keypoint schema and coordinate conversion tests for the AP-10K pose adapter."""
 
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
 
 import numpy as np
 
 from gait_engine.pose_backend import (
     AP10K_KEYPOINTS,
+    AP10K_SKELETON_EDGES,
     COCO17_EDGES,
     COCO17_KEYPOINTS,
     KEYPOINT_MIN_SCORE,
     MODEL_OUTPUT_EDGES,
     MODEL_OUTPUT_KEYPOINTS,
     MODEL_OUTPUT_SCHEMA,
-    _first_pose,
+    QuadPoseBackend,
     denormalize_from_box,
     dog_boxes_from_detections,
     normalize_to_box,
 )
 
-# First frame of the side-view clip, dataset_index 3, dog box only.
-# These are the raw decoder channels, not AP-10K names.
-SIDE_VIEW_FRAME = np.array(
-    [
-        [420.0, 341.5],
-        [443.5, 317.0],
-        [432.0, 318.5],
-        [501.3, 297.5],
-        [495.6, 295.7],
-        [618.3, 279.2],
-        [590.3, 284.9],
-        [613.9, 402.8],
-        [607.9, 367.9],
-        [597.9, 448.2],
-        [624.5, 400.3],
-        [838.7, 270.0],
-        [797.2, 309.1],
-        [812.5, 338.3],
-        [846.9, 387.2],
-        [862.1, 440.8],
-        [855.3, 438.5],
-    ],
-    dtype=np.float32,
-)
-
-
-def _distance(a: int, b: int) -> float:
-    return float(np.linalg.norm(SIDE_VIEW_FRAME[a] - SIDE_VIEW_FRAME[b]))
-
 
 class SchemaTests(unittest.TestCase):
-    def test_checkpoint_order_matches_the_coco_head(self):
-        self.assertEqual(MODEL_OUTPUT_SCHEMA, "coco-17")
-        self.assertEqual(MODEL_OUTPUT_KEYPOINTS, COCO17_KEYPOINTS)
-        self.assertEqual(MODEL_OUTPUT_EDGES, COCO17_EDGES)
-        self.assertEqual(
-            COCO17_KEYPOINTS,
-            (
-                "nose",
-                "left_eye",
-                "right_eye",
-                "left_ear",
-                "right_ear",
-                "left_shoulder",
-                "right_shoulder",
-                "left_elbow",
-                "right_elbow",
-                "left_wrist",
-                "right_wrist",
-                "left_hip",
-                "right_hip",
-                "left_knee",
-                "right_knee",
-                "left_ankle",
-                "right_ankle",
-            ),
-        )
-        self.assertEqual(COCO17_KEYPOINTS[4], "right_ear")
+    def test_current_model_output_uses_the_pinned_ap10k_order(self):
+        self.assertEqual(MODEL_OUTPUT_SCHEMA, "ap10k")
+        self.assertEqual(MODEL_OUTPUT_KEYPOINTS, AP10K_KEYPOINTS)
+        self.assertEqual(MODEL_OUTPUT_EDGES, AP10K_SKELETON_EDGES)
+        self.assertEqual(len(AP10K_KEYPOINTS), 17)
+        self.assertEqual(len(set(AP10K_KEYPOINTS)), 17)
         self.assertEqual(AP10K_KEYPOINTS[4], "root_of_tail")
-        self.assertNotEqual(COCO17_KEYPOINTS[4], AP10K_KEYPOINTS[4])
+        self.assertEqual(AP10K_KEYPOINTS[7], "left_front_paw")
+        self.assertEqual(AP10K_KEYPOINTS[13], "left_back_paw")
 
-    def test_every_coco_index_has_one_name(self):
+    def test_legacy_coco_names_are_not_the_current_model_schema(self):
         self.assertEqual(len(COCO17_KEYPOINTS), 17)
-        self.assertEqual(len(set(COCO17_KEYPOINTS)), 17)
-        for start, end in COCO17_EDGES:
+        self.assertEqual(COCO17_KEYPOINTS[4], "right_ear")
+        self.assertNotEqual(COCO17_KEYPOINTS, MODEL_OUTPUT_KEYPOINTS)
+        self.assertNotEqual(COCO17_EDGES, MODEL_OUTPUT_EDGES)
+
+    def test_every_ap10k_edge_uses_a_valid_keypoint_index(self):
+        for start, end in AP10K_SKELETON_EDGES:
             self.assertIn(start, range(17))
             self.assertIn(end, range(17))
-
-    def test_channel_4_on_the_side_view_frame_is_a_head_point(self):
-        # Index 4 sits next to the nose and far from the hip. Calling it the
-        # base of the tail is what put root_of_tail on the head.
-        ear_to_nose = _distance(4, 0)
-        ear_to_hip = _distance(4, 11)
-        self.assertLess(ear_to_nose, ear_to_hip)
-        self.assertLess(ear_to_nose, 100.0)
-        self.assertGreater(ear_to_hip, 300.0)
 
 
 class CoordinateTests(unittest.TestCase):
@@ -115,20 +64,33 @@ class CoordinateTests(unittest.TestCase):
         self.assertEqual(normalize_to_box(110.0, 70.0, box), (1.0, 1.0))
         self.assertEqual(denormalize_from_box(0.25, 0.5, box), (35.0, 45.0))
 
-    def test_a_low_score_coordinate_stays_null(self):
-        raw = np.zeros((17, 2), dtype=np.float32)
-        raw[0] = (10.0, 20.0)
-        raw[4] = (30.0, 40.0)
-        scores = np.full((17,), 0.9, dtype=np.float32)
-        scores[4] = KEYPOINT_MIN_SCORE - 0.01
-        parsed = _first_pose([{"keypoints": raw, "scores": scores}])
-        self.assertIsNotNone(parsed)
-        self.assertAlmostEqual(float(parsed[0, 0]), 10.0)
-        self.assertAlmostEqual(float(parsed[0, 1]), 20.0)
-        self.assertTrue(np.isnan(parsed[4, 0]))
-        self.assertTrue(np.isnan(parsed[4, 1]))
-        self.assertAlmostEqual(float(parsed[4, 2]), float(scores[4]))
-        self.assertNotEqual(float(parsed[4, 0]), 0.0)
+    def test_quadpose_y_x_output_is_converted_to_pixel_x_y(self):
+        backend = QuadPoseBackend()
+        backend._pose = object()
+        frame = np.zeros((100, 200, 3), dtype=np.uint8)
+        sampled_frame = SimpleNamespace(image_bgr=frame, width=200, height=100)
+        predicted = np.zeros((17, 3), dtype=np.float32)
+        predicted[:, 0] = 0.25  # y in normalized image coordinates
+        predicted[:, 1] = 0.5   # x in normalized image coordinates
+        predicted[:, 2] = 0.9
+        predicted[1, 2] = KEYPOINT_MIN_SCORE - 0.01
+        keypoints = np.full((1, 17, 3), np.nan, dtype=np.float32)
+        keypoints[:, :, 2] = 0.0
+
+        with patch("gait_engine.quadpose._predict_frame", return_value=predicted):
+            backend._run_pose_batch(
+                [sampled_frame],
+                [(10.0, 10.0, 160.0, 80.0)],
+                [0],
+                keypoints,
+            )
+
+        self.assertAlmostEqual(float(keypoints[0, 0, 0]), 100.0)
+        self.assertAlmostEqual(float(keypoints[0, 0, 1]), 25.0)
+        self.assertAlmostEqual(float(keypoints[0, 0, 2]), 0.9)
+        self.assertTrue(np.isnan(keypoints[0, 1, 0]))
+        self.assertTrue(np.isnan(keypoints[0, 1, 1]))
+        self.assertEqual(float(keypoints[0, 1, 2]), 0.0)
 
 
 class SubjectTests(unittest.TestCase):
