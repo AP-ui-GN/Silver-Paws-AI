@@ -40,6 +40,28 @@ const PIPELINE_LABELS: Record<string, string> = {
   'opencv-motion': 'Picture motion only',
 };
 
+const COCO_EDGES = [
+  ['left_ankle', 'left_knee'],
+  ['left_knee', 'left_hip'],
+  ['right_ankle', 'right_knee'],
+  ['right_knee', 'right_hip'],
+  ['left_hip', 'right_hip'],
+  ['left_shoulder', 'left_hip'],
+  ['right_shoulder', 'right_hip'],
+  ['left_shoulder', 'right_shoulder'],
+  ['left_shoulder', 'left_elbow'],
+  ['right_shoulder', 'right_elbow'],
+  ['left_elbow', 'left_wrist'],
+  ['right_elbow', 'right_wrist'],
+  ['left_eye', 'right_eye'],
+  ['nose', 'left_eye'],
+  ['nose', 'right_eye'],
+  ['left_eye', 'left_ear'],
+  ['right_eye', 'right_ear'],
+  ['left_ear', 'left_shoulder'],
+  ['right_ear', 'right_shoulder'],
+] as const;
+
 const AP10K_EDGES = [
   ['left_eye', 'nose'],
   ['right_eye', 'nose'],
@@ -95,8 +117,9 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   const legacy = analysis.pipeline === 'movenet' ? measurements?.poseKeypoints : undefined;
   const rawPoints = Array.isArray(sample) && sample.length > 0 ? sample : legacy;
   const points = Array.isArray(rawPoints) ? rawPoints.filter(isPosePoint) : [];
-  const connections = Array.isArray(sample) && sample.length > 0 ? AP10K_EDGES : POSE_CONNECTIONS;
   const sampleFrame = Array.isArray(sample) && sample.length > 0;
+  const cocoSample = sampleFrame && points.some((point) => point.name === 'right_ear' || point.name === 'left_wrist');
+  const connections = cocoSample ? COCO_EDGES : sampleFrame ? AP10K_EDGES : POSE_CONNECTIONS;
   const lowConfidence =
     analysis.lowConfidence === true ||
     (typeof analysis.modelConfidence === 'number' && analysis.modelConfidence < 0.3) ||
@@ -136,7 +159,7 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
       <h2 className="display-title text-2xl mt-2">{sampleFrame ? 'Gait measurements' : 'Saved landmark summary'}</h2>
       <p className="body-muted text-sm mt-2">
         {sampleFrame
-          ? 'Sample frame (not your video). Points are scaled to the dog box. This is not a diagnosis.'
+          ? 'Sample frame (not your video). These names are the pose head\'s COCO joints, scaled to the dog box. The base of the tail is not in this head. This is not a diagnosis.'
           : 'Mean landmark positions saved with an older walk. This is not a diagnosis.'}
       </p>
       {points.length ? (

@@ -664,3 +664,20 @@ per request. No persistent worker was added.
 - Confirm the AP-10K expert index (docs say 3) and the keypoint order from
   `outputs/pose-check/` images. Those images were not committed. On the one
   clip that was drawn, the names did not match the body parts.
+
+### Pose schema correction (October 22, 2026)
+
+The wrong tail was a naming bug, not a coordinate bug. Channel 4 of
+`usyd-community/vitpose-plus-base` is `R_Ear` in `config.id2label`. The
+pipeline had been labeling that channel `root_of_tail` because AP-10K uses
+index 4 for the base of the tail. On the same side-view frame, the right ear
+is 91.0 px from the nose and 352.6 px from the left hip. The nose, eyes,
+shoulders, wrists, hips, and ankles sit on those parts when named with the
+COCO schema. The original ViTPose++ config has a separate AP-10K keypoint
+head, and that head is not in this checkpoint. Dataset index 3 only selects
+a backbone expert.
+
+Stride length stays unmeasured on real clips, because this head has no neck
+and no base of the tail. Left/right on a side view is still not reliable,
+and `left_knee` on that frame scored 0.38. A real AP-10K head would be a
+different checkpoint, not a rename.

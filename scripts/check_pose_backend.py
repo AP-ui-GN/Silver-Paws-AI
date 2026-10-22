@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Draw dog boxes and AP-10K skeletons on eight frames of one clip.
+"""Draw the checkpoint's keypoints on eight frames.
 
     python scripts/check_pose_backend.py clip.mp4 --out outputs/pose-check/
 
-Prints two sanity checks and does not claim the pose is validated:
-the nose should sit farther from the root of the tail than either eye does,
-and the back paws should sit below the hips in the image.
+The current checkpoint emits COCO-17 joints, not AP-10K joints. The review
+images use that schema. A low-confidence point is drawn as an open circle and
+is not connected. This is not a clinical validation.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ if str(REPOSITORY_ROOT) not in sys.path:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Draw a dog pose check on eight frames.")
+    parser = argparse.ArgumentParser(description="Draw a pose review for one clip.")
     parser.add_argument("video", type=Path)
     parser.add_argument("--out", type=Path, default=Path("outputs/pose-check"))
     return parser.parse_args()
@@ -32,17 +32,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     from gait_engine.pose_backend import (
-        AP10K_KEYPOINTS,
-        AP10K_SKELETON_EDGES,
         KEYPOINT_MIN_SCORE,
-        LEFT_EYE,
-        LEFT_BACK_PAW,
-        LEFT_HIP,
-        NOSE,
-        RIGHT_EYE,
-        RIGHT_BACK_PAW,
-        RIGHT_HIP,
-        ROOT_OF_TAIL,
+        MODEL_OUTPUT_EDGES,
+        MODEL_OUTPUT_KEYPOINTS,
+        MODEL_OUTPUT_SCHEMA,
         get_pose_backend,
     )
     from gait_engine.sampling import sample_video
@@ -53,6 +46,8 @@ def main() -> int:
         return 2
     result = get_pose_backend().process(frames)
     args.out.mkdir(parents=True, exist_ok=True)
+    print(f"schema={result.keypoint_schema} expected={MODEL_OUTPUT_SCHEMA}")
+    print("This head does not output root_of_tail. Channel 4 is right_ear.")
 
     step = max(1, len(frames) // 8)
     picked = list(range(0, len(frames), step))[:8]
@@ -63,7 +58,7 @@ def main() -> int:
             x, y, w, h = [int(round(value)) for value in box]
             cv2.rectangle(image, (x, y), (x + w, y + h), (40, 180, 60), 2)
         points = result.keypoints[index]
-        for start, end in AP10K_SKELETON_EDGES:
+        for start, end in MODEL_OUTPUT_EDGES:
             if points[start, 2] < KEYPOINT_MIN_SCORE or points[end, 2] < KEYPOINT_MIN_SCORE:
                 continue
             if not np.isfinite(points[start, 0]) or not np.isfinite(points[end, 0]):
@@ -71,14 +66,29 @@ def main() -> int:
             p1 = (int(round(points[start, 0])), int(round(points[start, 1])))
             p2 = (int(round(points[end, 0])), int(round(points[end, 1])))
             cv2.line(image, p1, p2, (30, 90, 200), 2)
-        for name, point in zip(AP10K_KEYPOINTS, points):
-            if point[2] < KEYPOINT_MIN_SCORE or not np.isfinite(point[0]):
+        for name, point in zip(MODEL_OUTPUT_KEYPOINTS, points):
+            if not np.isfinite(point[0]) or not np.isfinite(point[1]):
                 continue
             center = (int(round(point[0])), int(round(point[1])))
-            cv2.circle(image, center, 3, (20, 20, 20), -1)
+            confident = float(point[2]) >= KEYPOINT_MIN_SCORE
+            if confident:
+                cv2.circle(image, center, 4, (20, 20, 20), -1)
+            else:
+                cv2.circle(image, center, 5, (0, 0, 180), 1)
+            label = f"{name} {float(point[2]):.2f}"
             cv2.putText(
                 image,
-                name,
+                label,
+                (center[0] + 4, center[1] - 4),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.35,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA,
+            )
+            cv2.putText(
+                image,
+                label,
                 (center[0] + 4, center[1] - 4),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.35,
@@ -88,41 +98,42 @@ def main() -> int:
             )
         cv2.imwrite(str(args.out / f"frame-{slot:02d}.jpg"), image)
 
-    finite = np.isfinite(result.keypoints[:, :, 0])
-    def median_point(index: int) -> np.ndarray | None:
-        rows = result.keypoints[:, index, :]
-        keep = finite[:, index] & (rows[:, 2] >= KEYPOINT_MIN_SCORE)
+    def median_point(name: str) -> np.ndarray | None:
+        joint = MODEL_OUTPUT_KEYPOINTS.index(name)
+        rows = result.keypoints[:, joint, :]
+        keep = np.isfinite(rows[:, 0]) & (rows[:, 2] >= KEYPOINT_MIN_SCORE)
         if not np.any(keep):
             return None
         return np.median(rows[keep, :2], axis=0)
 
-    nose = median_point(NOSE)
-    tail = median_point(ROOT_OF_TAIL)
-    left_eye = median_point(LEFT_EYE)
-    right_eye = median_point(RIGHT_EYE)
-    if nose is None or tail is None or left_eye is None or right_eye is None:
-        print("Sanity: nose/eyes/tail were not all measured. Not scored.")
+    nose = median_point("nose")
+    ear = median_point("right_ear")
+    hip = median_point("left_hip")
+    if nose is None or ear is None or hip is None:
+        print("Review: nose, right ear, or left hip was not measured.")
     else:
-        nose_tail = float(np.linalg.norm(nose - tail))
-        eye_tail = max(
-            float(np.linalg.norm(left_eye - tail)),
-            float(np.linalg.norm(right_eye - tail)),
-        )
+        ear_nose = float(np.linalg.norm(ear - nose))
+        ear_hip = float(np.linalg.norm(ear - hip))
         print(
-            f"Sanity: nose-to-tail {nose_tail:.1f}px, farther eye-to-tail {eye_tail:.1f}px, "
-            f"nose farther={nose_tail > eye_tail}."
+            f"Review: right_ear is {ear_nose:.1f}px from the nose and {ear_hip:.1f}px from the left hip. "
+            f"Head-side={ear_nose < ear_hip}."
         )
+        if ear_nose < ear_hip:
+            print("Channel 4 is beside the head. It is not the base of the tail.")
 
-    def below(paw: int, hip: int) -> str:
-        paw_point = median_point(paw)
-        hip_point = median_point(hip)
-        if paw_point is None or hip_point is None:
+    def below(lower: str, upper: str) -> str:
+        low = median_point(lower)
+        high = median_point(upper)
+        if low is None or high is None:
             return "not measured"
-        return "yes" if paw_point[1] > hip_point[1] else "no"
+        return "yes" if low[1] > high[1] else "no"
 
-    print(f"Sanity: left back paw below hip: {below(LEFT_BACK_PAW, LEFT_HIP)}.")
-    print(f"Sanity: right back paw below hip: {below(RIGHT_BACK_PAW, RIGHT_HIP)}.")
-    print(f"dogFramesShare={result.dog_frames_share} multipleDogs={result.multiple_dogs} personPresent={result.person_present}")
+    print(f"Review: left ankle below left hip: {below('left_ankle', 'left_hip')}.")
+    print(f"Review: right ankle below right hip: {below('right_ankle', 'right_hip')}.")
+    print(
+        f"dogFramesShare={result.dog_frames_share} "
+        f"multipleDogs={result.multiple_dogs} personPresent={result.person_present}"
+    )
     print(f"Wrote {len(picked)} frames to {args.out}")
     return 0
 

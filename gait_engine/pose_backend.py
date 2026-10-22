@@ -2,9 +2,10 @@
 
 The detector is RT-DETR (``PekingU/rtdetr_r50vd_coco_o365``, Apache-2.0).
 The pose model is ViTPose++ (``usyd-community/vitpose-plus-base``). The
-current Transformers docs list dataset index 3 as the AP-10K expert and 4 as
-APT-36K. The checkpoint's ``id2label`` is the human COCO order and is not
-used for animals.
+Transformers docs list dataset index 3 as an AP-10K backbone expert. The
+checkpoint's only keypoint head is the 17-channel COCO head in
+``config.id2label``. Index 4 of that head is the right ear. The AP-10K name
+``root_of_tail`` is index 4 of a different schema and is not this channel.
 
 Pose quality on pet dogs is unproven until a labeled clip set is measured.
 A failure to load weights or run pose must be caught by the pipeline and
@@ -83,7 +84,61 @@ AP10K_SWAP_PAIRS: tuple[tuple[int, int], ...] = (
     (LEFT_BACK_PAW, RIGHT_BACK_PAW),
 )
 
-# Anatomical links used to draw a sample skeleton. Names are the AP-10K names.
+# Channels emitted by usyd-community/vitpose-plus-base. This matches
+# config.id2label and config.edges on the checkpoint. dataset_index selects
+# a backbone expert only. The original ViTPose++ training config has a
+# separate AP-10K keypoint head, and that head is not in this checkpoint.
+# Do not read these indices as AP-10K names. Index 4 is the right ear, not
+# the base of the tail.
+COCO17_KEYPOINTS: tuple[str, ...] = (
+    "nose",
+    "left_eye",
+    "right_eye",
+    "left_ear",
+    "right_ear",
+    "left_shoulder",
+    "right_shoulder",
+    "left_elbow",
+    "right_elbow",
+    "left_wrist",
+    "right_wrist",
+    "left_hip",
+    "right_hip",
+    "left_knee",
+    "right_knee",
+    "left_ankle",
+    "right_ankle",
+)
+COCO17_EDGES: tuple[tuple[int, int], ...] = (
+    (15, 13),
+    (13, 11),
+    (16, 14),
+    (14, 12),
+    (11, 12),
+    (5, 11),
+    (6, 12),
+    (5, 6),
+    (5, 7),
+    (6, 8),
+    (7, 9),
+    (8, 10),
+    (1, 2),
+    (0, 1),
+    (0, 2),
+    (1, 3),
+    (2, 4),
+    (3, 5),
+    (4, 6),
+)
+MODEL_OUTPUT_SCHEMA = "coco-17"
+MODEL_OUTPUT_KEYPOINTS = COCO17_KEYPOINTS
+MODEL_OUTPUT_EDGES = COCO17_EDGES
+SCHEMA_LIMIT = (
+    "This pose head outputs 17 human COCO joints. It does not output the neck "
+    "or the base of the tail, so stride length and symmetry were not measured."
+)
+
+# Anatomical links for an AP-10K array. These are not the checkpoint edges.
 AP10K_SKELETON_EDGES: tuple[tuple[int, int], ...] = (
     (LEFT_EYE, NOSE),
     (RIGHT_EYE, NOSE),
@@ -145,6 +200,7 @@ class PoseResult:
     pose_id: str
     detector_revision: str | None
     pose_revision: str | None
+    keypoint_schema: str = MODEL_OUTPUT_SCHEMA
 
 
 class PoseBackend(ABC):
@@ -233,6 +289,56 @@ def crop_from_keypoints(
     x2 = min(max(x1 + 1.0, x2), float(width))
     y2 = min(max(y1 + 1.0, y2), float(height))
     return (x1, y1, x2 - x1, y2 - y1)
+
+
+def normalize_to_box(
+    x: float, y: float, box: tuple[float, float, float, float]
+) -> tuple[float, float]:
+    """Map a source-frame pixel into a COCO box, as fractions of that box."""
+
+    origin_x, origin_y, width, height = box
+    return (x - origin_x) / width, (y - origin_y) / height
+
+
+def denormalize_from_box(
+    x: float, y: float, box: tuple[float, float, float, float]
+) -> tuple[float, float]:
+    """Map a box fraction back to a source-frame pixel."""
+
+    origin_x, origin_y, width, height = box
+    return origin_x + x * width, origin_y + y * height
+
+
+def dog_boxes_from_detections(
+    labels,
+    scores,
+    xyxy,
+    *,
+    dog_id: int,
+    person_id: int | None,
+    threshold: float,
+) -> tuple[list[tuple[float, float, float, float]], int, bool]:
+    """Keep dog boxes. A person box is recorded and is not returned as the dog."""
+
+    dogs: list[tuple[float, float, float, float]] = []
+    dog_count = 0
+    saw_person = False
+    for label, score, box in zip(labels, scores, xyxy):
+        if float(score) < threshold:
+            continue
+        coco = (
+            float(box[0]),
+            float(box[1]),
+            float(box[2] - box[0]),
+            float(box[3] - box[1]),
+        )
+        if int(label) == int(dog_id):
+            dog_count += 1
+            if coco[2] > 1 and coco[3] > 1:
+                dogs.append(coco)
+        elif person_id is not None and int(label) == int(person_id):
+            saw_person = True
+    return dogs, dog_count, saw_person
 
 
 def _empty_keypoints(count: int) -> np.ndarray:
@@ -363,6 +469,7 @@ class VitPoseAp10kBackend(PoseBackend):
             pose_id=POSE_ID,
             detector_revision=self._detector_revision,
             pose_revision=self._pose_revision,
+            keypoint_schema=MODEL_OUTPUT_SCHEMA,
         )
 
     def _pose_chunk(
@@ -402,25 +509,14 @@ class VitPoseAp10kBackend(PoseBackend):
         labels = results["labels"].detach().cpu().numpy()
         scores = results["scores"].detach().cpu().numpy()
         xyxy = results["boxes"].detach().cpu().numpy()
-        dogs: list[tuple[float, float, float, float]] = []
-        dog_count = 0
-        saw_person = False
-        for label, score, box in zip(labels, scores, xyxy):
-            if float(score) < DOG_DETECT_THRESHOLD:
-                continue
-            coco = (
-                float(box[0]),
-                float(box[1]),
-                float(box[2] - box[0]),
-                float(box[3] - box[1]),
-            )
-            if int(label) == int(self._dog_id):
-                dog_count += 1
-                if coco[2] > 1 and coco[3] > 1:
-                    dogs.append(coco)
-            elif self._person_id is not None and int(label) == int(self._person_id):
-                saw_person = True
-        return dogs, dog_count, saw_person
+        return dog_boxes_from_detections(
+            labels,
+            scores,
+            xyxy,
+            dog_id=int(self._dog_id),
+            person_id=None if self._person_id is None else int(self._person_id),
+            threshold=DOG_DETECT_THRESHOLD,
+        )
 
     def _run_pose_batch(
         self,

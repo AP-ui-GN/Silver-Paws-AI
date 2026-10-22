@@ -1,6 +1,9 @@
 # Gait metrics
 
 These are measurements from an AP-10K keypoint array. They are not a diagnosis.
+The current pose checkpoint does not emit that array. Its 17 channels are
+COCO joints, so a real clip leaves these stride numbers unmeasured. The
+formulas below still apply when an AP-10K array is supplied.
 A missing value is null. The screen says "Not measured". It is never shown as 0
 or as 1.0.
 

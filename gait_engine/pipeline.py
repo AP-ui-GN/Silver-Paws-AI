@@ -97,7 +97,7 @@ def ai_use_ids(pipeline: str) -> list[str]:
 def _pose_sample(keypoints, boxes) -> list[dict[str, float | str]] | None:
     """One frame of AP-10K points, normalized to that frame's dog box."""
 
-    from .pose_backend import AP10K_KEYPOINTS, KEYPOINT_MIN_SCORE
+    from .pose_backend import KEYPOINT_MIN_SCORE, MODEL_OUTPUT_KEYPOINTS
 
     best_index = None
     best_count = 0
@@ -114,7 +114,7 @@ def _pose_sample(keypoints, boxes) -> list[dict[str, float | str]] | None:
     if width <= 1 or height <= 1:
         return None
     sample: list[dict[str, float | str]] = []
-    for name, point in zip(AP10K_KEYPOINTS, keypoints[best_index]):
+    for name, point in zip(MODEL_OUTPUT_KEYPOINTS, keypoints[best_index]):
         if not np.isfinite(point[0]) or not np.isfinite(point[1]):
             continue
         if float(point[2]) < KEYPOINT_MIN_SCORE:
@@ -171,6 +171,7 @@ def _try_pose(video_path: Path) -> tuple[Any | None, str | None]:
         "height": frames[0].height if frames else None,
         "timestamps": result.timestamps_seconds,
         "boxes": result.boxes,
+        "keypoint_schema": result.keypoint_schema,
     }, None
 
 
@@ -274,26 +275,34 @@ def analyze_clip(
                 frame_height=pose_payload["height"],
             )
             measurements["meanKeypointConfidence"] = model_confidence
-            gait = compute_gait_metrics(
-                keypoints,
-                timestamps=pose_payload["timestamps"],
-                boxes=pose_payload["boxes"],
-                dog_frames_share=pose_payload["dog_frames_share"],
-            )
-            measurements["strideSymmetry"] = gait["strideSymmetry"]
-            measurements["asymmetryPercent"] = gait["asymmetryPercent"]
-            measurements["symmetryReliable"] = gait["symmetryReliable"]
-            measurements["view"] = gait["view"]
-            measurements["strides"] = gait["strides"]
-            measurements["limbSymmetry"] = gait["limbSymmetry"]
-            measurements["strideLengthBodyLengths"] = gait["strideLengthBodyLengths"]
-            measurements["cadenceStridesPerMinute"] = gait["cadenceStridesPerMinute"]
-            measurements["strideTimeCv"] = gait["strideTimeCv"]
-            measurements["headVerticalOscillation"] = gait["headVerticalOscillation"]
-            measurements["pelvisVerticalOscillation"] = gait["pelvisVerticalOscillation"]
-            measurements["headBobAsymmetry"] = gait["headBobAsymmetry"]
-            measurements["pelvisAsymmetry"] = gait["pelvisAsymmetry"]
-            measurements["notMeasuredReasons"] = gait["notMeasuredReasons"]
+            from .pose_backend import SCHEMA_LIMIT
+
+            if pose_payload["keypoint_schema"] != "ap10k":
+                # These channels are not an AP-10K array. Running the stride
+                # math would treat the right ear as the base of the tail.
+                measurements["notMeasuredReasons"] = [SCHEMA_LIMIT]
+                measurements["symmetryReliable"] = False
+            else:
+                gait = compute_gait_metrics(
+                    keypoints,
+                    timestamps=pose_payload["timestamps"],
+                    boxes=pose_payload["boxes"],
+                    dog_frames_share=pose_payload["dog_frames_share"],
+                )
+                measurements["strideSymmetry"] = gait["strideSymmetry"]
+                measurements["asymmetryPercent"] = gait["asymmetryPercent"]
+                measurements["symmetryReliable"] = gait["symmetryReliable"]
+                measurements["view"] = gait["view"]
+                measurements["strides"] = gait["strides"]
+                measurements["limbSymmetry"] = gait["limbSymmetry"]
+                measurements["strideLengthBodyLengths"] = gait["strideLengthBodyLengths"]
+                measurements["cadenceStridesPerMinute"] = gait["cadenceStridesPerMinute"]
+                measurements["strideTimeCv"] = gait["strideTimeCv"]
+                measurements["headVerticalOscillation"] = gait["headVerticalOscillation"]
+                measurements["pelvisVerticalOscillation"] = gait["pelvisVerticalOscillation"]
+                measurements["headBobAsymmetry"] = gait["headBobAsymmetry"]
+                measurements["pelvisAsymmetry"] = gait["pelvisAsymmetry"]
+                measurements["notMeasuredReasons"] = gait["notMeasuredReasons"]
             measurements["subject"] = {
                 "dogFramesShare": pose_payload["dog_frames_share"],
                 "multipleDogs": pose_payload["multiple_dogs"],

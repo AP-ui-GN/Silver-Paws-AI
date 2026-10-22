@@ -18,9 +18,9 @@ Code: `gait_engine/pose_backend.py`
 
 ## pose-model
 
-**What it is.** ViTPose++ base, usyd-community/vitpose-plus-base, using the AP-10K animal expert (dataset index 3 in the current Transformers docs). It is not a human-pose checkpoint used as an animal model.
+**What it is.** ViTPose++ base, usyd-community/vitpose-plus-base. Dataset index 3 selects a backbone expert. The only keypoint head in this checkpoint is the 17-channel COCO head. It does not emit AP-10K neck or root-of-tail points.
 
-**What it does.** When torch and the weights are installed, the server estimates 17 AP-10K keypoints inside the dog box. Each point has a position and a confidence. How accurate this is on pet dogs has not been validated here.
+**What it does.** When torch and the weights are installed, the server estimates those 17 COCO joints inside the dog box. Each point has a position and a confidence. The names match the checkpoint labels. Stride length is not measured from this head.
 
 **What it doesn't do.** It outputs positions and confidences only. It does not name a condition, detect pain, or choose the wellness score. A low score is not stored as a measurement.
 

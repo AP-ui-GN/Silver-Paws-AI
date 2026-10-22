@@ -1,16 +1,21 @@
 # Pose check
 
-This is a visual check of the dog detector and the AP-10K pose model. It is
-not a clinical validation.
+This is a visual check of the dog detector and the pose head. It is not a
+clinical validation.
 
 ```bash
 python scripts/check_pose_backend.py path/to/dog-walk.mp4 --out outputs/pose-check/
 ```
 
-The script writes eight frames with the dog box and the skeleton. It also
-prints whether the nose is farther from the root of the tail than the eyes,
-and whether the back paws sit below the hips. A failed check is reported.
-It is not turned into a score.
+The script writes eight frames. Each point is labeled with the checkpoint
+name and its confidence. A point under the score cutoff is an open circle
+and is not connected. The current head is COCO-17. Channel 4 is the right
+ear. The base of the tail is not in the output, so the script does not
+score a nose-to-tail distance.
+
+On the side-view clip used here, the right ear was beside the nose and far
+from the left hip. That is why an AP-10K label on channel 4 drew
+`root_of_tail` on the head.
 
 Do not commit the video or the images. `outputs/` and `validation_clips/`
 are gitignored.

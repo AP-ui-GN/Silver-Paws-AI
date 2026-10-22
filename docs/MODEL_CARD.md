@@ -17,16 +17,19 @@ The model card on Hugging Face lists Apache-2.0. The dog class id is read
 from `config.id2label`. It is not hard-coded. A box is kept at
 `DOG_DETECT_THRESHOLD` 0.3.
 
-**Pose.** `usyd-community/vitpose-plus-base` (`VitPoseForPoseEstimation`),
-the ViTPose++ base checkpoint. The Transformers documentation read on
-October 21, 2026 lists dataset index 3 as AP-10K and 4 as APT-36K. This
-pipeline passes index 3. The checkpoint `id2label` is human COCO names and
-is not used. Keypoint order is the AP-10K list in `gait_engine/pose_backend.py`.
+**Pose.** `usyd-community/vitpose-plus-base` (`VitPoseForPoseEstimation`).
+The Transformers docs list dataset index 3 as an AP-10K backbone expert.
+The checkpoint file has one keypoint head. `config.id2label` and
+`config.edges` are the 17 COCO human joints. Index 4 is `R_Ear`. The
+original ViTPose++ training config defines a separate AP-10K head, and that
+head is not in this file. Passing dataset index 3 does not change the
+channel order.
 
-A check image from one side-view dog clip showed the dog box on the dog, and
-the drawn names did not sit on the body parts those names mean. Treat pose
-quality on pet dogs as unproven until that order is confirmed and a labeled
-set is measured.
+On one side-view frame, channel 0 sat on the nose and channel 4 sat on the
+ear, next to the head, not at the base of the tail. The pipeline therefore
+names these channels with the COCO schema. It does not call channel 4
+`root_of_tail`. Stride length, which needs the neck and the base of the
+tail, stays unmeasured.
 
 Both models run on the server. The browser only uploads the clip.
 

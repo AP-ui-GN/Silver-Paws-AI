@@ -4,7 +4,8 @@ A keypoint below the per-point threshold is already ignored inside each metric.
 This module decides whether the pose result as a whole is trustworthy enough to
 publish. A missing confidence is None, never zero.
 
-Keypoints are ``(frames, 17, 3)`` in AP-10K order: ``(x_px, y_px, score)``.
+Keypoints are ``(frames, 17, 3)`` in the checkpoint order
+(``MODEL_OUTPUT_KEYPOINTS``): ``(x_px, y_px, score)``.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import math
 
 import numpy as np
 
-from .pose_backend import AP10K_KEYPOINTS
+from .pose_backend import MODEL_OUTPUT_KEYPOINTS
 
 
 def summarize_keypoints(keypoints, *, frame_threshold: float) -> dict:
@@ -80,8 +81,8 @@ def summarize_pose_coordinates(
     array = np.asarray(keypoints, dtype=np.float32)
     if array.ndim != 3 or array.shape[-1] < 3:
         raise ValueError("keypoints must have shape (frames, points, 3).")
-    if array.shape[1] != len(AP10K_KEYPOINTS):
-        raise ValueError(f"keypoints must contain {len(AP10K_KEYPOINTS)} points.")
+    if array.shape[1] != len(MODEL_OUTPUT_KEYPOINTS):
+        raise ValueError(f"keypoints must contain {len(MODEL_OUTPUT_KEYPOINTS)} points.")
     if not 0.0 <= frame_threshold <= 1.0:
         raise ValueError("frame_threshold must be between 0 and 1.")
     if not 0.0 <= keypoint_threshold <= 1.0:
@@ -107,7 +108,7 @@ def summarize_pose_coordinates(
         usable[:, :, 1] = usable[:, :, 1] / float(frame_height)
 
     result: list[dict[str, float | str]] = []
-    for index, name in enumerate(AP10K_KEYPOINTS):
+    for index, name in enumerate(MODEL_OUTPUT_KEYPOINTS):
         points = usable[:, index, :]
         valid = (
             np.isfinite(points).all(axis=1)
