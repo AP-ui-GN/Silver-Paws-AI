@@ -163,7 +163,8 @@ Optional environment variables:
 | `SILVERPAWS_REPO_ROOT` | API | inferred | Repo root so the CLI can be found |
 | `MAX_UPLOAD_MB` | API | `60` | Upload size cap |
 | `ALLOWED_ORIGINS` | API | localhost Vite origins outside production; empty in production | Comma-separated exact browser origins for the deployed web app |
-| `ANALYSIS_TIMEOUT_MS` | API | `600000` | Stop the pipeline after this many milliseconds. Motion saved before pose is returned if pose is still running |
+| `ANALYSIS_TIMEOUT_MS` | API | `600000` | Stop the pipeline after this many milliseconds; valid values are 1 second to 1 hour. Motion saved before pose is returned if pose is still running |
+| `SHUTDOWN_TIMEOUT_MS` | API | `15000` | Grace period for active requests when the server receives SIGTERM/SIGINT |
 | `ANALYZE_MAX_CONCURRENT` | API | `1` | Pipelines running at once. CPU pose inference defaults to one process to limit memory pressure; extra uploads are refused before the body is read |
 | `TRUST_PROXY` | API | unset | Set to `1` only behind a proxy that sets `X-Forwarded-Proto` |
 | `SILVERPAWS_LLM_URL` | API | unset | Optional chat-completions endpoint |
