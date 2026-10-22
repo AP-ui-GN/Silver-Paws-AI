@@ -373,9 +373,10 @@ def build_limitations(pipeline: str, signal_quality: str) -> str:
         )
     elif pipeline == "dog-pose":
         parts.append(
-            "Pose landmarks come from an animal keypoint model. How well it finds "
-            "pet dogs has not been validated on a labeled set here, so limb "
-            "detections can be unreliable."
+            "The pose checkpoint emits COCO-17 human joint labels, not an AP-10K "
+            "canine keypoint head. Canine landmark interpretation has not been "
+            "validated on labeled dog videos; stride length and left/right gait "
+            "symmetry remain unmeasured with this checkpoint."
         )
     else:
         parts.append(
