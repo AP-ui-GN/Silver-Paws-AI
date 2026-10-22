@@ -15,7 +15,7 @@ import type { ModelInfo } from './modelInfo';
 
 export interface AnalyzeResult {
   ok: boolean;
-  /** dog-pose when the dog detector and animal pose model ran, opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet. */
+  /** dog-pose when the dog detector and ViTPose++ COCO-17 output path ran. The checkpoint's human COCO joint names are not validated canine anatomical landmarks; stride length and left/right gait symmetry remain unmeasured. opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet. */
   pipeline: AnalyzeResultPipeline;
   /** How much the measurements from this clip can be trusted. */
   signalQuality: AnalyzeResultSignalQuality;
