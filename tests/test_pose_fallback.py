@@ -12,7 +12,9 @@ from gait_engine.pipeline import analyze_clip
 from gait_engine.pose_backend import (
     AP10K_SWAP_PAIRS,
     choose_initial_dog,
+    choose_tracked_dog,
     crop_from_keypoints,
+    dog_boxes_from_detections,
     swap_left_right,
 )
 from gait_engine.sampling import apply_rotation
@@ -54,6 +56,38 @@ class PoseGeometryTests(unittest.TestCase):
     def test_the_first_dog_is_the_largest_then_the_most_central(self):
         boxes = [(0, 0, 10, 10), (100, 100, 40, 40), (140, 100, 40, 10)]
         self.assertEqual(choose_initial_dog(boxes, 200, 200), (100, 100, 40, 40))
+
+    def test_an_overlapping_box_stays_on_the_same_dog(self):
+        previous = (10, 10, 40, 40)
+        moved = (18, 12, 40, 40)
+        other = (400, 10, 50, 50)
+        self.assertEqual(
+            choose_tracked_dog([other, moved], previous, 640, 480),
+            moved,
+        )
+
+    def test_a_disjoint_box_does_not_replace_the_tracked_dog(self):
+        previous = (10, 10, 40, 40)
+        other = (400, 10, 80, 80)
+        self.assertIsNone(choose_tracked_dog([other], previous, 640, 480))
+
+    def test_a_person_box_is_not_used_as_the_dog(self):
+        labels = np.array([0, 16])
+        scores = np.array([0.99, 0.55])
+        boxes = np.array([[0, 0, 120, 220], [30, 40, 90, 110]], dtype=np.float32)
+        dogs, count, saw_person = dog_boxes_from_detections(
+            labels,
+            scores,
+            boxes,
+            dog_id=16,
+            person_id=0,
+            threshold=0.3,
+        )
+        self.assertTrue(saw_person)
+        self.assertEqual(count, 1)
+        self.assertEqual(len(dogs), 1)
+        self.assertAlmostEqual(dogs[0][0], 30.0)
+        self.assertAlmostEqual(dogs[0][2], 60.0)
 
     def test_a_keypoint_crop_grows_by_a_quarter(self):
         points = np.zeros((17, 3), dtype=np.float32)

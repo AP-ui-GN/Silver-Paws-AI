@@ -15,10 +15,12 @@ What those cover:
 
 - TypeScript across libs, API, and the app
 - Production builds of the API and the frontend
-- API tests, including multipart parsing, explanation validation, phone walk
-  helpers, and the AI-use registry (37 passed / 0 failed on October 22, 2026)
-- Motion statistics, gait metrics, keypoint-schema checks, confidence gating,
-  and clip-quality notes (73 passed / 0 failed on October 22, 2026)
+- API tests, including multipart parsing, the upload gate, explanation
+  validation, phone walk helpers, and the AI-use registry (45 passed / 0 failed
+  on October 22, 2026)
+- Motion statistics, gait metrics, keypoint-schema checks, dog-box association,
+  the local setup check, confidence gating, and clip-quality notes (90 passed /
+  0 failed on October 22, 2026)
 - Uploaded clips are deleted after `POST /api/analyze`, including when the
   file is rejected (`tests/upload-cleanup.test.ts`)
 - Pet-form validation and trend grouping, from the web package:
@@ -34,6 +36,10 @@ python scripts/analyze_clip.py path/to/walk.mp4 --pet-name Mabel
 ```
 
 Add `--no-pose` to force the OpenCV-only path.
+
+Pull requests into `main` run `.github/workflows/tests.yml`. That job installs `requirements-opencv.txt` only. It does not download pose weights, and it does not treat a skipped model run as a pass. `python scripts/check_setup.py` reports whether weights are already on disk and exits 0 when OpenCV imports.
+
+Dog-box association is `gait_engine/tracking.py`. A zero-overlap box does not keep the previous identity, a short gap stays empty, and a long gap starts a new segment. Those cases are synthetic boxes in `tests/test_tracking.py`. They do not measure stride length.
 
 Pose review images (not a validation, and not committed):
 

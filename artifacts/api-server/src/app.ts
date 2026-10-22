@@ -2,12 +2,14 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
-import { httpsOnlyApplies, requestIsHttps } from "./lib/hosting";
+import { httpsOnlyApplies, requestIsHttps, trustProxyEnabled } from "./lib/hosting";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
 
-app.set("trust proxy", 1);
+if (trustProxyEnabled()) {
+  app.set("trust proxy", 1);
+}
 
 app.use(
   pinoHttp({
@@ -34,8 +36,7 @@ app.use((req, res, next) => {
     next();
     return;
   }
-  const forwarded = req.header("x-forwarded-proto");
-  if (requestIsHttps(req.secure, forwarded)) {
+  if (requestIsHttps(req.secure, req.header("x-forwarded-proto"), trustProxyEnabled())) {
     next();
     return;
   }

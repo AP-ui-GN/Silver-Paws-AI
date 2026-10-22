@@ -16,16 +16,12 @@ import { AnalyzeMovementClipResponse, type AnalyzeError } from "@workspace/api-z
 
 import { aiUseForResult } from "../lib/ai-use";
 import { runAnalysis } from "../lib/analysis-runner";
-import {
-  analyzeRateLimitPerMinute,
-  clientAddress,
-  takeAnalyzeSlot,
-} from "../lib/hosting";
+import { gateAnalyzeUpload, positiveInteger, trustProxyEnabled } from "../lib/hosting";
 import { explainObservation } from "../lib/explanation";
 import { logger } from "../lib/logger";
 import { MultipartError, parseBoundary, parseMultipart } from "../lib/multipart";
 
-const MAX_UPLOAD_MB = Number(process.env["MAX_UPLOAD_MB"] ?? 60);
+const MAX_UPLOAD_MB = positiveInteger(process.env["MAX_UPLOAD_MB"], 60, 1);
 const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 
 const MAX_PET_NAME_LENGTH = 40;
@@ -62,6 +58,36 @@ export function uploadRoot(): string {
   return process.env["SILVERPAWS_UPLOAD_DIR"] || tmpdir();
 }
 
+/**
+ * Capacity checks run before the multipart body is read. A refused request
+ * does not hold an upload buffer or a pipeline process.
+ */
+function gateAnalyzeRequest(
+  req: Request,
+  res: Response,
+  next: (error?: unknown) => void,
+) {
+  gateAnalyzeUpload(
+    {
+      forwardedFor: req.header("x-forwarded-for"),
+      remoteAddress: req.socket.remoteAddress,
+      trustProxy: trustProxyEnabled(),
+      now: Date.now(),
+      writeRefusal: (status, error) => sendError(res, status, error),
+      afterResponse: (fn) => {
+        res.on("finish", fn);
+      },
+      onClose: (fn) => {
+        res.on("close", fn);
+      },
+      destroy: () => {
+        req.destroy();
+      },
+    },
+    () => next(),
+  );
+}
+
 function looksLikeVideo(contentType: string, fileName: string): boolean {
   if (contentType.toLowerCase().startsWith("video/")) return true;
   // Some browsers send an empty or generic type for less common containers.
@@ -70,18 +96,9 @@ function looksLikeVideo(contentType: string, fileName: string): boolean {
 
 router.post(
   "/analyze",
+  gateAnalyzeRequest,
   express.raw({ type: "multipart/form-data", limit: MAX_UPLOAD_BYTES }),
   async (req: Request, res: Response) => {
-    const allowed = takeAnalyzeSlot(
-      clientAddress(req.header("x-forwarded-for"), req.socket.remoteAddress),
-      Date.now(),
-      analyzeRateLimitPerMinute(),
-    );
-    if (!allowed) {
-      sendError(res, 429, "Too many analyses from this address. Wait a minute and try again.");
-      return;
-    }
-
     const boundary = parseBoundary(req.headers["content-type"]);
     if (!boundary || !Buffer.isBuffer(req.body)) {
       sendError(res, 400, "The upload was not sent as a video form submission.");
