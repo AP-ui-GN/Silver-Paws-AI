@@ -207,3 +207,9 @@ Chrome opened `http://127.0.0.1:4173/` (the Vite dev server for the web app). No
 5. **Low confidence — passed with a fixture.** The banner heading was "Low confidence — try a clearer clip". Stride symmetry, asymmetry, hip stability, and pose confidence read "Not measured". Confident frames read "0 of 40" because the fixture stored zero frames past the gate. That is a count, not an unset limb.
 
 6. **Concerning change and diagnosis — passed.** The same fixture showed "Worth asking a veterinarian about" and said the change is not a diagnosis. Every page that was opened uses "does not diagnose" or "not diagnosing". No screen claimed a diagnosis.
+
+## Hosted Docker/API smoke check
+
+As of October 22, 2026, [the main-branch container-smoke workflow](https://github.com/AP-ui-GN/Silver-Paws-AI/actions/runs/39818601906) passed. It builds the Docker image, checks liveness/readiness, and submits a generated synthetic moving-shape clip to `POST /api/analyze`.
+
+This is a container and API-contract smoke test. The fixture is not a dog, so the result does not prove canine pose accuracy or replace a real dog-walking clip through the UI. The regular `tests.yml` workflow continues to test Python, API, and web behavior without downloading pose weights.
