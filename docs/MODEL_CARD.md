@@ -86,10 +86,14 @@ Weights go to `HF_HOME`, default `models/hf`. That directory is gitignored.
 
 ## Time and memory
 
-On this CPU, a 15.000-second 30 fps file made by repeating a 5-second clip
-took 40.127 seconds end to end (`scripts/time_clip.py`: sample 0.949 s,
-pose including weight load 39.162 s, gait math 0.015 s). Peak RSS was
-1665.3 MB. One-shot `analyze_clip.py` on the same file took 37.543 seconds.
+An exploratory CPU profile of a 15.000-second 30 fps file made by repeating
+a 5-second clip recorded sample time 0.949 s, pose including weight load
+39.162 s, and peak RSS 1665.3 MB. The old timing script also reported 0.015 s
+of gait math and 40.127 s total, but it incorrectly ran AP-10K gait formulas
+on COCO-17 output. Those gait and total values are not valid for production
+gait-performance comparison. The one-shot `analyze_clip.py` run returned
+`pipeline: dog-pose` in 37.543 seconds on that same file. A new comparable
+benchmark has not yet been run; see the correction in `docs/HOSTING.md`.
 Loading both models in a new process, without a clip, took 4.02 seconds of
 wall time. GitHub Actions built and smoke-tested the Docker image on October 22, 2026, but peak hosted RAM has not been measured.
 Details are in `docs/HOSTING.md`.
