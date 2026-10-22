@@ -12,4 +12,6 @@
 export interface AnalyzeError {
   ok: boolean;
   error: string;
+  /** Stable machine-readable error code. Absent for older servers. */
+  code?: string;
 }

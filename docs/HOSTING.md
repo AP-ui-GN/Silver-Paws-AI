@@ -23,7 +23,7 @@ While the image builds, `scripts/cache_models.py` downloads the dog detector
 and the pose model into `/app/models/hf` (`HF_HOME`). A later request reuses
 that cache.
 
-The container listens on port 8080. `GET /api/healthz` returns `{ "status": "ok" }`.
+The container listens on port 8080 and defaults to a ten-minute `ANALYSIS_TIMEOUT_MS` ceiling, matching the documented API behavior. Invalid timeout values fall back to the ten-minute default; valid overrides are bounded from one second to one hour. `GET /api/healthz` returns `{ "status": "ok" }` and is a liveness check only. `GET /api/readyz` checks the local Python/OpenCV setup using a cached, no-download probe. It returns HTTP 200 when the motion-only fallback is available, even if optional pose weights are absent; the response explains which capabilities are available. It returns HTTP 503 when the required fallback is unavailable. Readiness is cached for up to 60 seconds.
 That path stays on plain HTTP so the Docker healthcheck can call localhost.
 Every other path requires HTTPS when `NODE_ENV=production`. The host's proxy
 sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
@@ -35,12 +35,13 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | --- | --- | --- |
 | `PORT` | `8080` | Listen port |
 | `NODE_ENV` | unset | `production` turns on the HTTPS check |
-| `MAX_UPLOAD_MB` | `60` | Largest clip accepted |
+| `MAX_UPLOAD_MB` | `60` | Largest clip accepted; configurable integer is bounded to 1–120 MB |
 | `TRUST_PROXY` | unset | Set to `1` only behind a proxy that sets `X-Forwarded-Proto` |
 | `ALLOWED_ORIGINS` | Development defaults when unset outside production; empty allow-list in production | Comma-separated exact browser origins, e.g. `https://app.example.com`; do not include paths. Production web clients must be listed explicitly. |
 | `ANALYSIS_TIMEOUT_MS` | `600000` | Stop the pipeline after this many milliseconds. A motion result written before pose starts is returned if pose is still running |
+| `SHUTDOWN_TIMEOUT_MS` | `15000` | Grace period for in-flight requests during SIGTERM/SIGINT before active Python analysis is stopped |
 | `ANALYZE_RATE_LIMIT_PER_MINUTE` | `10` | Analyses allowed per client address each minute |
-| `ANALYZE_MAX_CONCURRENT` | `2` | Pipelines running at once. Extra uploads are refused before the body is read |
+| `ANALYZE_MAX_CONCURRENT` | `1` | Concurrent analysis requests; configured integer is bounded to 1–4. Defaults to one because a CPU pose process measured about 1.6 GB RSS |
 | `SILVERPAWS_PYTHON` | `/opt/venv/bin/python` in the image | Python that runs the pipeline |
 | `SILVERPAWS_REPO_ROOT` | `/app` in the image | Where `gait_engine` and `scripts` live |
 | `HF_HOME` | `/app/models/hf` in the image | Detector and pose weight cache |
@@ -49,6 +50,13 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | `SILVERPAWS_LLM_MODEL` | unset | Model name. Required, with the URL, before a rewrite is attempted |
 
 No API key is required for a clip to be measured.
+
+The optional text-rewrite provider is protected by a small in-process circuit
+breaker: after three consecutive transport/provider failures, rewrite calls are
+skipped for 30 seconds and one retry probe is permitted after cooldown. The
+rule-based observation continues to work while the provider is unavailable.
+This is process-local; it is not a shared distributed breaker.
+
 
 ## Browser origins and response headers
 
@@ -92,7 +100,7 @@ took 4.02 seconds of wall time (3.552 seconds after the process had started).
 That is under 20 seconds, so the API still starts Python once per request.
 No persistent worker was added.
 
-The Docker image was not built. The `docker` command is not installed here.
+The API handles SIGTERM/SIGINT by stopping new accepts, allowing in-flight requests to drain, and terminating remaining Python analysis processes after `SHUTDOWN_TIMEOUT_MS`. The Docker image was not built. The `docker` command is not installed here.
 1665 MB is this CPU run, not a measurement from a hosted container.
 
 To see what a real clip uses:

@@ -198,6 +198,49 @@ export function buildExplanationPrompt(context: ExplanationContext): string {
 /** Give up on a provider that has not answered in about eight seconds. */
 export const REWRITE_TIMEOUT_MS = 8_000;
 
+/** Consecutive provider failures before the optional rewrite provider is cooled down. */
+export const REWRITE_BREAKER_FAILURE_THRESHOLD = 3;
+/** Cooldown before one half-open probe is allowed. */
+export const REWRITE_BREAKER_COOLDOWN_MS = 30_000;
+
+let providerFailures = 0;
+let providerOpenUntil = 0;
+let halfOpenInFlight = false;
+
+export function resetRewriteCircuitBreaker(): void {
+  providerFailures = 0;
+  providerOpenUntil = 0;
+  halfOpenInFlight = false;
+}
+
+export function rewriteCircuitBreakerState(now = Date.now()): {
+  consecutiveFailures: number;
+  open: boolean;
+  remainingCooldownMs: number;
+  halfOpenInFlight: boolean;
+} {
+  return {
+    consecutiveFailures: providerFailures,
+    open: providerOpenUntil > now,
+    remainingCooldownMs: Math.max(0, providerOpenUntil - now),
+    halfOpenInFlight,
+  };
+}
+
+function recordProviderFailure(now = Date.now()): void {
+  providerFailures += 1;
+  halfOpenInFlight = false;
+  if (providerFailures >= REWRITE_BREAKER_FAILURE_THRESHOLD) {
+    providerOpenUntil = now + REWRITE_BREAKER_COOLDOWN_MS;
+  }
+}
+
+function recordProviderSuccess(): void {
+  providerFailures = 0;
+  providerOpenUntil = 0;
+  halfOpenInFlight = false;
+}
+
 /**
  * Ask the configured chat-completions endpoint to rewrite the observation.
  *
@@ -215,6 +258,15 @@ export async function requestModelRewrite(
     // No provider configured: the rule-based observation is used as-is.
     return null;
   }
+
+  const now = Date.now();
+  if (providerOpenUntil > now) return null;
+
+  // After cooldown, allow exactly one half-open probe. Other callers use the
+  // rule-based text rather than queuing behind an unhealthy optional provider.
+  const halfOpenProbe = providerOpenUntil > 0;
+  if (halfOpenProbe && halfOpenInFlight) return null;
+  if (halfOpenProbe) halfOpenInFlight = true;
 
   const apiKey = process.env["SILVERPAWS_LLM_KEY"];
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -237,20 +289,32 @@ export async function requestModelRewrite(
       }),
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      recordProviderFailure();
+      return null;
+    }
 
     const payload = (await response.json()) as {
       choices?: { message?: { content?: unknown } }[];
     };
     const content = payload.choices?.[0]?.message?.content;
-    if (typeof content !== "string") return null;
+    if (typeof content !== "string" || content.trim().length === 0) {
+      recordProviderFailure();
+      return null;
+    }
 
-    const text = content.trim();
-    return text.length > 0 ? text : null;
+    // A valid provider response closes the circuit. Whether its text is safe to
+    // show is evaluated separately by validateExplanation().
+    recordProviderSuccess();
+    return content.trim();
   } catch {
+    recordProviderFailure();
     return null;
   } finally {
     clearTimeout(timer);
+    // A half-open request that hasn't already re-opened the circuit releases its
+    // single-probe lock. The next request is permitted only if the circuit closed.
+    halfOpenInFlight = false;
   }
 }
 
@@ -264,6 +328,7 @@ export async function explainObservation(
   context: ExplanationContext,
 ): Promise<ExplanationOutcome> {
   const fallback = context.fallbackObservation;
+  const breakerAtStart = rewriteCircuitBreakerState();
   let draft: string | null = null;
 
   try {
@@ -282,7 +347,9 @@ export async function explainObservation(
       observation: fallback,
       usedLlm: false,
       // Only worth reporting when someone expected a rewrite to happen.
-      ...(process.env["SILVERPAWS_LLM_URL"]
+      ...(process.env["SILVERPAWS_LLM_URL"] &&
+      !breakerAtStart.open &&
+      !breakerAtStart.halfOpenInFlight
         ? { rejectedReason: "no rewrite was returned by the provider" }
         : {}),
     };

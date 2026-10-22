@@ -7,6 +7,9 @@ import test from "node:test";
 
 import {
   allowedCorsOrigins,
+  analyzeMaxConcurrent,
+  analyzeRateLimitPerMinute,
+  boundedPositiveInteger,
   clientAddress,
   finishAnalysis,
   httpsOnlyApplies,
@@ -48,6 +51,41 @@ test("forwarded addresses are ignored unless a proxy is trusted", () => {
     "198.51.100.10",
   );
   assert.equal(clientAddress(undefined, undefined, false), "unknown");
+});
+
+test("bounded configuration rejects unsafe values and respects documented ranges", () => {
+  assert.equal(boundedPositiveInteger(undefined, 60, 1, 120), 60);
+  assert.equal(boundedPositiveInteger("", 60, 1, 120), 60);
+  assert.equal(boundedPositiveInteger("NaN", 60, 1, 120), 60);
+  assert.equal(boundedPositiveInteger("Infinity", 60, 1, 120), 60);
+  assert.equal(boundedPositiveInteger("1.5", 60, 1, 120), 60);
+  assert.equal(boundedPositiveInteger("0", 60, 1, 120), 60);
+  assert.equal(boundedPositiveInteger("121", 60, 1, 120), 60);
+  assert.equal(boundedPositiveInteger("120", 60, 1, 120), 120);
+});
+
+test("analysis concurrency defaults to one heavyweight CPU pose process", () => {
+  const previous = process.env["ANALYZE_MAX_CONCURRENT"];
+  const previousRate = process.env["ANALYZE_RATE_LIMIT_PER_MINUTE"];
+  try {
+    delete process.env["ANALYZE_MAX_CONCURRENT"];
+    delete process.env["ANALYZE_RATE_LIMIT_PER_MINUTE"];
+    assert.equal(analyzeMaxConcurrent(), 1);
+    assert.equal(analyzeRateLimitPerMinute(), 10);
+    process.env["ANALYZE_MAX_CONCURRENT"] = "99";
+    process.env["ANALYZE_RATE_LIMIT_PER_MINUTE"] = "999999999";
+    assert.equal(analyzeMaxConcurrent(), 1);
+    assert.equal(analyzeRateLimitPerMinute(), 10);
+    process.env["ANALYZE_MAX_CONCURRENT"] = "3";
+    process.env["ANALYZE_RATE_LIMIT_PER_MINUTE"] = "100";
+    assert.equal(analyzeMaxConcurrent(), 3);
+    assert.equal(analyzeRateLimitPerMinute(), 100);
+  } finally {
+    if (previous === undefined) delete process.env["ANALYZE_MAX_CONCURRENT"];
+    else process.env["ANALYZE_MAX_CONCURRENT"] = previous;
+    if (previousRate === undefined) delete process.env["ANALYZE_RATE_LIMIT_PER_MINUTE"];
+    else process.env["ANALYZE_RATE_LIMIT_PER_MINUTE"] = previousRate;
+  }
 });
 
 test("only a finite upload setting is accepted", () => {

@@ -10,9 +10,31 @@
 // enough that the same clip timed out on every retry. This is a ceiling, not
 // a typical runtime. The motion result is already on disk before pose starts.
 export const DEFAULT_ANALYSIS_TIMEOUT_MS = 600_000;
+export const MIN_ANALYSIS_TIMEOUT_MS = 1_000;
+export const MAX_ANALYSIS_TIMEOUT_MS = 3_600_000;
 
-export const ANALYSIS_TIMEOUT_MS = Number(
-  process.env["ANALYSIS_TIMEOUT_MS"] ?? DEFAULT_ANALYSIS_TIMEOUT_MS,
+/**
+ * Parse a safe timeout in milliseconds. Invalid, fractional, too-small, or
+ * excessive values fall back to the documented ten-minute default rather
+ * than creating an immediate timeout or effectively disabling the deadline.
+ */
+export function resolveAnalysisTimeout(value: string | undefined): number {
+  if (value === undefined || value.trim() === "") {
+    return DEFAULT_ANALYSIS_TIMEOUT_MS;
+  }
+  const parsed = Number(value);
+  if (
+    !Number.isSafeInteger(parsed) ||
+    parsed < MIN_ANALYSIS_TIMEOUT_MS ||
+    parsed > MAX_ANALYSIS_TIMEOUT_MS
+  ) {
+    return DEFAULT_ANALYSIS_TIMEOUT_MS;
+  }
+  return parsed;
+}
+
+export const ANALYSIS_TIMEOUT_MS = resolveAnalysisTimeout(
+  process.env["ANALYSIS_TIMEOUT_MS"],
 );
 
 /** The CLI reports its own failures as `{ ok: false, error: "..." }`. */

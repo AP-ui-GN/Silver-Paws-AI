@@ -81,6 +81,7 @@ app.use((req, res, next) => {
   res.status(400).json({
     ok: false,
     error: "Open this server with https://.",
+    code: "HTTPS_REQUIRED",
   });
 });
 

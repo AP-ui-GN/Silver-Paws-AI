@@ -11,6 +11,9 @@ import test from "node:test";
 import {
   buildExplanationPrompt,
   explainObservation,
+  requestModelRewrite,
+  resetRewriteCircuitBreaker,
+  rewriteCircuitBreakerState,
   validateExplanation,
   type ExplanationContext,
 } from "../src/lib/explanation.ts";
@@ -297,5 +300,96 @@ test("a slow provider is aborted and does not replace the fallback", async () =>
     });
   } finally {
     mock.timers.reset();
+  }
+});
+
+
+test("optional language-model circuit breaker opens after consecutive provider failures", async () => {
+  const previousUrl = process.env["SILVERPAWS_LLM_URL"];
+  const previousModel = process.env["SILVERPAWS_LLM_MODEL"];
+  const previousKey = process.env["SILVERPAWS_LLM_KEY"];
+  const previousFetch = globalThis.fetch;
+  let calls = 0;
+
+  process.env["SILVERPAWS_LLM_URL"] = "https://llm.example.test/v1/chat/completions";
+  process.env["SILVERPAWS_LLM_MODEL"] = "test-model";
+  delete process.env["SILVERPAWS_LLM_KEY"];
+  resetRewriteCircuitBreaker();
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return { ok: false, json: async () => ({}) } as Response;
+  }) as typeof fetch;
+
+  try {
+    assert.equal(await requestModelRewrite(context()), null);
+    assert.equal(await requestModelRewrite(context()), null);
+    assert.equal(await requestModelRewrite(context()), null);
+    assert.equal(calls, 3);
+    assert.equal(rewriteCircuitBreakerState().open, true);
+
+    // While the circuit is open, requests should use the rule-based note
+    // without waiting through another provider timeout.
+    assert.equal(await requestModelRewrite(context()), null);
+    assert.equal(calls, 3);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousUrl === undefined) delete process.env["SILVERPAWS_LLM_URL"];
+    else process.env["SILVERPAWS_LLM_URL"] = previousUrl;
+    if (previousModel === undefined) delete process.env["SILVERPAWS_LLM_MODEL"];
+    else process.env["SILVERPAWS_LLM_MODEL"] = previousModel;
+    if (previousKey === undefined) delete process.env["SILVERPAWS_LLM_KEY"];
+    else process.env["SILVERPAWS_LLM_KEY"] = previousKey;
+    resetRewriteCircuitBreaker();
+  }
+});
+
+test("a successful half-open provider probe closes the language-model circuit", async () => {
+  const previousUrl = process.env["SILVERPAWS_LLM_URL"];
+  const previousModel = process.env["SILVERPAWS_LLM_MODEL"];
+  const previousKey = process.env["SILVERPAWS_LLM_KEY"];
+  const previousFetch = globalThis.fetch;
+  const previousDateNow = Date.now;
+  let now = previousDateNow();
+  let calls = 0;
+
+  process.env["SILVERPAWS_LLM_URL"] = "https://llm.example.test/v1/chat/completions";
+  process.env["SILVERPAWS_LLM_MODEL"] = "test-model";
+  delete process.env["SILVERPAWS_LLM_KEY"];
+  Date.now = () => now;
+  resetRewriteCircuitBreaker();
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return { ok: false, json: async () => ({}) } as Response;
+  }) as typeof fetch;
+
+  try {
+    await requestModelRewrite(context());
+    await requestModelRewrite(context());
+    await requestModelRewrite(context());
+    assert.equal(rewriteCircuitBreakerState().open, true);
+
+    now += 31_000;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "A plain observation with no new claims." } }] }),
+      } as Response;
+    }) as typeof fetch;
+
+    assert.equal(await requestModelRewrite(context()), "A plain observation with no new claims.");
+    assert.equal(calls, 4);
+    assert.equal(rewriteCircuitBreakerState().open, false);
+    assert.equal(rewriteCircuitBreakerState().consecutiveFailures, 0);
+  } finally {
+    Date.now = previousDateNow;
+    globalThis.fetch = previousFetch;
+    if (previousUrl === undefined) delete process.env["SILVERPAWS_LLM_URL"];
+    else process.env["SILVERPAWS_LLM_URL"] = previousUrl;
+    if (previousModel === undefined) delete process.env["SILVERPAWS_LLM_MODEL"];
+    else process.env["SILVERPAWS_LLM_MODEL"] = previousModel;
+    if (previousKey === undefined) delete process.env["SILVERPAWS_LLM_KEY"];
+    else process.env["SILVERPAWS_LLM_KEY"] = previousKey;
+    resetRewriteCircuitBreaker();
   }
 });

@@ -53,6 +53,11 @@ def parse_args() -> argparse.Namespace:
         help="Skip pose detection and measure picture motion only.",
     )
     parser.add_argument(
+        "--request-id",
+        default=None,
+        help="Correlation ID supplied by the API for cross-process diagnostics.",
+    )
+    parser.add_argument(
         "--output-json",
         type=Path,
         default=None,
@@ -65,6 +70,22 @@ def parse_args() -> argparse.Namespace:
         help="Write a skeleton video for local inspection. The API never does this.",
     )
     return parser.parse_args()
+
+
+def attach_request_id(result: dict, request_id: str | None) -> dict:
+    """Attach the API correlation ID without changing measurement fields."""
+
+    if not request_id:
+        return result
+    if result.get("ok") is True:
+        diagnostics = result.get("diagnostics")
+        if not isinstance(diagnostics, dict):
+            diagnostics = {}
+            result["diagnostics"] = diagnostics
+        diagnostics["requestId"] = request_id
+    else:
+        result["requestId"] = request_id
+    return result
 
 
 def write_json(path: Path, result: dict) -> None:
@@ -87,7 +108,7 @@ def main() -> int:
         output_path = args.output_json
 
         def motion_ready(result: dict, destination: Path = output_path) -> None:
-            write_json(destination, result)
+            write_json(destination, attach_request_id(result, args.request_id))
 
     try:
         result = analyze_clip(
@@ -108,6 +129,8 @@ def main() -> int:
             "error": f"The analysis pipeline failed: {type(exc).__name__}: {exc}",
         }
         exit_code = 1
+
+    result = attach_request_id(result, args.request_id)
 
     if args.debug_video and exit_code == 0:
         from gait_engine.debug_video import write_debug_video
