@@ -5,7 +5,10 @@ on October 18, 2026. The markers in those files were removed. The observational
 copy review was completed on October 22, 2026 for the web/mobile pose labels,
 movement report headings, model disclosures, and generated API descriptions.
 Abhi's live provider walk-through remains open because this environment has no
-provider credentials. Optional follow-ups stay in `docs/PROJECT_STATUS.md`.
+provider credentials. The QuadPose F2 integration is a separate engineering
+change and must not be marked complete until the new hosted CI checks pass.
+Real-world gait validation remains open because a labeled dog-walking dataset
+has not been evaluated. Optional follow-ups stay in `docs/PROJECT_STATUS.md`.
 
 The markers in the listed files look like:
 
