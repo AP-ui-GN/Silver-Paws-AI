@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import { rm } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import express from "express";
+import express, { type IRouter } from "express";
 import test from "node:test";
 import { build } from "esbuild";
 
@@ -20,7 +20,7 @@ const HEALTH_ENTRY = new URL("../src/routes/health.ts", import.meta.url);
 const HEALTH_BUNDLE = new URL("./.tmp-readyz-router.mjs", import.meta.url);
 
 async function loadHealthRouter(): Promise<{
-  createHealthRouter: (check: () => Promise<ReadinessReport>) => import("express").Router;
+  createHealthRouter: (check: () => Promise<ReadinessReport>) => IRouter;
 }> {
   await build({
     entryPoints: [HEALTH_ENTRY.pathname],
