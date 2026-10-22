@@ -13,7 +13,7 @@ mean a server is already running, and it does not include a public URL.
 
 ## What the image contains
 
-`Dockerfile` uses Node 20 and Debian bookworm's Python 3.11. The same pins
+`Dockerfile` uses Node 24 LTS and Debian bookworm's Python 3.11. The same pins
 support Python 3.10–3.12. The image installs `opencv-python-headless` (the
 laptop file `requirements.txt` uses `opencv-python`, which expects a display),
 NumPy, SciPy, CPU torch, and transformers at the versions in
