@@ -46,7 +46,6 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const recordRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -77,7 +76,6 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
       setPhase('upload');
       setError('File exceeds the 60 MB limit. Please select a shorter or lower-resolution clip.');
       if (inputRef.current) inputRef.current.value = '';
-      if (recordRef.current) recordRef.current.value = '';
       return;
     }
 
@@ -126,7 +124,6 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
     setPhase('upload');
     setError('');
     if (inputRef.current) inputRef.current.value = '';
-    if (recordRef.current) recordRef.current.value = '';
   };
 
   const tryDemo = () => {
@@ -255,14 +252,12 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
               <div id="tour-upload-dropzone" className="dotted-drop mt-6 min-h-[245px] flex flex-col items-center justify-center text-center p-7">
                 <div className="empty-art"><UploadCloud size={27} /></div>
                 <h2 className="font-bold text-lg mt-5">Drop a walking video here</h2>
-                <p className="body-muted text-sm mt-2">Have the dog walk across the frame. Hold the camera at the dog's shoulder height. Keep the whole dog in frame, including all four paws. Film one dog, with a steady camera, on a leash, on flat ground, for 10 to 15 seconds, in good light. The server accepts a longer clip, up to 120 seconds.</p>
+                <p className="body-muted text-sm mt-2">Side view, steady camera. A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds.</p>
                 <div className="flex flex-wrap justify-center gap-3 mt-5">
                   <button type="button" className="btn-secondary" onClick={() => inputRef.current?.click()} disabled={!pets.length} data-testid="button-choose-video"><Film size={16} /> Choose video</button>
-                  <button type="button" className="btn-secondary" onClick={() => recordRef.current?.click()} disabled={!pets.length} data-testid="button-record-walk"><Film size={16} /> Record walk</button>
                   <button id="try-sample-btn" type="button" className="btn-quiet scroll-mt-20 font-semibold text-[#3eb49c] transition-colors hover:text-white" onClick={tryDemo} data-testid="button-try-demo"><Sparkles size={16} /> Try Sample Dog Walk</button>
                 </div>
                 <input ref={inputRef} className="hidden" type="file" accept="video/*" onChange={(event) => selectFile(event.target.files?.[0])} data-testid="input-walking-video" />
-                <input ref={recordRef} className="hidden" type="file" accept="video/*" capture="environment" onChange={(event) => selectFile(event.target.files?.[0])} data-testid="input-record-walk" />
               </div>
               {error && <div className="text-sm mt-3 flex items-center gap-2" style={{ color: '#ff8b84' }} role="alert" data-testid="text-upload-error"><CircleAlert size={15} />{error}</div>}
             </div>

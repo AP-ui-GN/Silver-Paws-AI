@@ -44,6 +44,20 @@ export type AnalysisMeasurements = {
   motionCoverage: number;
   hipStability?: number | null;
   symmetryReliable: boolean;
+  strides?: {
+    frontLeft?: { strideCount?: number | null } | null;
+    frontRight?: { strideCount?: number | null } | null;
+    rearLeft?: { strideCount?: number | null } | null;
+    rearRight?: { strideCount?: number | null } | null;
+  } | null;
+  limbSymmetry?: { front?: number | null; rear?: number | null } | null;
+  strideLengthBodyLengths?: { front?: number | null; rear?: number | null } | null;
+  cadenceStridesPerMinute?: number | null;
+  strideTimeCv?: number | null;
+  headBobAsymmetry?: number | null;
+  pelvisAsymmetry?: number | null;
+  subject?: { dogFramesShare?: number | null } | null;
+  notMeasuredReasons?: string[] | null;
 };
 
 export type ModelInfo = {

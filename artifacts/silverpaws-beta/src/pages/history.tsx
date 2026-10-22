@@ -166,11 +166,11 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   return (
     <section id="movenet-card" className="panel panel-padded mt-5 telemetry-card" aria-label={sampleFrame ? 'Sample pose frame' : 'Saved pose landmark summary'}>
       <div className="eyebrow">Computer vision activity</div>
-      <h2 className="display-title text-2xl mt-2">{sampleFrame ? 'Gait measurements' : 'Saved landmark summary'}</h2>
+      <h2 className="display-title text-2xl mt-2">{sampleFrame ? 'Pose landmark summary' : 'MoveNet landmark summary'}</h2>
       <p className="body-muted text-sm mt-2">
         {sampleFrame
           ? 'Sample frame (not your video). These names are the pose head\'s COCO joints, scaled to the dog box. The base of the tail is not in this head. This is not a diagnosis.'
-          : 'Mean landmark positions saved with an older walk. This is not a diagnosis.'}
+          : 'Mean normalized landmark positions from confident pose frames—not a diagnosis or a clinical measurement.'}
       </p>
       {points.length ? (
         <>
@@ -514,9 +514,7 @@ function ResultDetail({
           <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Dog in frame</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(typeof measurements.subject?.dogFramesShare === 'number' ? measurements.subject.dogFramesShare * 100 : undefined, '%', 0)}</div></div>
           <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Stride symmetry</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.strideSymmetry)}</div></div>
           <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Asymmetry</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(analysis.asymmetryPercent, '%', 2)}</div></div>
-          {typeof measurements.leftAnkleMotion === 'number' && <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Left ankle motion</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.leftAnkleMotion)}</div></div>}
-          {typeof measurements.rightAnkleMotion === 'number' && <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Right ankle motion</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.rightAnkleMotion)}</div></div>}
-          {typeof measurements.hipStability === 'number' && <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Hip stability</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>}
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Hip stability</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>
           <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Pose confidence</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(analysis.confidence, '%', 1)}</div></div>
           <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Confident frames</div><div className="font-mono font-medium text-lg mt-1">{formatPoseFrames(analysis.framesUsed, analysis.framesTotal)}</div></div>
         </div>

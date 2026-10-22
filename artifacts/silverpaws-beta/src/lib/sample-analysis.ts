@@ -65,7 +65,7 @@ export function createSampleAnalysis(): Analysis {
     usedLlm: false,
     modelInfo: {
       pipeline: 'movenet',
-      modelName: 'Older pose sample',
+      modelName: 'MoveNet Thunder (sample)',
       modelVersion: 'sample',
       runsOn: 'server',
     },
