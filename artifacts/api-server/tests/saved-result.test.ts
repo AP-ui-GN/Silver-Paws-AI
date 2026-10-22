@@ -9,7 +9,10 @@ import test from "node:test";
 import { AnalyzeMovementClipResponse } from "../../../lib/api-zod/src/generated/api.ts";
 import {
   DEFAULT_ANALYSIS_TIMEOUT_MS,
+  MAX_ANALYSIS_TIMEOUT_MS,
+  MIN_ANALYSIS_TIMEOUT_MS,
   isFinishedAnalysis,
+  resolveAnalysisTimeout,
 } from "../src/lib/saved-result.ts";
 
 const motionResult = {
@@ -85,4 +88,19 @@ test("a pipeline failure is not treated as a saved result", () => {
   assert.equal(AnalyzeMovementClipResponse.safeParse(failure).success, false);
   assert.equal(isFinishedAnalysis(null), false);
   assert.equal(isFinishedAnalysis({ ok: true }), false);
+});
+
+
+test("analysis timeout defaults safely and accepts only bounded integer milliseconds", () => {
+  assert.equal(resolveAnalysisTimeout(undefined), DEFAULT_ANALYSIS_TIMEOUT_MS);
+  assert.equal(resolveAnalysisTimeout(""), DEFAULT_ANALYSIS_TIMEOUT_MS);
+  assert.equal(resolveAnalysisTimeout("not-a-number"), DEFAULT_ANALYSIS_TIMEOUT_MS);
+  assert.equal(resolveAnalysisTimeout("NaN"), DEFAULT_ANALYSIS_TIMEOUT_MS);
+  assert.equal(resolveAnalysisTimeout("Infinity"), DEFAULT_ANALYSIS_TIMEOUT_MS);
+  assert.equal(resolveAnalysisTimeout("1500.5"), DEFAULT_ANALYSIS_TIMEOUT_MS);
+  assert.equal(resolveAnalysisTimeout(String(MIN_ANALYSIS_TIMEOUT_MS - 1)), DEFAULT_ANALYSIS_TIMEOUT_MS);
+  assert.equal(resolveAnalysisTimeout(String(MAX_ANALYSIS_TIMEOUT_MS + 1)), DEFAULT_ANALYSIS_TIMEOUT_MS);
+  assert.equal(resolveAnalysisTimeout(String(MIN_ANALYSIS_TIMEOUT_MS)), MIN_ANALYSIS_TIMEOUT_MS);
+  assert.equal(resolveAnalysisTimeout(String(MAX_ANALYSIS_TIMEOUT_MS)), MAX_ANALYSIS_TIMEOUT_MS);
+  assert.equal(resolveAnalysisTimeout("120000"), 120_000);
 });
