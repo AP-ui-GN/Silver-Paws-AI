@@ -15,13 +15,15 @@ mean a server is already running, and it does not include a public URL.
 
 `Dockerfile` uses Node 24 LTS and Debian bookworm's Python 3.11. The same pins
 support Python 3.10–3.12. The image installs `opencv-python-headless` (the
-laptop file `requirements.txt` uses `opencv-python`, which expects a display),
-NumPy, SciPy, CPU torch, and transformers at the versions in
-`requirements-docker.txt`.
+laptop file `requirements.txt` uses `opencv-python`), NumPy, SciPy, CPU
+PyTorch, Transformers, and ONNX Runtime according to `requirements-docker.txt`.
 
-While the image builds, `scripts/cache_models.py` downloads the dog detector
-and the pose model into `/app/models/hf` (`HF_HOME`). A later request reuses
-that cache.
+While the image builds, `scripts/cache_models.py` caches RT-DETR detector
+assets under `/app/models/hf` (`HF_HOME`) and downloads the pinned
+QuadPose F2 ONNX checkpoint under `/app/models/quadpose`
+(`SILVERPAWS_QUADPOSE_CACHE`). The checkpoint SHA-256 is verified before it
+is loaded. Inference does not download missing weights; it falls back to
+OpenCV motion when pose capability is unavailable.
 
 The container listens on port 8080 and defaults to a ten-minute `ANALYSIS_TIMEOUT_MS` ceiling, matching the documented API behavior. Invalid timeout values fall back to the ten-minute default; valid overrides are bounded from one second to one hour. `GET /api/healthz` returns `{ "status": "ok" }` and is a liveness check only. `GET /api/readyz` checks the local Python/OpenCV setup using a cached, no-download probe. It returns HTTP 200 when the motion-only fallback is available, even if optional pose weights are absent; the response explains which capabilities are available. It returns HTTP 503 when the required fallback is unavailable. Readiness is cached for up to 60 seconds.
 That path stays on plain HTTP so the Docker healthcheck can call localhost.
@@ -44,7 +46,8 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | `ANALYZE_MAX_CONCURRENT` | `1` | Concurrent analysis requests; configured integer is bounded to 1–4. Defaults to one because a CPU pose process measured about 1.6 GB RSS |
 | `SILVERPAWS_PYTHON` | `/opt/venv/bin/python` in the image | Python that runs the pipeline |
 | `SILVERPAWS_REPO_ROOT` | `/app` in the image | Where `gait_engine` and `scripts` live |
-| `HF_HOME` | `/app/models/hf` in the image | Detector and pose weight cache |
+| `HF_HOME` | `/app/models/hf` in the image | RT-DETR detector cache |
+| `SILVERPAWS_QUADPOSE_CACHE` | `/app/models/quadpose` in the image | Directory or file override for the checksum-verified QuadPose ONNX checkpoint |
 | `SILVERPAWS_LLM_URL` | unset | Optional rewrite endpoint. Leave unset to stay on the rule-based note |
 | `SILVERPAWS_LLM_KEY` | unset | Bearer token for that endpoint. Keep it on the server |
 | `SILVERPAWS_LLM_MODEL` | unset | Model name. Required, with the URL, before a rewrite is attempted |
@@ -95,10 +98,10 @@ s003) was repeated with ffmpeg to 15.000 seconds at 30 fps (450 frames).
 Peak RSS was 1665.3 MB. A separate one-shot `python scripts/analyze_clip.py`
 of the same file returned `pipeline: dog-pose` in 37.543 seconds.
 
-A new process that only loaded both models, and did not analyze a clip,
-took 4.02 seconds of wall time (3.552 seconds after the process had started).
-That is under 20 seconds, so the API still starts Python once per request.
-No persistent worker was added.
+The figures above were measured on the earlier COCO/ViTPose CPU path. They
+are historical baselines only and are not QuadPose F2 inference benchmarks.
+The API still starts Python once per request; a persistent inference worker
+has not been implemented or benchmarked.
 
 The API handles SIGTERM/SIGINT by stopping new accepts, allowing in-flight requests to drain, and terminating remaining Python analysis processes after `SHUTDOWN_TIMEOUT_MS`. The original local benchmark environment did not have Docker installed. On October 22, 2026, GitHub Actions subsequently built the image and passed the container/API smoke test; see the hosted verification section below.
 1665 MB is this CPU run, not a measurement from a hosted container.
@@ -141,4 +144,4 @@ The web build does not contain `SILVERPAWS_LLM_KEY` or any other server secret.
 
 On October 22, 2026, GitHub Actions successfully built the Docker image and exercised `/api/healthz`, `/api/readyz`, and `POST /api/analyze` on the main branch. See [the container-smoke run](https://github.com/AP-ui-GN/Silver-Paws-AI/actions/runs/39818601906).
 
-The uploaded test clip was a generated moving-shape fixture, not a dog video. This verifies container packaging, readiness, and the API-to-Python response path only. It does not validate canine pose accuracy, a real dog-walk UI flow, a production deployment, or peak hosted memory. The local environment used for the measurements below still did not have Docker installed.
+The uploaded test clip was a generated moving-shape fixture, not a dog video. The updated container-smoke workflow additionally loads QuadPose F2 and checks its 17×3 output shape on a blank frame. This verifies container packaging, readiness, checkpoint loading, output shape, and the API-to-Python response path; it does not validate canine pose accuracy, gait metrics on a real dog-walk clip, a production deployment, or peak hosted memory. The local environment used for the historical performance measurements below did not have Docker installed.
