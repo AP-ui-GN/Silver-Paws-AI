@@ -11,6 +11,8 @@ failure, because a new clone does not have them.
 
 from __future__ import annotations
 
+import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -20,9 +22,22 @@ if str(REPOSITORY_ROOT) not in sys.path:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Check local SilverPaws analysis setup without downloading weights.")
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Write machine-readable JSON for readiness probes.",
+    )
+    args = parser.parse_args()
+
     from gait_engine.setup_check import collect_setup, format_setup
 
     report = collect_setup()
+    if args.json:
+        sys.stdout.write(json.dumps(report, separators=(",", ":")) + "\\n")
+        # The readiness probe needs to inspect the report even when OpenCV is
+        # unavailable, so JSON mode uses the report's fallbackReady field.
+        return 0
     sys.stdout.write(format_setup(report))
     if report["opencv"] is None:
         return 1
