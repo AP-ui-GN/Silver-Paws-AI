@@ -12,7 +12,7 @@ import path from "node:path";
 
 import express, { Router, type IRouter, type Request, type Response } from "express";
 
-import { AnalyzeMovementClipResponse, type AnalyzeError, type AnalyzeErrorCode } from "@workspace/api-zod";
+import { AnalyzeMovementClipResponse, type AnalyzeError } from "@workspace/api-zod";
 
 import { aiUseForResult } from "../lib/ai-use";
 import { runAnalysis } from "../lib/analysis-runner";
@@ -30,7 +30,7 @@ const KNOWN_PIPELINES = ["dog-pose", "movenet", "opencv-motion"];
 
 const router: IRouter = Router();
 
-function sendError(res: Response, status: number, error: string, code: AnalyzeErrorCode) {
+function sendError(res: Response, status: number, error: string, code: NonNullable<AnalyzeError["code"]>) {
   const body: AnalyzeError = { ok: false, error, code };
   res.status(status).json(body);
 }
