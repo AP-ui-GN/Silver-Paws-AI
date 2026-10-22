@@ -151,9 +151,11 @@ python scripts/validate_gait.py --clips-dir validation_clips \
   --labels validation_clips/labels.csv --out outputs/validation.csv
 ```
 
-If the folder is empty the command prints how to add clips and exits 0.
+If no clips or a labels file are available, the command prints setup instructions and exits 2. A skipped validation is not a passing validation.
 Its summary line says the result is preliminary, a small sample, and not
 clinical validation.
+
+See [`docs/VALIDATION_RUNBOOK.md`](docs/VALIDATION_RUNBOOK.md) for dataset provenance requirements, the real-dog validation procedure, and the live language-model provider smoke-test checklist.
 
 ## What is not tested here
 
