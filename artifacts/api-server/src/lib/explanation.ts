@@ -328,6 +328,7 @@ export async function explainObservation(
   context: ExplanationContext,
 ): Promise<ExplanationOutcome> {
   const fallback = context.fallbackObservation;
+  const breakerAtStart = rewriteCircuitBreakerState();
   let draft: string | null = null;
 
   try {
@@ -346,7 +347,9 @@ export async function explainObservation(
       observation: fallback,
       usedLlm: false,
       // Only worth reporting when someone expected a rewrite to happen.
-      ...(process.env["SILVERPAWS_LLM_URL"]
+      ...(process.env["SILVERPAWS_LLM_URL"] &&
+      !breakerAtStart.open &&
+      !breakerAtStart.halfOpenInFlight
         ? { rejectedReason: "no rewrite was returned by the provider" }
         : {}),
     };
