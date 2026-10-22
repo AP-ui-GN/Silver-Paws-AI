@@ -374,6 +374,16 @@ were not started.
   endpoint and aborts after 8 seconds. Any failure returns `null`. The key is
   not logged. `validateExplanation` is unchanged.
 
+### Benchmark correction (October 22, 2026)
+
+The earlier `scripts/time_clip.py` measured 0.015 s of "gait math" by calling
+`compute_gait_metrics` unconditionally on the current `coco-17` model output.
+That function expects AP-10K landmarks, so the gait timing is schema-incompatible,
+and the 40.127 s total includes an unsupported diagnostic calculation. PR #20
+adds a schema guard and makes the resource-based peak-memory probe optional on
+Windows. The current COCO-17 benchmark now reports `gait_seconds not_measured`;
+a new comparable timing run has not yet been recorded.
+
 ### Where this prompt disagreed with the repo
 
 The repo won in each case.

@@ -89,11 +89,22 @@ s003) was repeated with ffmpeg to 15.000 seconds at 30 fps (450 frames).
 | --- | --- |
 | Sample frames | 0.949 |
 | Pose, including weight load | 39.162 |
-| Gait math | 0.015 |
-| Total | 40.127 |
+| Gait math | 0.015* |
+| Total | 40.127* |
 
 Peak RSS was 1665.3 MB. A separate one-shot `python scripts/analyze_clip.py`
 of the same file returned `pipeline: dog-pose` in 37.543 seconds.
+
+**Benchmark correction (October 22, 2026):** the old `time_clip.py` called the
+AP-10K gait formulas even though this checkpoint reports `coco-17`. The
+`0.015` gait time is therefore not a valid dog-gait measurement, and the
+`40.127` total includes that unsupported diagnostic calculation; do not use
+it as a production-request latency benchmark. [PR #20](https://github.com/AP-ui-GN/Silver-Paws-AI/pull/20)
+adds a schema guard: on the current COCO-17 head, the script prints
+`gait_seconds not_measured`. A comparable timing run has not yet been
+recorded.
+
+*These are historical measurements from the previous script behavior.*
 
 A new process that only loaded both models, and did not analyze a clip,
 took 4.02 seconds of wall time (3.552 seconds after the process had started).
