@@ -16,10 +16,10 @@ over time and, if needed, take to a veterinarian.
 
 - Pet profile (name, species, breed, age, weight, notes) stored in this browser
 - Walking-clip upload with file, size, and duration checks
-- Computer vision pipeline: frames → picture motion, and dog pose when
-  torch and the model weights are installed
-- Gait measurements (left/right ankle motion, stride symmetry) kept separate
-  from interpretation
+- Computer vision pipeline: frame-to-frame picture motion on every clip, and
+  a dog box plus 17 COCO joints when torch and the weights are installed
+- Measurements kept separate from interpretation. This pose head does not
+  measure stride length, because it has no neck and no base of the tail
 - Transparent factor scores (consistency, symmetry, mobility, activity, and
   change from the previous walk) blended into an overall 0–100 indicator
 - Rule-based observation text that only quotes measured values
@@ -77,7 +77,8 @@ into the web app by `node scripts/sync-ai-use.mjs`. The generated page is
 - Does not replace a veterinarian
 - Not for emergencies
 - One camera angle of one short clip is not a full picture of a pet
-- The animal pose model has not been validated on a labeled set of pet dogs
+- The pose checkpoint is not validated on a labeled set of pet dogs. Its only
+  keypoint head is 17 COCO joints. See `docs/MODEL_CARD.md`
 - Beta data stays in this browser (`localStorage`), not a shared database
 
 ## How to run
@@ -104,6 +105,28 @@ python scripts/cache_models.py
 ```
 
 See `docs/MODEL_CARD.md` for what each model is and what it cannot do.
+
+One clip, without the API:
+
+```bash
+python scripts/analyze_clip.py path/to/walk.mp4 --pet-name Mabel
+python scripts/analyze_clip.py path/to/walk.mp4 --no-pose
+python scripts/check_pose_backend.py path/to/walk.mp4 --out outputs/pose-check/
+```
+
+`--no-pose` keeps the OpenCV motion result. The pose-review images use the
+checkpoint's COCO names. Do not commit the clip or `outputs/`.
+
+Tests:
+
+```bash
+python -m unittest discover -s tests -t .
+pnpm --filter @workspace/api-server run test
+pnpm --filter @workspace/silverpaws-beta run test
+```
+
+On October 22, 2026 those were 73 Python tests, 37 API tests, and 17 web
+tests, all passing. The pose head was not validated by those counts.
 
 Start both services (two terminals):
 

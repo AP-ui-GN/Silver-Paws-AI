@@ -31,6 +31,32 @@ names these channels with the COCO schema. It does not call channel 4
 `root_of_tail`. Stride length, which needs the neck and the base of the
 tail, stays unmeasured.
 
+The loaded file has one decoder. Its last convolution has 17 output
+channels. `config.id2label` is Nose through R_Ankle. The backbone config
+has six experts. Dataset index 3 only selects one of those experts.
+
+## Side-view review
+
+This is one clip, not a validation set. `scripts/check_pose_backend.py` on
+that clip sampled 60 frames at 960×544 and printed `schema=coco-17`,
+`dogFramesShare=1.0`, `multipleDogs=False`, and `personPresent=True`. The
+right ear's median was 91.0 px from the nose and 352.6 px from the left hip.
+Both ankles were below the hips.
+
+The dog box stays on the dog. A person at the left edge is recorded as
+present and is not returned as the dog. The nose tracks the snout as the
+dog walks left. On the drawn frames the nose, eyes, and ears sit on the
+head, the shoulders sit on the withers, and the elbows, wrists, knees, and
+ankles sit on the legs. Left and right are not a dog's left and right: the
+median left and right eyes were 11.1 px apart, and the ears were 5.4 px
+apart. On some frames the rear-leg links cross, and both hips can land on
+the same part of the rump. The tail in the picture has no landmark.
+
+Do not rename a channel to force a nose-farther-than-eyes rule or a
+nose-to-tail rule. This head has no neck and no base of the tail. Those
+stride numbers stay unmeasured until a checkpoint with an AP-10K keypoint
+head is checked on its own.
+
 Both models run on the server. The browser only uploads the clip.
 
 ## What is not validated

@@ -8,9 +8,11 @@ from gait_engine.pose_backend import (
     AP10K_KEYPOINTS,
     COCO17_EDGES,
     COCO17_KEYPOINTS,
+    KEYPOINT_MIN_SCORE,
     MODEL_OUTPUT_EDGES,
     MODEL_OUTPUT_KEYPOINTS,
     MODEL_OUTPUT_SCHEMA,
+    _first_pose,
     denormalize_from_box,
     dog_boxes_from_detections,
     normalize_to_box,
@@ -51,7 +53,28 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(MODEL_OUTPUT_SCHEMA, "coco-17")
         self.assertEqual(MODEL_OUTPUT_KEYPOINTS, COCO17_KEYPOINTS)
         self.assertEqual(MODEL_OUTPUT_EDGES, COCO17_EDGES)
-        self.assertEqual(COCO17_KEYPOINTS[0], "nose")
+        self.assertEqual(
+            COCO17_KEYPOINTS,
+            (
+                "nose",
+                "left_eye",
+                "right_eye",
+                "left_ear",
+                "right_ear",
+                "left_shoulder",
+                "right_shoulder",
+                "left_elbow",
+                "right_elbow",
+                "left_wrist",
+                "right_wrist",
+                "left_hip",
+                "right_hip",
+                "left_knee",
+                "right_knee",
+                "left_ankle",
+                "right_ankle",
+            ),
+        )
         self.assertEqual(COCO17_KEYPOINTS[4], "right_ear")
         self.assertEqual(AP10K_KEYPOINTS[4], "root_of_tail")
         self.assertNotEqual(COCO17_KEYPOINTS[4], AP10K_KEYPOINTS[4])
@@ -86,6 +109,27 @@ class CoordinateTests(unittest.TestCase):
         self.assertAlmostEqual(back[0], pixel[0], places=4)
         self.assertAlmostEqual(back[1], pixel[1], places=4)
 
+    def test_synthetic_box_fractions_round_trip(self):
+        box = (10.0, 20.0, 100.0, 50.0)
+        self.assertEqual(normalize_to_box(10.0, 20.0, box), (0.0, 0.0))
+        self.assertEqual(normalize_to_box(110.0, 70.0, box), (1.0, 1.0))
+        self.assertEqual(denormalize_from_box(0.25, 0.5, box), (35.0, 45.0))
+
+    def test_a_low_score_coordinate_stays_null(self):
+        raw = np.zeros((17, 2), dtype=np.float32)
+        raw[0] = (10.0, 20.0)
+        raw[4] = (30.0, 40.0)
+        scores = np.full((17,), 0.9, dtype=np.float32)
+        scores[4] = KEYPOINT_MIN_SCORE - 0.01
+        parsed = _first_pose([{"keypoints": raw, "scores": scores}])
+        self.assertIsNotNone(parsed)
+        self.assertAlmostEqual(float(parsed[0, 0]), 10.0)
+        self.assertAlmostEqual(float(parsed[0, 1]), 20.0)
+        self.assertTrue(np.isnan(parsed[4, 0]))
+        self.assertTrue(np.isnan(parsed[4, 1]))
+        self.assertAlmostEqual(float(parsed[4, 2]), float(scores[4]))
+        self.assertNotEqual(float(parsed[4, 0]), 0.0)
+
 
 class SubjectTests(unittest.TestCase):
     def test_a_person_box_is_not_returned_as_the_dog(self):
@@ -104,6 +148,19 @@ class SubjectTests(unittest.TestCase):
         self.assertEqual(dog_count, 1)
         self.assertEqual(len(dogs), 1)
         self.assertAlmostEqual(dogs[0][0], 100.0)
+
+    def test_a_person_box_alone_is_not_a_dog(self):
+        dogs, dog_count, saw_person = dog_boxes_from_detections(
+            [0],
+            [0.99],
+            np.array([[0, 0, 40, 200]], dtype=np.float32),
+            dog_id=16,
+            person_id=0,
+            threshold=0.3,
+        )
+        self.assertEqual(dogs, [])
+        self.assertEqual(dog_count, 0)
+        self.assertTrue(saw_person)
 
 
 if __name__ == "__main__":

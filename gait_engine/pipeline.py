@@ -95,7 +95,11 @@ def ai_use_ids(pipeline: str) -> list[str]:
 
 
 def _pose_sample(keypoints, boxes) -> list[dict[str, float | str]] | None:
-    """One frame of AP-10K points, normalized to that frame's dog box."""
+    """One frame of checkpoint joints, normalized to that frame's dog box.
+
+    Names come from ``MODEL_OUTPUT_KEYPOINTS``. For this checkpoint those
+    names are COCO-17, not AP-10K.
+    """
 
     from .pose_backend import KEYPOINT_MIN_SCORE, MODEL_OUTPUT_KEYPOINTS
 

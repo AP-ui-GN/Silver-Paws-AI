@@ -1,4 +1,4 @@
-"""Dog detection and AP-10K pose.
+"""Dog detection and the checkpoint's COCO-17 pose head.
 
 The detector is RT-DETR (``PekingU/rtdetr_r50vd_coco_o365``, Apache-2.0).
 The pose model is ViTPose++ (``usyd-community/vitpose-plus-base``). The
@@ -348,7 +348,11 @@ def _empty_keypoints(count: int) -> np.ndarray:
 
 
 class VitPoseAp10kBackend(PoseBackend):
-    """Top-down AP-10K pose. Models load once per process."""
+    """Top-down pose from the COCO-17 head. Models load once per process.
+
+    Dataset index 3 selects a backbone expert. It does not switch this
+    checkpoint to an AP-10K keypoint head.
+    """
 
     def __init__(self) -> None:
         self._loaded = False

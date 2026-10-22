@@ -18,7 +18,7 @@ What those cover:
 - API tests, including multipart parsing, explanation validation, phone walk
   helpers, and the AI-use registry (37 passed / 0 failed on October 22, 2026)
 - Motion statistics, gait metrics, keypoint-schema checks, confidence gating,
-  and clip-quality notes (70 passed / 0 failed on October 22, 2026)
+  and clip-quality notes (73 passed / 0 failed on October 22, 2026)
 - Uploaded clips are deleted after `POST /api/analyze`, including when the
   file is rejected (`tests/upload-cleanup.test.ts`)
 - Pet-form validation and trend grouping, from the web package:
