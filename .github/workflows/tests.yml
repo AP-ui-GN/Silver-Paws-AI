@@ -61,6 +61,7 @@ jobs:
         run: |
           pnpm --filter @workspace/api-spec run codegen
           git diff --exit-code -- lib/api-zod/src/generated lib/api-client-react/src/generated
+          test -z "$(git ls-files --others --exclude-standard -- lib/api-zod/src/generated lib/api-client-react/src/generated)"
 
       - name: Run API tests
         run: pnpm --filter @workspace/api-server run test
