@@ -15,7 +15,7 @@ export const SIGNAL_LABELS: Record<string, string> = {
 };
 
 export const PIPELINE_LABELS: Record<string, string> = {
-  'dog-pose': 'COCO-17 output (canine interpretation unvalidated)',
+  'dog-pose': 'QuadPose F2 (AP-10K; gait estimates experimental)',
   movenet: 'Pose landmarks (MoveNet)',
   'opencv-motion': 'Picture motion only',
 };
