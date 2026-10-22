@@ -65,6 +65,30 @@ function readParameter(headerValue: string, parameter: string): string {
   return (match?.[1] ?? match?.[2] ?? "").trim();
 }
 
+
+/**
+ * Find a MIME boundary only when it occupies a boundary line. The token can
+ * legitimately occur as arbitrary bytes inside a video, so a raw indexOf hit
+ * is not enough to separate parts.
+ */
+function findBoundaryLine(body: Buffer, delimiter: Buffer, start: number): number {
+  let candidate = body.indexOf(delimiter, start);
+  while (candidate !== -1) {
+    const atLineStart =
+      candidate === 0 ||
+      (candidate >= 2 &&
+        body[candidate - 2] === 0x0d &&
+        body[candidate - 1] === 0x0a);
+    const suffixAt = candidate + delimiter.length;
+    const hasValidSuffix =
+      (body[suffixAt] === 0x0d && body[suffixAt + 1] === 0x0a) ||
+      (body[suffixAt] === 0x2d && body[suffixAt + 1] === 0x2d);
+    if (atLineStart && hasValidSuffix) return candidate;
+    candidate = body.indexOf(delimiter, candidate + 1);
+  }
+  return -1;
+}
+
 /**
  * Split a multipart body into its fields and files.
  *
@@ -75,7 +99,7 @@ export function parseMultipart(body: Buffer, boundary: string): MultipartForm {
   const fields: Record<string, string> = {};
   const files: MultipartFile[] = [];
 
-  let cursor = body.indexOf(delimiter);
+  let cursor = findBoundaryLine(body, delimiter, 0);
   if (cursor === -1) {
     throw new MultipartError("The upload did not contain a multipart boundary.");
   }
@@ -92,7 +116,7 @@ export function parseMultipart(body: Buffer, boundary: string): MultipartForm {
       partStart += 2;
     }
 
-    const nextDelimiter = body.indexOf(delimiter, partStart);
+    const nextDelimiter = findBoundaryLine(body, delimiter, partStart);
     if (nextDelimiter === -1) {
       throw new MultipartError("The upload ended before its closing boundary.");
     }
