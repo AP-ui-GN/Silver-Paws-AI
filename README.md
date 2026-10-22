@@ -160,6 +160,7 @@ Optional environment variables:
 | `SILVERPAWS_PYTHON` | API | project `.venv` if present | Python used to run the pipeline |
 | `SILVERPAWS_REPO_ROOT` | API | inferred | Repo root so the CLI can be found |
 | `MAX_UPLOAD_MB` | API | `60` | Upload size cap |
+| `ALLOWED_ORIGINS` | API | localhost Vite origins outside production; empty in production | Comma-separated exact browser origins for the deployed web app |
 | `ANALYSIS_TIMEOUT_MS` | API | `600000` | Stop the pipeline after this many milliseconds. Motion saved before pose is returned if pose is still running |
 | `ANALYZE_MAX_CONCURRENT` | API | `2` | Pipelines running at once. Extra uploads are refused before the body is read |
 | `TRUST_PROXY` | API | unset | Set to `1` only behind a proxy that sets `X-Forwarded-Proto` |
@@ -168,6 +169,10 @@ Optional environment variables:
 | `SILVERPAWS_LLM_MODEL` | API | unset | Model name. Required, with the URL, before a rewrite is attempted |
 
 No API keys are required for the app to analyze a clip.
+
+For local CORS defaults and production browser-origin configuration, see
+`.env.example` and `docs/HOSTING.md`. In production, set `ALLOWED_ORIGINS`
+to the exact HTTPS origin(s) of the web app. CORS is not authentication.
 
 ## How teammates can contribute
 
