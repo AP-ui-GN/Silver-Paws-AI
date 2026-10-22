@@ -41,7 +41,7 @@ export const analyzeMovementClipResponseMeasurementsPoseSampleItemConfidenceMax 
 
 export const AnalyzeMovementClipResponse = zod.object({
   "ok": zod.boolean(),
-  "pipeline": zod.enum(['dog-pose', 'movenet', 'opencv-motion']).describe('dog-pose when the dog detector and ViTPose++ COCO-17 output path ran. The checkpoint's human COCO joint names are not validated canine anatomical landmarks; stride length and left/right gait symmetry remain unmeasured. opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.'),
+  "pipeline": zod.enum(['dog-pose', 'movenet', 'opencv-motion']).describe('dog-pose when the dog detector and ViTPose++ COCO-17 output path ran. The checkpoint\'s human COCO joint names are not validated canine anatomical landmarks; stride length and left/right gait symmetry remain unmeasured. opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.'),
   "signalQuality": zod.enum(['good', 'limited', 'unusable']).describe('How much the measurements from this clip can be trusted.'),
   "signalNote": zod.string().describe('Plain-language reason for signalQuality, safe to display.'),
   "measurements": zod.object({
