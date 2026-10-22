@@ -8,9 +8,9 @@ Two pipelines are supported and the best available one is chosen per clip:
 * ``dog-pose``      RT-DETR tracking boxes and QuadPose F2 AP-10K animal
                     landmarks. Derived gait metrics remain experimental until
                     tested against a labeled dog-walking dataset.
-* ``opencv-motion`` frame-to-frame picture change only. Used whenever torch,
-                    transformers, or the weights are unavailable, or when pose
-                    throws. The request still returns a result.
+* ``opencv-motion`` frame-to-frame picture change only. Used whenever the
+                    detector/pose dependencies or cached weights are unavailable,
+                    or pose inference fails. The request still returns a result.
 
 The returned dictionary matches the ``AnalyzeResult`` schema in
 `lib/api-spec/openapi.yaml`, so the API server can validate it before replying.
