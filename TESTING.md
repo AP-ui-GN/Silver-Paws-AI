@@ -157,7 +157,7 @@ clinical validation.
 
 ## What is not tested here
 
-- A hosted image build. Docker was not installed here.
+- A production deployment and memory measurement on the hosting provider. The hosted Docker image build and synthetic API smoke test passed in GitHub Actions on October 22, 2026 (see [container-smoke run](https://github.com/AP-ui-GN/Silver-Paws-AI/actions/runs/39818601906)).
 - Live LLM provider (the request is unit-tested with a mock; no live endpoint was configured)
 - `lib/db` — unused in the beta
 
@@ -188,9 +188,9 @@ Checks that were not run, and are not passed:
 - Demo mode in the browser. Unit tests drop the sample from history and trends helpers. The Demo screen was not opened.
 - A live language-model provider. No endpoint was configured.
 - `node artifacts/silverpaws-beta/tests/report-download.browser.mjs` — needs `CHROMIUM_PATH`.
-- Docker image build. The `docker` command is still not installed.
+- Local Docker CLI is still not installed. The hosted Docker build and synthetic `POST /api/analyze` smoke check now pass in GitHub Actions; this is not a real-dog validation.
 
-Copy scan, not a sign-off of the product task: user-facing strings deny diagnosis and point a concerning change to a veterinarian. The emergency note names pain as a reason to call a clinic, not as something the app detects. The product/research card in `TEAM_TASKS.md` stays open. Abhi's live provider walk-through stays open.
+The static copy review was completed on October 22, 2026 for the pose-output labels, report titles, and safety/disclaimer wording. These labels now describe observational movement information rather than validated clinical measurements. The hosted smoke fixture was synthetic; it does not close the real-dog validation or live language-model provider checks. Abhi's live provider walk-through stays open.
 
 ## Browser checks (October 18, 2026)
 
