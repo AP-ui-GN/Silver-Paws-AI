@@ -1,8 +1,11 @@
 """The loaded pose head is COCO-17. AP-10K names are a different index order."""
 
 import unittest
+from unittest.mock import patch
 
 import numpy as np
+
+from scripts.time_clip import _supports_ap10k_gait, rss_mb
 
 from gait_engine.pose_backend import (
     AP10K_KEYPOINTS,
@@ -46,6 +49,17 @@ SIDE_VIEW_FRAME = np.array(
 
 def _distance(a: int, b: int) -> float:
     return float(np.linalg.norm(SIDE_VIEW_FRAME[a] - SIDE_VIEW_FRAME[b]))
+
+
+class BenchmarkSchemaTests(unittest.TestCase):
+    def test_gait_benchmark_runs_only_for_ap10k_schema(self):
+        self.assertTrue(_supports_ap10k_gait("ap10k"))
+        self.assertFalse(_supports_ap10k_gait("coco-17"))
+        self.assertFalse(_supports_ap10k_gait("unknown"))
+
+    def test_peak_rss_is_optional_on_platforms_without_resource(self):
+        with patch("scripts.time_clip._resource", None):
+            self.assertIsNone(rss_mb())
 
 
 class SchemaTests(unittest.TestCase):
