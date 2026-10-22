@@ -75,7 +75,7 @@ export default function VetReportModal({ analysis, pet, onClose }: VetReportModa
         role="dialog"
       >
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-700 px-5 py-3 print:hidden">
-          <h2 className="text-base font-bold text-white" id="vet-report-title">Vet summary preview</h2>
+          <h2 className="text-base font-bold text-white" id="vet-report-title">Movement report preview</h2>
           <div className="flex items-center gap-2">
             <button className="btn-primary" onClick={() => window.print()} type="button">
               <Printer size={15} /> Print / Export PDF
