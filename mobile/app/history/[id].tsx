@@ -31,6 +31,12 @@ import type { Analysis, Pet } from '../../src/lib/types';
 import { spacing } from '../../src/theme';
 import { useColors } from '../../src/theme-context';
 
+function formatStrideCounts(left: number | null | undefined, right: number | null | undefined) {
+  const values = [left, right].filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  if (!values.length) return 'Not measured';
+  return [...values].sort((a, b) => a - b).join(' and ');
+}
+
 function Measure({ label, value }: { label: string; value: string }) {
   const colors = useColors();
   return (
@@ -357,6 +363,17 @@ export default function WalkDetailScreen() {
                 0,
               )}
             />
+            <Measure label="Front strides" value={formatStrideCounts(measurements.strides?.frontLeft?.strideCount, measurements.strides?.frontRight?.strideCount)} />
+            <Measure label="Rear strides" value={formatStrideCounts(measurements.strides?.rearLeft?.strideCount, measurements.strides?.rearRight?.strideCount)} />
+            <Measure label="Front symmetry" value={formatMeasure(measurements.limbSymmetry?.front)} />
+            <Measure label="Rear symmetry" value={formatMeasure(measurements.limbSymmetry?.rear)} />
+            <Measure label="Front stride length" value={formatMeasure(measurements.strideLengthBodyLengths?.front, ' body lengths')} />
+            <Measure label="Rear stride length" value={formatMeasure(measurements.strideLengthBodyLengths?.rear, ' body lengths')} />
+            <Measure label="Cadence" value={formatMeasure(measurements.cadenceStridesPerMinute, ' / min', 1)} />
+            <Measure label="Stride regularity" value={formatMeasure(measurements.strideTimeCv)} />
+            <Measure label="Head vertical asymmetry" value={formatMeasure(measurements.headBobAsymmetry)} />
+            <Measure label="Pelvis vertical asymmetry" value={formatMeasure(measurements.pelvisAsymmetry)} />
+            <Measure label="Dog in frame" value={formatMeasure(typeof measurements.subject?.dogFramesShare === 'number' ? measurements.subject.dogFramesShare * 100 : undefined, '%', 0)} />
             <Measure label="Stride symmetry" value={formatMeasure(measurements.strideSymmetry)} />
             <Measure label="Asymmetry" value={formatMeasure(measurements.asymmetryPercent, '%', 1)} />
             <Measure label="Hip stability" value={formatMeasure(measurements.hipStability)} />
@@ -366,6 +383,9 @@ export default function WalkDetailScreen() {
             <Measure label="Confident frames" value={formatPoseFrames(analysis.framesUsed, analysis.framesTotal)} />
             <Measure label="Symmetry reliable" value={typeof measurements.symmetryReliable === 'boolean' ? (measurements.symmetryReliable ? 'Yes' : 'No') : 'Not measured'} />
           </View>
+          {(measurements.notMeasuredReasons ?? []).map((reason) => (
+            <Muted key={reason}>Not measured: {reason}</Muted>
+          ))}
         </Card>
       )}
 

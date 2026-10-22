@@ -7,7 +7,6 @@ const items = [
   { href: '/', label: 'Overview', icon: Activity },
   { href: '/analyze', label: 'New analysis', icon: Plus },
   { href: '/history', label: 'History', icon: ClipboardList },
-  { href: '/cognitive', label: 'Daily check', icon: ClipboardList },
   { href: '/pet', label: 'Pet profile', icon: UserRound },
   { href: '/ai-use', label: 'AI use', icon: ShieldAlert },
 ];
