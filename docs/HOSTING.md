@@ -51,6 +51,13 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 
 No API key is required for a clip to be measured.
 
+The optional text-rewrite provider is protected by a small in-process circuit
+breaker: after three consecutive transport/provider failures, rewrite calls are
+skipped for 30 seconds and one retry probe is permitted after cooldown. The
+rule-based observation continues to work while the provider is unavailable.
+This is process-local; it is not a shared distributed breaker.
+
+
 ## Browser origins and response headers
 
 The API uses an explicit CORS origin allow-list. In development, the default
