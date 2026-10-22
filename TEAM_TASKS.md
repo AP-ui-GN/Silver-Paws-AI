@@ -1,9 +1,10 @@
 # TEAM TASKS
 
 Sudarshan, Kavin, and the explanation-request part of Abhi's card were finished
-on October 18, 2026. The markers in those files were removed. The copy review
-below is still open, and Abhi's live provider walk-through has not been run.
-Optional follow-ups stay in `docs/PROJECT_STATUS.md`.
+on October 18, 2026. The markers in those files were removed. The static
+observational copy review was completed on October 22, 2026. Abhi's live
+provider walk-through remains open because no provider credentials are
+configured. Optional follow-ups stay in `docs/PROJECT_STATUS.md`.
 
 The markers in the listed files look like:
 
@@ -123,6 +124,11 @@ COMPLETION CRITERIA:
 # ==================================================
 
 TEAM MEMBER: All three
+STATUS: Static copy review completed October 22, 2026. Pose labels and report
+headings describe observational movement information; the model output schema
+and remaining limitations are stated explicitly. The live pose model was not
+validated on labeled dog clips, and the live language-model provider remains
+unconfigured.
 TASK: Review user-facing copy and disclaimers
 FILE / MODULE: `artifacts/silverpaws-beta/src/lib/disclaimers.ts`, observation text, report PDF
 WHAT TO IMPLEMENT:
