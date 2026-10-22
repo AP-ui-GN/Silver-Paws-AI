@@ -6,7 +6,8 @@
 #
 # Versions were read from PyPI and download.pytorch.org on October 21, 2026.
 # transformers 5.20.2 documents VitPoseForPoseEstimation and dataset_index
-# 3 = AP-10K, 4 = APT-36K.
+# 3 selects an AP-10K backbone expert, but this checkpoint's output head remains
+# 17-channel COCO-17. Dataset index selection does not change the keypoint head.
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.14.1+cpu
 torchvision==0.29.1+cpu
