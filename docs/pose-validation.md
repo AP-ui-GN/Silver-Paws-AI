@@ -1,37 +1,71 @@
-# Pose check
+# Canine pose validation status
 
-This is a visual check of the dog detector and the pose head. It is not a
-clinical validation.
+This document separates **model installation and output-schema checks** from
+**real-world canine validation**.
+
+## Current supported pose path
+
+RT-DETR detects dog bounding boxes and the SilverPaws temporal tracker keeps a
+selected dog identity across sampled frames. QuadPose F2 estimates 17 AP-10K-
+order animal landmarks inside the tracked dog box. The canonical order and
+pixel-coordinate conversion are in `gait_engine/pose_backend.py` and
+`gait_engine/quadpose.py`.
+
+Install and inspect model assets explicitly:
 
 ```bash
-python scripts/check_pose_backend.py path/to/dog-walk.mp4 --out outputs/pose-check/
+python -m pip install -r requirements.txt
+python scripts/cache_models.py
+python scripts/check_setup.py
 ```
 
-The script writes eight frames. Each point is labeled with the checkpoint
-name and its confidence. A point under the score cutoff is an open circle
-and is not connected. The current head is COCO-17. Channel 4 is the right
-ear. The base of the tail is not in the output, so the script does not
-score a nose-to-tail distance.
+The setup checker never downloads weights. The cache script downloads the
+pinned RT-DETR detector and the pinned QuadPose F2 ONNX checkpoint; the latter
+must match the documented SHA-256. The Docker build performs the same setup.
+Inference rejects missing or mismatched QuadPose weights rather than silently
+downloading them during an upload.
 
-On the side-view clip used here, the review script reported the right ear
-91.0 px from the nose and 352.6 px from the left hip. That is why an AP-10K
-label on channel 4 drew `root_of_tail` on the head.
+## What is verified by automation
 
-What matches the body on the drawn frames: the dog box, the nose on the
-snout, the eyes and ears on the head, the shoulders on the withers, and the
-leg joints on the legs, with the ankles below the hips. A person at the
-left edge is not the selected box.
+- Keypoint schema, count, and index order are checked by unit tests.
+- The adapter's normalized `(y, x, score)` to source-frame pixel
+  `(x, y, score)` conversion is tested with deterministic synthetic heatmaps.
+- The model cache path and SHA-256 verification are unit-tested.
+- GitHub Actions builds the Docker image and runs the model on a blank frame,
+  asserting that a finite 17×3 output is returned.
+- The API is exercised with a synthetic moving-shape video to check its
+  container and response contract.
 
-What does not match a dog skeleton: there is no neck and no base of the
-tail, so the tail has no point. Left and right stay close together on this
-side view (median eyes 11.1 px apart, ears 5.4 px apart). Some rear-leg
-links cross. `left_knee` on the first frame scored 0.38. Renaming channels
-to satisfy a nose-farther-than-eyes rule would put the wrong name on a
-coordinate the checkpoint already labeled.
+These checks validate packaging, interface behavior, and output shape. They
+do **not** establish keypoint accuracy on real dogs or validate gait metrics.
 
-Do not commit the video or the images. `outputs/` and `validation_clips/`
-are gitignored.
+## What is not validated yet
 
-Labeled clips, when you have them, go in `validation_clips/` with
-`validation_clips/labels.csv`. Columns: `file,label,source,license,notes`.
-`label` is `normal`, `mild`, or `significant`. See `TESTING.md`.
+No labeled set of pet-dog walking videos has been used to measure SilverPaws'
+end-to-end pose or gait performance. The upstream model's reported AP-10K
+benchmark uses the upstream evaluation protocol and must not be presented as
+SilverPaws accuracy. Gait formulas and cutoffs remain experimental. There are
+no supported claims of sensitivity, specificity, pain detection, injury
+detection, or clinical usefulness.
+
+Side-view footage can hide far-side limbs, and camera movement can change the
+apparent motion independently of the dog. Physical distance is not estimated
+from pixels without calibration. Unsupported or low-quality measurements must
+remain unavailable rather than being replaced with zero.
+
+## Repeatable evaluation procedure
+
+When a suitably licensed, representative set becomes available:
+
+1. Place clips in the gitignored `validation_clips/` directory.
+2. Keep labels in `validation_clips/labels.csv` with columns
+   `file,label,source,license,notes`.
+3. Record the clip source, license, viewpoint, resolution, and known exclusions.
+4. Compare predictions against documented ground truth, not confidence alone.
+5. Report the number of clips, failure rate, track switches, measurement
+   availability, and appropriate error metrics.
+6. Keep upstream model benchmark numbers separate from SilverPaws end-to-end
+   results.
+
+Do not commit private videos or label files unless distribution rights and
+privacy review allow it.
