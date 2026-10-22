@@ -23,13 +23,32 @@ export function positiveInteger(
   return Math.floor(parsed);
 }
 
-export function analyzeRateLimitPerMinute(): number {
-  return positiveInteger(process.env["ANALYZE_RATE_LIMIT_PER_MINUTE"], 10, 1);
+/** Parse bounded integer configuration to avoid NaN, overflow, and accidental resource-exhaustion settings. */
+export function boundedPositiveInteger(
+  value: string | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  if (value === undefined || value.trim() === "") return fallback;
+  const parsed = Number(value);
+  if (
+    !Number.isSafeInteger(parsed) ||
+    parsed < minimum ||
+    parsed > maximum
+  ) {
+    return fallback;
+  }
+  return parsed;
 }
 
-/** How many pipelines may run at once. Extra requests are refused before the upload is read. */
+export function analyzeRateLimitPerMinute(): number {
+  return boundedPositiveInteger(process.env["ANALYZE_RATE_LIMIT_PER_MINUTE"], 10, 1, 1_000);
+}
+
+/** One CPU pose process can use about 1.6 GB; default to one concurrent analysis. */
 export function analyzeMaxConcurrent(): number {
-  return positiveInteger(process.env["ANALYZE_MAX_CONCURRENT"], 2, 1);
+  return boundedPositiveInteger(process.env["ANALYZE_MAX_CONCURRENT"], 1, 1, 4);
 }
 
 /**
