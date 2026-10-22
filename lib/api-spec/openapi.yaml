@@ -112,6 +112,7 @@ components:
           type: string
           description: Stable machine-readable error code; optional for compatibility with older clients.
           enum:
+            - HTTPS_REQUIRED
             - INVALID_MULTIPART
             - VIDEO_REQUIRED
             - UNSUPPORTED_VIDEO
