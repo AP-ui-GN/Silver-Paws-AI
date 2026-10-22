@@ -5,7 +5,9 @@
 
 Two pipelines are supported and the best available one is chosen per clip:
 
-* ``dog-pose``      RT-DETR dog boxes and ViTPose++ AP-10K keypoints.
+* ``dog-pose``      RT-DETR dog boxes and ViTPose++ COCO-17 output. The
+                    checkpoint has no AP-10K canine keypoint head, so metrics
+                    that require that schema remain unavailable.
 * ``opencv-motion`` frame-to-frame picture change only. Used whenever torch,
                     transformers, or the weights are unavailable, or when pose
                     throws. The request still returns a result.
@@ -64,7 +66,7 @@ def _model_info(pipeline: str, pose: dict | None) -> dict[str, str]:
             detector = f"{detector}@{pose['detector_revision']}"
         return {
             "pipeline": "dog-pose",
-            "modelName": f"RT-DETR ({detector}) + ViTPose++ AP-10K ({version})",
+            "modelName": f"RT-DETR ({detector}) + ViTPose++ COCO-17 output ({version}); canine pose unvalidated",
             "modelVersion": version,
             "runsOn": "server",
         }
