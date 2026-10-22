@@ -62,7 +62,7 @@ export function walkReportHtml(analysis: Analysis, pets: Pet[]): string {
 </head>
 <body>
   ${sample ? `<p class="banner"><strong>Sample data — not your pet.</strong> These figures were not measured from a clip.</p>` : ''}
-  <h1>PETLENS AI — Clinical Gait Telemetry Summary</h1>
+  <h1>PETLENS AI — Movement Observation Report</h1>
   <p class="muted">${escapeHtml(name)} · ${escapeHtml(formatDateTime(analysis.createdAt))}</p>
   ${concerning}
   <h2>Raw measurements</h2>
@@ -130,7 +130,7 @@ export function vetSummaryHtml(walks: Analysis[], pets: Pet[]): string {
 </style>
 </head>
 <body>
-  <h1>PETLENS AI — Clinical Gait Telemetry Summary</h1>
+  <h1>PETLENS AI — Saved Walk Summary</h1>
   <p class="muted">Recent saved walks. Walks measured in different ways are listed separately and are not averaged together. This is not a diagnosis.</p>
   ${empty}
   ${sections}
