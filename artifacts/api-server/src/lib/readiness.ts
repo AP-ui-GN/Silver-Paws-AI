@@ -105,16 +105,19 @@ async function inspectReadiness(): Promise<ReadinessReport> {
   const warnings: string[] = [];
   const capabilities = ["opencv-motion"];
   if (setup.poseReady) {
-    capabilities.push("coco-17-keypoints");
+    capabilities.push("ap10k-keypoints");
     warnings.push(
-      "The cached pose checkpoint exposes COCO-17 human landmarks; stride length and left/right gait symmetry remain unmeasured.",
+      "QuadPose F2 emits AP-10K-order animal landmarks. Gait formulas and thresholds are experimental and have not been validated on a labeled set of dog-walking clips.",
+    );
+    warnings.push(
+      "Heatmap peak scores are not calibrated probabilities; available movement values are observational estimates, not a diagnosis.",
     );
   } else {
     warnings.push(
       "Optional pose dependencies or cached weights are unavailable; only OpenCV picture-motion analysis is available.",
     );
     warnings.push(
-      "Stride length and left/right gait symmetry remain unmeasured with the current checkpoint.",
+      "Stride metrics are unavailable until the verified QuadPose F2 checkpoint and detector dependencies are installed.",
     );
   }
 

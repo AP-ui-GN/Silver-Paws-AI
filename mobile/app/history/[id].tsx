@@ -151,10 +151,10 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   const byName = new Map(points.map((point) => [point.name, point]));
   const cocoNamed = points.some((point) => point.name === 'right_ear' || point.name === 'left_wrist');
   const connections = cocoNamed ? COCO_EDGES : POSE_CONNECTIONS;
-  const title = analysis.pipeline === 'dog-pose' ? 'COCO joint summary' : analysis.pipeline === 'movenet' ? 'MoveNet landmark summary' : 'Saved landmark summary';
+  const title = analysis.pipeline === 'dog-pose' ? 'AP-10K landmark summary' : analysis.pipeline === 'movenet' ? 'Legacy pose landmark summary' : 'Saved landmark summary';
   const caption = analysis.pipeline === 'dog-pose'
-    ? 'Mean positions from confident frames. These names are COCO joints. The base of the tail is not in this head. This is not a diagnosis.'
-    : 'Mean normalized landmark positions from confident pose frames—not a diagnosis or a clinical measurement.';
+    ? 'Mean positions from confident frames. QuadPose F2 estimates AP-10K-order animal landmarks inside a detected dog box. Gait formulas and thresholds are experimental and have not been validated on a labeled set of dog-walking clips.'
+    : 'Mean normalized AP-10K landmark estimates from confident frames; derived gait values are experimental and not a diagnosis.';
   return (
     <Card>
       <Eyebrow>Computer vision activity</Eyebrow>

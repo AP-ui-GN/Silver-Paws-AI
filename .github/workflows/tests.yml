@@ -57,6 +57,11 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Regenerate API clients and verify committed output
+        run: |
+          pnpm --filter @workspace/api-spec run codegen
+          git diff --exit-code -- lib/api-zod/src/generated lib/api-client-react/src/generated
+
       - name: Run API tests
         run: pnpm --filter @workspace/api-server run test
 
@@ -82,6 +87,9 @@ jobs:
 
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify generated AI-use registry copies
+        run: node scripts/sync-ai-use.mjs --check
 
       - name: Run web tests
         run: pnpm --filter @workspace/silverpaws-beta run test

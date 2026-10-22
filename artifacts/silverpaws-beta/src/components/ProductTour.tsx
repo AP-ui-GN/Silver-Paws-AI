@@ -23,17 +23,17 @@ const TOUR_STEPS = [
   {
     targetId: 'movenet-card',
     title: 'Pose keypoints',
-    description: 'The pose head marks the joints it outputs. This checkpoint uses 17 COCO joint names. The base of the tail is not one of them.',
+    description: 'QuadPose F2 estimates 17 AP-10K-order animal landmarks. Derived gait measures remain experimental until evaluated against labeled dog-walking clips.',
   },
   {
     targetId: 'factor-scores',
     title: 'Gait scores',
-    description: 'Multi-factor telemetry evaluates stride symmetry, hip steadiness, and consistency.',
+    description: 'Scores summarize available movement observations. Pose-dependent factors are only shown when the clip supports them.'
   },
   {
     targetId: 'vet-summary-export',
     title: 'Vet PDF & care',
-    description: 'Export a clinical summary for your vet or find physical therapy specialists nearby.',
+    description: 'Export a movement-observation report to discuss with your veterinarian. It is not a diagnosis.'
   },
 ];
 

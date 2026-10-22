@@ -16,10 +16,12 @@ over time and, if needed, take to a veterinarian.
 
 - Pet profile (name, species, breed, age, weight, notes) stored in this browser
 - Walking-clip upload with file, size, and duration checks
-- Computer vision pipeline: frame-to-frame picture motion on every clip, and
-  a dog box plus 17 COCO joints when torch and the weights are installed
-- Measurements kept separate from interpretation. This pose head does not
-  measure stride length, because it has no neck and no base of the tail
+- Computer vision pipeline: frame-to-frame picture motion on every clip, plus
+  RT-DETR dog detection/tracking and QuadPose F2's 17 AP-10K-order animal
+  landmarks when the full dependencies and checksum-verified weights are installed
+- Measurements kept separate from interpretation. Gait calculations and
+  thresholds are experimental and have not been validated on a labeled set of
+  pet-dog walking clips; unavailable values remain “Not measured”
 - Transparent factor scores (consistency, symmetry, mobility, activity, and
   change from the previous walk) blended into an overall 0–100 indicator
 - Rule-based observation text that only quotes measured values
@@ -55,10 +57,13 @@ The wording for each step lives in `lib/ai-use/registry.json` and is copied
 into the web app by `node scripts/sync-ai-use.mjs`. The generated page is
 `docs/AI_USE.md`. Pose limits are in `docs/MODEL_CARD.md`.
 
-- **RT-DETR** finds the dog. **ViTPose++** estimates 17 animal keypoints on
-  the analysis server when torch and the weights are installed. How accurate
-  that is on pet dogs is still unproven. Low confidence is reported as
-  “not measured”, not as a perfect score.
+- **RT-DETR** detects dogs and the tracking layer preserves the selected
+  target. **QuadPose F2** returns 17 AP-10K-order animal landmarks inside that
+  tracked box. Its checkpoint is pinned and checksum-verified during setup.
+  The application's gait formulas and cutoffs are experimental and have not
+  been validated on a labeled set of pet-dog walking clips. Heatmap peak scores
+  are not calibrated probabilities; unsupported or low-confidence values remain
+  “Not measured.”
 - **OpenCV frame difference** runs on every clip. It is not a learned model.
   When pose is missing, it is the only movement measurement. When pose runs,
   it still supplies movement consistency and activity. Results from different
@@ -79,8 +84,10 @@ into the web app by `node scripts/sync-ai-use.mjs`. The generated page is
 - Does not replace a veterinarian
 - Not for emergencies
 - One camera angle of one short clip is not a full picture of a pet
-- The pose checkpoint is not validated on a labeled set of pet dogs. Its only
-  keypoint head is 17 COCO joints. See `docs/MODEL_CARD.md`
+- The integrated QuadPose F2/AP-10K pipeline has not been validated on a
+  labeled set of pet-dog walking clips. Upstream model benchmarks are not
+  SilverPaws end-to-end accuracy claims. See `docs/MODEL_CARD.md` and
+  `docs/GAIT_METRICS.md`
 - Beta data stays in this browser (`localStorage`), not a shared database
 
 ## How to run
@@ -98,8 +105,8 @@ pip install -r requirements-opencv.txt
 `requirements-opencv.txt` pins OpenCV and NumPy for Python 3.10–3.12. That
 path measures picture motion only and labels the result `opencv-motion`.
 
-For dog pose, install the CPU torch stack (Python 3.10–3.12) and warm the
-weight cache so the first request does not download it:
+For the full dog-pose pipeline, install the CPU detector stack plus ONNX
+Runtime (Python 3.10–3.12), then explicitly cache both model assets:
 
 ```bash
 pip install -r requirements.txt
@@ -116,8 +123,8 @@ python scripts/analyze_clip.py path/to/walk.mp4 --no-pose
 python scripts/check_pose_backend.py path/to/walk.mp4 --out outputs/pose-check/
 ```
 
-`--no-pose` keeps the OpenCV motion result. The pose-review images use the
-checkpoint's COCO names. Do not commit the clip or `outputs/`.
+`--no-pose` keeps the OpenCV motion result. Pose-review output uses the
+QuadPose F2 AP-10K landmark order. Do not commit the clip or `outputs/`.
 
 Tests:
 
@@ -144,8 +151,10 @@ pnpm --filter @workspace/silverpaws-beta run dev
 
 Open http://127.0.0.1:4173
 
-To run the API in Docker, see `docs/HOSTING.md`. The image was not built in
-this repository checkout.
+To run the API in Docker, see `docs/HOSTING.md`. GitHub Actions now builds
+the image and smoke-tests readiness plus `POST /api/analyze` with a synthetic
+motion clip. This verifies container packaging and API integration, not canine
+pose accuracy or production-host memory use.
 
 ### On a phone on the same Wi-Fi
 
@@ -162,6 +171,8 @@ Optional environment variables:
 | `BASE_PATH` | Vite | `/` | Public path prefix |
 | `API_PROXY_TARGET` | Vite | `http://127.0.0.1:8080` | Dev proxy for `/api` |
 | `SILVERPAWS_PYTHON` | API | project `.venv` if present | Python used to run the pipeline |
+| `HF_HOME` | API / Python | `models/hf` by default | RT-DETR detector cache |
+| `SILVERPAWS_QUADPOSE_CACHE` | Python | `models/quadpose/quadpose_f2.onnx` | Optional override for the checksum-verified QuadPose checkpoint |
 | `SILVERPAWS_REPO_ROOT` | API | inferred | Repo root so the CLI can be found |
 | `MAX_UPLOAD_MB` | API | `60` | Upload size cap |
 | `ALLOWED_ORIGINS` | API | localhost Vite origins outside production; empty in production | Comma-separated exact browser origins for the deployed web app |

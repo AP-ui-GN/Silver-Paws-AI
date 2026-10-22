@@ -5,10 +5,12 @@
 
 Two pipelines are supported and the best available one is chosen per clip:
 
-* ``dog-pose``      RT-DETR dog boxes and ViTPose++ AP-10K keypoints.
-* ``opencv-motion`` frame-to-frame picture change only. Used whenever torch,
-                    transformers, or the weights are unavailable, or when pose
-                    throws. The request still returns a result.
+* ``dog-pose``      RT-DETR tracking boxes and QuadPose F2 AP-10K animal
+                    landmarks. Derived gait metrics remain experimental until
+                    tested against a labeled dog-walking dataset.
+* ``opencv-motion`` frame-to-frame picture change only. Used whenever the
+                    detector/pose dependencies or cached weights are unavailable,
+                    or pose inference fails. The request still returns a result.
 
 The returned dictionary matches the ``AnalyzeResult`` schema in
 `lib/api-spec/openapi.yaml`, so the API server can validate it before replying.
@@ -56,16 +58,15 @@ def _model_info(pipeline: str, pose: dict | None) -> dict[str, str]:
     """Describe the model that produced this result. Inference stays on the server."""
 
     if pipeline == "dog-pose" and pose is not None:
-        version = pose["pose_id"]
-        if pose.get("pose_revision"):
-            version = f"{version}@{pose['pose_revision']}"
+        pose_name = pose["pose_id"]
+        pose_revision = pose.get("pose_revision") or "revision unavailable"
         detector = pose["detector_id"]
         if pose.get("detector_revision"):
             detector = f"{detector}@{pose['detector_revision']}"
         return {
             "pipeline": "dog-pose",
-            "modelName": f"RT-DETR ({detector}) + ViTPose++ AP-10K ({version})",
-            "modelVersion": version,
+            "modelName": f"RT-DETR ({detector}) + {pose_name} AP-10K ({pose_revision}); gait estimates experimental",
+            "modelVersion": str(pose_revision),
             "runsOn": "server",
         }
 
@@ -96,10 +97,11 @@ def ai_use_ids(pipeline: str) -> list[str]:
 
 
 def _pose_sample(keypoints, boxes) -> list[dict[str, float | str]] | None:
-    """One frame of checkpoint joints, normalized to that frame's dog box.
+    """One frame of checkpoint joints normalized to that frame's dog box.
 
-    Names come from ``MODEL_OUTPUT_KEYPOINTS``. For this checkpoint those
-    names are COCO-17, not AP-10K.
+    Names come from ``MODEL_OUTPUT_KEYPOINTS``, currently QuadPose F2 AP-10K
+    output order. Only the reported landmark estimates are returned; the raw
+    video is not included in the API response.
     """
 
     from .pose_backend import KEYPOINT_MIN_SCORE, MODEL_OUTPUT_KEYPOINTS

@@ -13,7 +13,7 @@ from gait_engine.confidence import (
     summarize_keypoints,
     summarize_pose_coordinates,
 )
-from gait_engine.pipeline import MIN_POSE_CONFIDENCE, ai_use_ids, analyze_clip
+from gait_engine.pipeline import MIN_POSE_CONFIDENCE, _model_info, ai_use_ids, analyze_clip
 
 
 def keypoints(frames, confidence):
@@ -187,6 +187,24 @@ class OpenCvResultTests(unittest.TestCase):
         self.assertNotIn("pose-model", result["aiUse"])
         self.assertNotIn("llm-rewrite", result["aiUse"])
         self.assertNotIn("development", result["aiUse"])
+
+
+class ModelInfoTests(unittest.TestCase):
+    def test_quadpose_model_identity_is_reported_with_experimental_gait_caveat(self):
+        info = _model_info(
+            "dog-pose",
+            {
+                "pose_id": "QuadPose F2",
+                "pose_revision": "52f0329b5c9af513",
+                "detector_id": "PekingU/rtdetr_r50vd_coco_o365",
+                "detector_revision": None,
+            },
+        )
+
+        self.assertIn("QuadPose F2", info["modelName"])
+        self.assertIn("AP-10K", info["modelName"])
+        self.assertIn("gait estimates experimental", info["modelName"])
+        self.assertNotIn("COCO-17", info["modelName"])
 
 
 class AiUseIdTests(unittest.TestCase):

@@ -373,14 +373,16 @@ def build_limitations(pipeline: str, signal_quality: str) -> str:
         )
     elif pipeline == "dog-pose":
         parts.append(
-            "Pose landmarks come from an animal keypoint model. How well it finds "
-            "pet dogs has not been validated on a labeled set here, so limb "
-            "detections can be unreliable."
+            "QuadPose F2 provides AP-10K-order animal landmark estimates. The "
+            "application's gait formulas and thresholds have not been validated "
+            "on a labeled set of pet-dog walking clips. Treat available values "
+            "as experimental observations, not a diagnosis; missing values "
+            "remain not measured."
         )
     else:
         parts.append(
-            "Pose landmarks come from a model trained on human bodies, so limb detections "
-            "on pets can be unreliable."
+            "This saved observation uses a legacy pose pipeline. Its landmark and metric "
+            "semantics are not guaranteed to match the current AP-10K pipeline."
         )
 
     if signal_quality != "good":

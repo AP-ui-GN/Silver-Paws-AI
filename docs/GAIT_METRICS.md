@@ -1,11 +1,15 @@
 # Gait metrics
 
-These are measurements from an AP-10K keypoint array. They are not a diagnosis.
-The current pose checkpoint does not emit that array. Its 17 channels are
-COCO joints, so a real clip leaves these stride numbers unmeasured. The
-formulas below still apply when an AP-10K array is supplied.
+These metrics consume the AP-10K-order keypoint array produced by QuadPose F2.
+They are experimental movement observations, not a diagnosis. The formula
+cutoffs below are placeholders and have not been validated against a labeled
+set of pet-dog walking clips. The upstream model's AP-10K benchmark uses its own
+evaluation setup and is not an end-to-end SilverPaws gait-accuracy result.
+
 A missing value is null. The screen says "Not measured". It is never shown as 0
-or as 1.0.
+or as 1.0. Physical distance is not inferred from pixels: lengths are relative
+to the estimated neck-to-tail-root body vector and are reported in body-length
+units only when the required landmarks and quality checks pass.
 
 Image y grows downward. Distances that are divided by body length are in body
 lengths. Times are seconds.

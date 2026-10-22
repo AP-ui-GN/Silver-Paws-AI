@@ -54,6 +54,6 @@ export interface AnalysisMeasurements {
   headBobAsymmetry?: number | null;
   pelvisAsymmetry?: number | null;
   notMeasuredReasons?: string[];
-  /** One sampled frame, 17 AP-10K points normalized to that frame's dog box from 0 to 1. This is not the uploaded video and stores no pixels. */
+  /** One sampled frame, 17 AP-10K animal landmarks normalized to that frame's dog box from 0 to 1. The names follow QuadPose F2's AP-10K output order. Landmark estimates and derived gait metrics are experimental and have not been validated on a labeled dog-walking set. This is not the uploaded video and stores no pixels. */
   poseSample?: PoseKeypointSummary[] | null;
 }

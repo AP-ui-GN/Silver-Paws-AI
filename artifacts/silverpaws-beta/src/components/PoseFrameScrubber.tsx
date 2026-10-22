@@ -162,11 +162,11 @@ export default function PoseFrameScrubber({
     >
       <div>
         <div className="eyebrow">Pose inspection</div>
-        <h2 className="mt-2 font-sans text-xl font-bold leading-snug" id="pose-frame-scrubber-title">MoveNet frame scrubber</h2>
+        <h2 className="mt-2 font-sans text-xl font-bold leading-snug" id="pose-frame-scrubber-title">Video frame preview</h2>
         <p className="body-muted mt-2 text-sm leading-relaxed">
           {points.length > 0
             ? 'The overlay shows confidence-filtered mean landmarks across usable frames. Frame-specific landmarks and clinical joint angles are not included in the saved telemetry.'
-            : 'Scrub the selected video. MoveNet landmarks appear here only when the analysis has saved pose data.'}
+            : 'This is the selected clip preview before analysis. No pose landmarks or movement results have been computed yet.'}
         </p>
       </div>
 

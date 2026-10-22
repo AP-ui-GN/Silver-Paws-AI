@@ -1,11 +1,12 @@
 # SilverPaws AI — Project Status and Team Handoff
 
-Date: September 17, 2026
+Date: September 17, 2026 (historical baseline; current tracker update appended October 22, 2026)
 Prepared for: Abhi, Sudarshan, Kavin
 
-This document records what changed in the productionization pass, the measured
-impact of those changes, and exactly what each teammate still needs to do. It
-pairs with `TEAM_TASKS.md` (short task cards) and `TESTING.md` (how to verify).
+This document preserves the original productionization history. The current
+tracker/backend state and remaining verification are recorded in the dated
+status section below. It pairs with `TEAM_TASKS.md` and `TESTING.md` for
+current task ownership and repeatable checks.
 
 ---
 
@@ -519,10 +520,11 @@ public URL.
 
 ### Docker
 
-The `docker` command is not installed in this environment, so the image was
-**not** built. About 246 GB of disk was free. Available RAM was about 4.6 GB,
-which is tight for a TensorFlow image build even if Docker were present.
-Do not treat the Dockerfile as a finished image.
+At the time of this original local review, the `docker` command was not
+installed, so the image was not built locally. About 246 GB of disk was free
+and available RAM was about 4.6 GB. On October 22, 2026, GitHub Actions later
+built and smoke-tested the current Docker image; see `docs/HOSTING.md`. The
+smoke test does not measure peak production-host memory or validate dog pose.
 
 ### Where this prompt disagreed with the repo
 
@@ -624,7 +626,9 @@ Branch `dog-gait-rebuild`, from `origin/main` at `d9cd426`. Not pushed.
 
 ### What did not run
 
-- Docker. The `docker` command is not installed. The image was not built.
+- Docker was not available in the local environment at that phase. A later
+  GitHub Actions run on October 22, 2026 built and smoke-tested the current
+  image; this historical entry records what had not run at the time.
 - Labeled validation. `validation_clips/` had no clips.
 - A real phone file with rotation metadata. A generated rotate tag stayed at
   0 in OpenCV. Pixel rotation is covered by a unit test only.

@@ -37,17 +37,19 @@ WORKDIR /app
 COPY --from=build /app/artifacts/api-server/dist ./artifacts/api-server/dist
 COPY gait_engine ./gait_engine
 COPY scripts/analyze_clip.py scripts/cache_models.py scripts/check_setup.py ./scripts/
+COPY models/QUADPOSE_NOTICE.md ./models/QUADPOSE_NOTICE.md
 COPY requirements-docker.txt ./
 
 RUN python3 -m venv /opt/venv \
   && /opt/venv/bin/pip install --no-cache-dir -r requirements-docker.txt \
-  && HF_HOME=/app/models/hf /opt/venv/bin/python scripts/cache_models.py
+  && HF_HOME=/app/models/hf SILVERPAWS_QUADPOSE_CACHE=/app/models/quadpose /opt/venv/bin/python scripts/cache_models.py
 
 ENV NODE_ENV=production \
     PORT=8080 \
     SILVERPAWS_PYTHON=/opt/venv/bin/python \
     SILVERPAWS_REPO_ROOT=/app \
     HF_HOME=/app/models/hf \
+    SILVERPAWS_QUADPOSE_CACHE=/app/models/quadpose \
     MAX_UPLOAD_MB=60 \
     ANALYSIS_TIMEOUT_MS=600000 \
     SHUTDOWN_TIMEOUT_MS=15000 \

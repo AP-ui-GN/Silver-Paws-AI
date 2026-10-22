@@ -48,7 +48,7 @@ const readyReport: ReadinessReport = {
   poseModelAvailable: false,
   warnings: [
     "Optional pose dependencies or cached weights are unavailable; only OpenCV picture-motion analysis is available.",
-    "Stride length and left/right gait symmetry remain unmeasured with the current checkpoint.",
+    "Stride metrics are unavailable until the verified QuadPose F2 checkpoint and detector dependencies are installed.",
   ],
 };
 
@@ -82,7 +82,7 @@ test("readiness returns 200 when the OpenCV fallback is available even without p
     assert.equal(body.status, "ready");
     assert.deepEqual(body.capabilities, ["opencv-motion"]);
     assert.equal(body.poseModelAvailable, false);
-    assert.match(body.warnings.join(" "), /Stride length and left\/right gait symmetry remain unmeasured/);
+    assert.match(body.warnings.join(" "), /only OpenCV picture-motion analysis is available/);
   });
 });
 

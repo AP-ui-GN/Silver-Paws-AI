@@ -1,17 +1,26 @@
-"""Report the local analysis toolchain.
+"""Report the local analysis toolchain without downloading model weights.
 
-Reading a config file that is already on disk is allowed. This module does
-not call Hugging Face, does not import torch, and does not download weights.
+The detector uses Hugging Face's local cache. QuadPose F2 is a pinned ONNX
+checkpoint installed explicitly by scripts/cache_models.py. A checkpoint is
+considered valid only when its SHA-256 matches the published, pinned value.
 """
-
 from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
 from pathlib import Path
 
-from .pose_backend import COCO17_KEYPOINTS, DETECTOR_ID, POSE_ID, hf_home
+from .pose_backend import DETECTOR_ID, hf_home
+from .quadpose import (
+    CHECKPOINT_FILENAME,
+    CHECKPOINT_SHA256,
+    MODEL_NAME,
+    MODEL_VERSION,
+    _sha256,
+    cache_path,
+)
 
 WEIGHT_NAMES = ("model.safetensors", "pytorch_model.bin")
 
@@ -32,75 +41,55 @@ def _snapshots(repo: Path) -> list[Path]:
 
 
 def _ready_file(path: Path) -> bool:
-    """True only when the path is a real file. A broken symlink is absent."""
-
     try:
         return path.is_file() and path.stat().st_size > 0
     except OSError:
         return False
 
 
-def _read_id2label(config_path: Path) -> dict[str, str] | None:
-    try:
-        payload = json.loads(config_path.read_text(encoding="utf8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    labels = payload.get("id2label")
-    if not isinstance(labels, dict):
-        return None
-    return {str(key): str(value) for key, value in labels.items()}
-
-
-def _schema_from_labels(labels: dict[str, str] | None) -> str:
-    if not labels:
-        return "absent"
-    ordered = [labels.get(str(index), "") for index in range(len(COCO17_KEYPOINTS))]
-    expected = {
-        "nose": "nose",
-        "left_eye": "l_eye",
-        "right_eye": "r_eye",
-        "left_ear": "l_ear",
-        "right_ear": "r_ear",
-        "left_shoulder": "l_shoulder",
-        "right_shoulder": "r_shoulder",
-        "left_elbow": "l_elbow",
-        "right_elbow": "r_elbow",
-        "left_wrist": "l_wrist",
-        "right_wrist": "r_wrist",
-        "left_hip": "l_hip",
-        "right_hip": "r_hip",
-        "left_knee": "l_knee",
-        "right_knee": "r_knee",
-        "left_ankle": "l_ankle",
-        "right_ankle": "r_ankle",
-    }
-    normalized = [value.strip().lower() for value in ordered]
-    if normalized == [expected[name] for name in COCO17_KEYPOINTS]:
-        return "coco-17"
-    return "unverified"
-
-
 def inspect_model(root: Path, model_id: str) -> dict[str, object]:
-    """Look at one cached Hugging Face repo. Missing files stay missing."""
+    """Inspect a cached Hugging Face model by checking config and weight files."""
 
     snapshots = _snapshots(_repo_dir(root, model_id))
-    config_path: Path | None = None
-    weight_path: Path | None = None
+    config_present = False
+    weights_present = False
     for snapshot in snapshots:
-        candidate = snapshot / "config.json"
-        if config_path is None and _ready_file(candidate):
-            config_path = candidate
-        for name in WEIGHT_NAMES:
-            weight = snapshot / name
-            if weight_path is None and _ready_file(weight):
-                weight_path = weight
-    labels = _read_id2label(config_path) if config_path is not None else None
+        config_present = config_present or _ready_file(snapshot / "config.json")
+        weights_present = weights_present or any(
+            _ready_file(snapshot / name) for name in WEIGHT_NAMES
+        )
     return {
         "modelId": model_id,
-        "configPresent": config_path is not None,
-        "weightsPresent": weight_path is not None,
-        "schema": _schema_from_labels(labels),
-        "channel4": None if labels is None else labels.get("4"),
+        "configPresent": config_present,
+        "weightsPresent": weights_present,
+    }
+
+
+def inspect_quadpose(path: Path | None = None) -> dict[str, object]:
+    """Inspect the ONNX cache. A non-empty file is not valid until its hash matches."""
+
+    target = path if path is not None else cache_path()
+    if target.is_dir():
+        target = target / CHECKPOINT_FILENAME
+
+    present = _ready_file(target)
+    checksum_valid = False
+    if present:
+        try:
+            checksum_valid = _sha256(target) == CHECKPOINT_SHA256
+        except OSError:
+            checksum_valid = False
+
+    schema = "ap10k" if checksum_valid else ("unverified" if present else "absent")
+    return {
+        "modelId": MODEL_NAME,
+        "modelVersion": MODEL_VERSION,
+        "path": str(target),
+        "configPresent": present,
+        "weightsPresent": present,
+        "checksumValid": checksum_valid,
+        "schema": schema,
+        "channel4": "Root of tail" if checksum_valid else None,
     }
 
 
@@ -112,15 +101,24 @@ def opencv_version() -> str | None:
     return str(cv2.__version__)
 
 
-def collect_setup(root: Path | None = None) -> dict[str, object]:
-    """Build the report. ``root`` defaults to the project weight cache."""
+def _has_module(name: str) -> bool:
+    try:
+        return importlib.util.find_spec(name) is not None
+    except (ImportError, ModuleNotFoundError, ValueError):
+        return False
 
-    cache = root if root is not None else hf_home()
-    pose = inspect_model(cache, POSE_ID)
-    detector = inspect_model(cache, DETECTOR_ID)
+
+def collect_setup(root: Path | None = None) -> dict[str, object]:
+    """Return capabilities found locally. This function never downloads weights."""
+
+    detector_cache = root if root is not None else hf_home()
+    pose_path = (root / CHECKPOINT_FILENAME) if root is not None else cache_path()
+    pose = inspect_quadpose(pose_path)
+    detector = inspect_model(detector_cache, DETECTOR_ID)
     dependencies = {
-        "torch": importlib.util.find_spec("torch") is not None,
-        "transformers": importlib.util.find_spec("transformers") is not None,
+        "torch": _has_module("torch"),
+        "transformers": _has_module("transformers"),
+        "onnxruntime": _has_module("onnxruntime"),
     }
     opencv = opencv_version()
     return {
@@ -130,11 +128,10 @@ def collect_setup(root: Path | None = None) -> dict[str, object]:
         "detector": detector,
         "poseDependencies": dependencies,
         "poseReady": (
-            dependencies["torch"]
-            and dependencies["transformers"]
-            and pose["weightsPresent"]
+            all(dependencies.values())
             and detector["weightsPresent"]
-            and pose["schema"] == "coco-17"
+            and pose["checksumValid"]
+            and pose["schema"] == "ap10k"
         ),
         "fallbackReady": opencv is not None,
         "downloadsWeights": False,
@@ -144,19 +141,22 @@ def collect_setup(root: Path | None = None) -> dict[str, object]:
 def format_setup(report: dict[str, object]) -> str:
     pose = report["pose"]
     detector = report["detector"]
+    dependencies = report["poseDependencies"]
     assert isinstance(pose, dict)
     assert isinstance(detector, dict)
+    assert isinstance(dependencies, dict)
     opencv = report["opencv"] or "not importable"
     lines = [
         f"Python {report['python']}",
         f"OpenCV {opencv}",
-        f"Pose weights: {'present' if pose['weightsPresent'] else 'absent'} ({pose['modelId']})",
-        f"Pose config: {'present' if pose['configPresent'] else 'absent'}",
+        f"Pose model: {pose['modelId']} ({pose['modelVersion']})",
+        f"Pose weights: {'checksum verified' if pose['checksumValid'] else ('present but unverified' if pose['weightsPresent'] else 'absent')}",
         f"Pose schema: {pose['schema']}",
-        f"Pose channel 4: {pose['channel4'] if pose['channel4'] is not None else 'absent'}",
-        f"Detector weights: {'present' if detector['weightsPresent'] else 'absent'} ({detector['modelId']})",
-        f"Pose dependencies: {'present' if all(report['poseDependencies'].values()) else 'incomplete'} (torch + transformers)",
-        f"Pose capability cached: {'yes' if report['poseReady'] else 'no'}",
+        f"Pose channel 4: {pose['channel4'] if pose['channel4'] is not None else 'not verified'}",
+        f"Dog detector: {'cached' if detector['weightsPresent'] else 'absent'} ({detector['modelId']})",
+        f"Pose dependencies: {'present' if all(dependencies.values()) else 'incomplete'} (torch + transformers + onnxruntime)",
+        f"Pose capability ready: {'yes' if report['poseReady'] else 'no'}",
+        f"OpenCV fallback ready: {'yes' if report['fallbackReady'] else 'no'}",
         "This command does not download weights.",
     ]
     return "\n".join(lines) + "\n"

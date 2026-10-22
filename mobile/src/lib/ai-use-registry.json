@@ -1,5 +1,5 @@
 {
-  "summary": "SilverPaws can use a dog detector and a pose model to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers. This checkpoint's pose head outputs 17 COCO joint names and does not output the neck or the base of the tail. Pose quality on pet dogs is unproven until a labeled set is measured.",
+  "summary": "SilverPaws combines RT-DETR dog detection and identity tracking with QuadPose F2, a pinned ONNX model that returns 17 AP-10K-order animal landmarks, plus frame-to-frame OpenCV motion. Derived gait values and thresholds are experimental and have not been validated on a labeled set of pet-dog walking clips. Scores and notes use fixed formulas. An optional language model may reword the note without changing measured values.",
   "entries": [
     {
       "id": "dog-detector",
@@ -11,11 +11,11 @@
     },
     {
       "id": "pose-model",
-      "whatItIs": "ViTPose++ base, usyd-community/vitpose-plus-base. Dataset index 3 selects a backbone expert. The only keypoint head in this checkpoint is the 17-channel COCO head. It does not emit AP-10K neck or root-of-tail points.",
-      "whatItDoes": "When torch and the weights are installed, the server estimates those 17 COCO joints inside the dog box. Each point has a position and a confidence. The names match the checkpoint labels. Stride length is not measured from this head.",
-      "whatItDoesnt": "It outputs positions and confidences only. It does not name a condition, detect pain, or choose the wellness score. A low score is not stored as a measurement.",
+      "whatItIs": "QuadPose F2, a published ONNX quadruped-pose model from EstevanSL/snapml-quadruped-pose at commit 52f0329b5c9af513b5a8f2820aaea6bbd945d0c0. The pinned checkpoint SHA-256 is f3807433962d8abcee18f1bd45e5ff9e56bd899768b03a6996c3db4ebd12b884. The publisher labels the code and weights Apache-2.0 and says the model was trained on AP-10K (annotations CC BY 4.0). SilverPaws does not train this model.",
+      "whatItDoes": "When the verified ONNX checkpoint and RT-DETR detector weights are installed, the server estimates 17 AP-10K-order animal landmarks inside the tracked dog's box. Heatmap peak scores are not calibrated probabilities. Derived gait values use experimental formulas and cutoffs.",
+      "whatItDoesnt": "It does not diagnose a condition or detect pain. Its performance has not been validated on a labeled set of pet-dog walking videos, and the gait metrics are not clinically validated. Missing or low-confidence points are not treated as measurements.",
       "codePath": "gait_engine/pose_backend.py",
-      "resultLine": "Body points estimated with an animal pose model (ViTPose++)."
+      "resultLine": "QuadPose F2 estimates AP-10K-order animal landmarks; derived gait values remain experimental."
     },
     {
       "id": "motion-fallback",
