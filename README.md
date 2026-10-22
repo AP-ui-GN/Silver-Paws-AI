@@ -125,8 +125,10 @@ pnpm --filter @workspace/api-server run test
 pnpm --filter @workspace/silverpaws-beta run test
 ```
 
-On October 22, 2026 those were 73 Python tests, 37 API tests, and 17 web
-tests, all passing. The pose head was not validated by those counts.
+Recorded on October 22, 2026 after the tracker and upload-limit changes:
+90 Python tests, 45 API tests, and 17 web tests passed, with API and web
+typechecks passing. The hosted workflow also passed its Python, API, and web
+jobs. These are point-in-time checks; they do not validate canine pose accuracy.
 
 Start both services (two terminals):
 
