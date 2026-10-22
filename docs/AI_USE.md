@@ -20,7 +20,7 @@ Code: `gait_engine/pose_backend.py`
 
 **What it is.** ViTPose++ base, usyd-community/vitpose-plus-base. Dataset index 3 selects a backbone expert. The only keypoint head in this checkpoint is the 17-channel COCO head. It does not emit AP-10K neck or root-of-tail points.
 
-**What it does.** When torch and the weights are installed, the server estimates those 17 COCO joints inside the dog box. Each point has a position and a confidence. The names match the checkpoint labels. Stride length is not measured from this head.
+**What it does.** When torch and weights are installed, the server returns positions and confidence for this checkpoint's 17 COCO-17 human joint labels inside a detected dog box. These labels are not validated canine anatomical landmarks. The head has no neck or root-of-tail point, so stride length and left/right gait symmetry remain unmeasured.
 
 **What it doesn't do.** It outputs positions and confidences only. It does not name a condition, detect pain, or choose the wellness score. A low score is not stored as a measurement.
 
