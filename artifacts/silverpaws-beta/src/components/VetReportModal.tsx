@@ -90,9 +90,9 @@ export default function VetReportModal({ analysis, pet, onClose }: VetReportModa
         <div className="min-h-0 overflow-y-auto p-5 print:overflow-visible print:p-0">
           <article className="vet-report-page mx-auto min-h-[10.5in] max-w-[8.5in] bg-white p-8 font-sans text-slate-900 shadow-xl print:min-h-0 print:max-w-none print:p-0 print:shadow-none">
             <div className="border-b-4 border-[#0a4267] pb-5">
-              <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#1669aa]">Clinical gait &amp; mobility telemetry</div>
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#1669aa]">Pet movement observation report</div>
               <h1 className="mt-2 text-2xl font-extrabold leading-tight" id="vet-report-document-title">
-                SILVER PAWS AI — Clinical Gait &amp; Mobility Telemetry Summary
+                SILVER PAWS AI — Movement Observation Summary
               </h1>
               <div className="mt-4 flex flex-wrap justify-between gap-2 text-xs text-slate-600">
                 <span>Reference: {analysis.id.slice(0, 12).toUpperCase()}</span>
@@ -119,7 +119,7 @@ export default function VetReportModal({ analysis, pet, onClose }: VetReportModa
 
             <section className="mt-5 grid grid-cols-[1.15fr_1fr] gap-3">
               <div className="rounded-xl bg-[#0a4267] p-4 text-white">
-                <div className="text-xs font-semibold uppercase tracking-wide text-white/75">Overall mobility indicator</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-white/75">Overall movement indicator</div>
                 <div className="mt-2 font-mono text-4xl font-bold">{overallScore === null ? 'Not scored' : `${overallScore}/100`}</div>
                 <div className="mt-2 text-xs text-white/75">A clip-level educational indicator, not a diagnosis.</div>
               </div>
@@ -169,10 +169,10 @@ export default function VetReportModal({ analysis, pet, onClose }: VetReportModa
             </section>
 
             <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-slate-700">
-              <strong className="text-slate-900">Clinical notice for veterinary professionals.</strong>{' '}
-              This report contains educational screening telemetry from a single video and is not a diagnosis,
-              validated clinical assessment, or substitute for examination. Interpret measurements in context;
-              a missing value means not measured, not zero. {SAFETY_DISCLAIMER}
+              <strong className="text-slate-900">Important limitations.</strong>{' '}
+              This report contains observational movement data from one video. It is not a diagnosis or a
+              validated clinical assessment and cannot replace a veterinary examination. Interpret any
+              available measurements in context; a missing value means not measured, not zero. {SAFETY_DISCLAIMER}
             </div>
           </article>
 
@@ -222,7 +222,7 @@ export default function VetReportModal({ analysis, pet, onClose }: VetReportModa
               </p>
             </section>
             <footer className="mt-10 border-t border-slate-200 pt-3 text-[10px] text-slate-500">
-              SILVER PAWS AI · Clinical Gait &amp; Mobility Telemetry Summary · Page 2 of 2
+              SILVER PAWS AI · Movement Observation Summary · Page 2 of 2
             </footer>
           </article>
         </div>
