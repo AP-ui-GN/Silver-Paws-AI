@@ -1,6 +1,6 @@
 """Standalone gait-analysis building blocks for SilverPaws AI."""
 
-from .features import hip_stability, motion_statistics, movement_consistency
+from .features import motion_statistics, movement_consistency
 from .motion import MotionSignal, read_motion_signal
 from .pipeline import analyze_clip
 from .pose_backend import AP10K_KEYPOINTS, AP10K_SKELETON_EDGES
@@ -12,7 +12,6 @@ __all__ = [
     "DEFAULT_WEIGHTS",
     "MotionSignal",
     "analyze_clip",
-    "hip_stability",
     "motion_statistics",
     "movement_consistency",
     "overall_score",

@@ -83,35 +83,34 @@ def _to_score(value: float | None) -> float | None:
 
 
 def mobility_factor(measurements: dict) -> float | None:
-    """Score hip and ankle mobility from pose measurements, from 0 to 100.
+    """Score regularity and vertical symmetry, from 0 to 100.
 
-    Uses hipStability, leftAnkleMotion, rightAnkleMotion, and strideSymmetry.
-    Returns None when the pose was not reliable, or when stride symmetry or
-    either ankle motion was not measured. A missing value is left out of the
-    average. It is never filled in as zero.
-
-    Ankle motion is a raw energy, not a 0-1 quality score, and it depends on
-    camera distance and clip length. Both sides must have been measured. Their
-    balance is already stored as strideSymmetry, so that balance is not scored
-    a second time. Hip stability is averaged with stride symmetry when it was
-    measured, and omitted when it was not.
+    strideRegularity is ``100 * clamp(1 - strideTimeCv / 0.25)``.
+    verticalSymmetry is ``100 * clamp(1 - mean(available asymmetry indices) / 0.5)``,
+    using headBobAsymmetry and pelvisAsymmetry when they were measured.
+    The result is the mean of whichever of those two is available.
+    None when neither is available. A missing input is not filled in as zero.
     """
 
-    if not measurements.get("symmetryReliable"):
+    parts: list[float] = []
+    variation = measurements.get("strideTimeCv")
+    if _is_number(variation):
+        regularity = 1.0 - float(variation) / 0.25
+        parts.append(100.0 * max(0.0, min(1.0, regularity)))
+
+    asymmetries = [
+        float(measurements[name])
+        for name in ("headBobAsymmetry", "pelvisAsymmetry")
+        if _is_number(measurements.get(name))
+    ]
+    if asymmetries:
+        mean_asymmetry = sum(asymmetries) / len(asymmetries)
+        vertical = 1.0 - mean_asymmetry / 0.5
+        parts.append(100.0 * max(0.0, min(1.0, vertical)))
+
+    if not parts:
         return None
-
-    symmetry = _unit(measurements.get("strideSymmetry"))
-    left = measurements.get("leftAnkleMotion")
-    right = measurements.get("rightAnkleMotion")
-    if symmetry is None or not _is_number(left) or not _is_number(right):
-        return None
-
-    parts = [symmetry]
-    hip = _unit(measurements.get("hipStability"))
-    if hip is not None:
-        parts.append(hip)
-
-    return round(sum(parts) / len(parts) * 100, 1)
+    return round(sum(parts) / len(parts), 1)
 
 
 def historical_change_factor(

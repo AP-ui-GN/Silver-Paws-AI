@@ -8,17 +8,10 @@ from __future__ import annotations
 
 import statistics
 
-LEFT_HIP_INDEX = 11
-RIGHT_HIP_INDEX = 12
-
 # A frame pair below this mean change is treated as "no visible movement". It is
 # roughly half a grayscale level out of 255, which sits above camera noise on the
 # blurred, downscaled frames produced by motion.py.
 MOTION_FLOOR = 0.002
-
-# Vertical hip wobble (in normalized frame heights) that counts as fully
-# unsteady. Used only to put hip stability on a readable 0-1 scale.
-HIP_WOBBLE_REFERENCE = 0.05
 
 
 def motion_statistics(frame_motion: list[float]) -> tuple[float, float, float]:
@@ -52,26 +45,3 @@ def movement_consistency(motion_mean: float, motion_std: float) -> float | None:
 
     coefficient_of_variation = motion_std / motion_mean
     return round(max(0.0, min(1.0, 1.0 - coefficient_of_variation)), 6)
-
-
-def hip_stability(keypoints, *, confidence_threshold: float = 0.2) -> float | None:
-    """Score how steady the hip line stayed vertically, from 0 to 1.
-
-    ``keypoints`` is the ``(frames, 17, 3)`` MoveNet array of (y, x, confidence).
-    Returns None when too few frames have both hips detected confidently.
-    """
-
-    hip_heights: list[float] = []
-    for frame in keypoints:
-        left_y, _, left_confidence = frame[LEFT_HIP_INDEX]
-        right_y, _, right_confidence = frame[RIGHT_HIP_INDEX]
-        if left_confidence < confidence_threshold or right_confidence < confidence_threshold:
-            continue
-        hip_heights.append((float(left_y) + float(right_y)) / 2.0)
-
-    if len(hip_heights) < 3:
-        return None
-
-    wobble = statistics.stdev(hip_heights)
-    stability = 1.0 - (wobble / HIP_WOBBLE_REFERENCE)
-    return round(max(0.0, min(1.0, stability)), 6)

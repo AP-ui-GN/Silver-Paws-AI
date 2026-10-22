@@ -2,26 +2,11 @@
 
 import unittest
 
-import numpy as np
-
 from gait_engine.features import (
     MOTION_FLOOR,
-    hip_stability,
     motion_statistics,
     movement_consistency,
 )
-
-
-def build_keypoints(frames, *, hip_offsets=None, confidence=0.9):
-    """Build a (frames, 17, 3) MoveNet-shaped array of (y, x, confidence)."""
-
-    keypoints = np.zeros((frames, 17, 3), dtype=np.float32)
-    keypoints[:, :, 2] = confidence
-    for index in range(frames):
-        offset = 0.0 if hip_offsets is None else hip_offsets[index]
-        keypoints[index, 11, 0] = 0.5 + offset  # left hip y
-        keypoints[index, 12, 0] = 0.5 + offset  # right hip y
-    return keypoints
 
 
 class MotionStatisticsTests(unittest.TestCase):
@@ -54,23 +39,6 @@ class MovementConsistencyTests(unittest.TestCase):
 
     def test_score_never_goes_below_zero(self):
         self.assertEqual(movement_consistency(0.01, 0.5), 0.0)
-
-
-class HipStabilityTests(unittest.TestCase):
-    def test_too_few_confident_frames_is_not_scored(self):
-        self.assertIsNone(hip_stability(build_keypoints(2)))
-
-    def test_low_confidence_frames_are_ignored(self):
-        self.assertIsNone(hip_stability(build_keypoints(10, confidence=0.05)))
-
-    def test_a_level_hip_line_is_fully_stable(self):
-        self.assertEqual(hip_stability(build_keypoints(10)), 1.0)
-
-    def test_wobble_reduces_stability(self):
-        offsets = [0.0, 0.03, -0.03, 0.03, -0.03, 0.0, 0.02, -0.02, 0.01, -0.01]
-        wobbly = hip_stability(build_keypoints(10, hip_offsets=offsets))
-        self.assertIsNotNone(wobbly)
-        self.assertLess(wobbly, 1.0)
 
 
 if __name__ == "__main__":

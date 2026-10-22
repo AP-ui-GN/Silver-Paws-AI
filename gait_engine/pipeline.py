@@ -24,6 +24,7 @@ import cv2
 from .clip_quality import quality_notes
 from .confidence import pose_is_trusted, summarize_keypoints, summarize_pose_coordinates
 from .features import MOTION_FLOOR, motion_statistics
+from .gait import compute_gait_metrics
 from .motion import read_motion_signal
 from .wellness import (
     DEFAULT_WEIGHTS,
@@ -129,6 +130,8 @@ def _try_pose(video_path: Path) -> tuple[Any | None, str | None]:
         "pose_revision": result.pose_revision,
         "width": frames[0].width if frames else None,
         "height": frames[0].height if frames else None,
+        "timestamps": result.timestamps_seconds,
+        "boxes": result.boxes,
     }, None
 
 
@@ -232,9 +235,29 @@ def analyze_clip(
                 frame_height=pose_payload["height"],
             )
             measurements["meanKeypointConfidence"] = model_confidence
-            # Stride numbers are filled by gait.py. Until that pass, a trusted
-            # pose still does not invent ankle motion. Untrusted pose leaves
-            # limb numbers unset. They are not published as zero.
+            gait = compute_gait_metrics(
+                keypoints,
+                timestamps=pose_payload["timestamps"],
+                boxes=pose_payload["boxes"],
+                dog_frames_share=pose_payload["dog_frames_share"],
+            )
+            measurements["strideSymmetry"] = gait["strideSymmetry"]
+            measurements["asymmetryPercent"] = gait["asymmetryPercent"]
+            measurements["symmetryReliable"] = gait["symmetryReliable"]
+            measurements["view"] = gait["view"]
+            measurements["strides"] = gait["strides"]
+            measurements["limbSymmetry"] = gait["limbSymmetry"]
+            measurements["strideLengthBodyLengths"] = gait["strideLengthBodyLengths"]
+            measurements["cadenceStridesPerMinute"] = gait["cadenceStridesPerMinute"]
+            measurements["strideTimeCv"] = gait["strideTimeCv"]
+            measurements["headVerticalOscillation"] = gait["headVerticalOscillation"]
+            measurements["pelvisVerticalOscillation"] = gait["pelvisVerticalOscillation"]
+            measurements["headBobAsymmetry"] = gait["headBobAsymmetry"]
+            measurements["pelvisAsymmetry"] = gait["pelvisAsymmetry"]
+            measurements["notMeasuredReasons"] = gait["notMeasuredReasons"]
+            # Below the trust line the limb numbers stay, but the result is
+            # marked so the screen can say the pose was not confident.
+            # A missing stride value is already None. It is not rewritten to 0.
             if not pose_is_trusted(summary, minimum=MIN_POSE_CONFIDENCE):
                 low_confidence = True
 

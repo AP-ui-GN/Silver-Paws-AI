@@ -131,40 +131,41 @@ class MobilityFactorTests(unittest.TestCase):
         base = measurements(
             symmetryReliable=True,
             strideSymmetry=0.8,
-            leftAnkleMotion=0.4,
-            rightAnkleMotion=0.35,
-            hipStability=0.6,
+            strideTimeCv=0.0,
+            headBobAsymmetry=0.1,
+            pelvisAsymmetry=0.1,
         )
         base.update(overrides)
         return base
 
-    def test_unreliable_pose_is_not_scored_even_when_numbers_are_present(self):
-        self.assertIsNone(mobility_factor(self.pose(symmetryReliable=False)))
+    def test_missing_regularity_and_vertical_symmetry_are_not_scored(self):
+        self.assertIsNone(mobility_factor(measurements()))
 
-    def test_a_missing_ankle_is_not_treated_as_zero_motion(self):
-        self.assertIsNone(mobility_factor(self.pose(leftAnkleMotion=None)))
-        self.assertIsNone(mobility_factor(self.pose(rightAnkleMotion=None)))
+    def test_a_missing_vertical_index_is_not_treated_as_zero(self):
+        # strideTimeCv 0 -> regularity 100. Only one asymmetry index, 0.1,
+        # so vertical symmetry is 80. The missing index is left out.
+        scored = mobility_factor(self.pose(pelvisAsymmetry=None))
 
-    def test_hip_and_symmetry_are_averaged_onto_the_0_to_100_scale(self):
-        # (0.8 symmetry + 0.6 hip) / 2 * 100
-        self.assertEqual(mobility_factor(self.pose()), 70.0)
+        self.assertEqual(scored, 90.0)
 
-    def test_a_missing_hip_is_left_out_rather_than_scored_as_zero(self):
-        scored = mobility_factor(self.pose(hipStability=None))
+    def test_regularity_and_vertical_symmetry_are_averaged(self):
+        # regularity 100, vertical 100 * (1 - 0.1 / 0.5) = 80, mean 90.
+        self.assertEqual(mobility_factor(self.pose()), 90.0)
 
-        self.assertEqual(scored, 80.0)
-
-    def test_measured_zero_ankle_motion_can_still_be_scored(self):
-        scored = mobility_factor(
-            self.pose(leftAnkleMotion=0.0, rightAnkleMotion=0.0, hipStability=None)
-        )
+    def test_a_missing_cadence_variation_is_left_out_rather_than_scored_as_zero(self):
+        scored = mobility_factor(self.pose(strideTimeCv=None))
 
         self.assertEqual(scored, 80.0)
+
+    def test_a_measured_zero_variation_can_still_be_scored(self):
+        scored = mobility_factor(self.pose(strideTimeCv=0.0, headBobAsymmetry=None, pelvisAsymmetry=None))
+
+        self.assertEqual(scored, 100.0)
 
     def test_score_factors_uses_the_mobility_factor(self):
         factors = score_factors(self.pose())
 
-        self.assertEqual(factors["mobility"], 70.0)
+        self.assertEqual(factors["mobility"], 90.0)
 
 
 class HistoricalChangeFactorTests(unittest.TestCase):

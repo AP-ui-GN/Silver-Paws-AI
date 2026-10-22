@@ -557,3 +557,14 @@ walk-through stay open in `TEAM_TASKS.md`.
 A later browser pass on the web app is recorded in `TESTING.md`. The web pet
 form still says kilograms. The web app still has no demo mode and no theme
 control.
+
+---
+
+## 15. Gait metric thresholds (October 21, 2026)
+
+`CONCERNING_DROP` is still 10 and `CONCERNING_ASYMMETRY` is still 20.
+`CONCERNING_ASYMMETRY` now applies to the worse of the front and rear pair
+symmetries from `gait_engine/gait.py` (`(1 - S) * 100`), not to the old ankle
+motion-energy score. Sudarshan needs to re-review both thresholds, and the
+placeholder peak and phase cutoffs in `docs/GAIT_METRICS.md`, after a labeled
+clip set is measured. They were not changed in this pass.
