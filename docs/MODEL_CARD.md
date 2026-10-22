@@ -91,5 +91,5 @@ took 40.127 seconds end to end (`scripts/time_clip.py`: sample 0.949 s,
 pose including weight load 39.162 s, gait math 0.015 s). Peak RSS was
 1665.3 MB. One-shot `analyze_clip.py` on the same file took 37.543 seconds.
 Loading both models in a new process, without a clip, took 4.02 seconds of
-wall time. The Docker image was not built, so hosted RAM is not measured.
+wall time. GitHub Actions built and smoke-tested the Docker image on October 22, 2026 using a synthetic motion clip. This did not measure production-host memory or validate canine pose accuracy; hosted RAM remains unmeasured.
 Details are in `docs/HOSTING.md`.
