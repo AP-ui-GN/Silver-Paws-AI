@@ -92,8 +92,8 @@ COMPLETION CRITERIA:
 
 STATUS: `requestModelRewrite` is implemented and covered by mock-provider
 tests. A live clip through UI → API → pipeline with the env vars set has not
-been run, because this environment has no provider. Do not mark that line done
-until someone records the result in `TESTING.md`.
+been run, because no provider credentials were available for this pass. Keep
+that item open until someone records the actual result in `TESTING.md`.
 
 TEAM MEMBER: Abhi
 TASK: Provider request for the explanation rewrite, plus integration checks
