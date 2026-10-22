@@ -32,7 +32,10 @@ DASHBOARD / HISTORY  pages/home.tsx, pages/history.tsx
 ```
 
 The UI never runs the vision pipeline. It sends a file and stores the JSON
-that comes back. The web app is the only client.
+that comes back. The web app is the client built for the dog-pose pipeline.
+The phone app in `mobile/` is the Expo client restored from `main` commit
+`1093191`, including that commit's screens. It can store a `dog-pose` result.
+Those screens still use the PetLens name from that commit.
 
 ## Module map
 

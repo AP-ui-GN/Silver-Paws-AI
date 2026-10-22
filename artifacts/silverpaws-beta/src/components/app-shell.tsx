@@ -1,4 +1,4 @@
-import { Activity, ClipboardList, PawPrint, Plus, ShieldAlert, UserRound } from 'lucide-react';
+import { Activity, ClipboardList, Plus, ShieldAlert, UserRound } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { EMERGENCY_NOTE, SAFETY_DISCLAIMER } from '@/lib/disclaimers';
@@ -38,33 +38,44 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell">
       <aside className="app-nav">
-        <Link href="/" className="flex items-center gap-3 no-underline" data-testid="link-brand">
-          <span className="brand-mark"><PawPrint size={21} strokeWidth={2.5} /></span>
+        <Link href="/" className="brand-lockup flex items-center gap-3 no-underline" data-testid="link-brand">
+          <img src={`${import.meta.env.BASE_URL}petlens-dog-mark.png`} alt="PetLens analysis for dogs" className="brand-mark" />
           <span>
-            <span className="brand-word block">SilverPaws</span>
-            <span className="brand-sub block">AI beta lab</span>
+            <span className="brand-word block">PetLens</span>
+            <span className="brand-sub block">analysis for dogs</span>
           </span>
         </Link>
         <NavItems />
         <div className="mt-auto">
           <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,.08)' }}>
-            <div className="eyebrow" style={{ color: '#ef9b7f' }}>Browser beta</div>
-            <p className="text-xs leading-relaxed mt-2" style={{ color: 'rgba(248,243,232,.65)' }}>
+            <div className="eyebrow" style={{ color: '#3eb49c' }}>Browser beta</div>
+            <p className="text-xs leading-relaxed mt-2" style={{ color: 'rgba(230,247,251,.72)' }}>
               Your videos and observations stay on this device while testing.
             </p>
           </div>
-          <div className="text-[10px] mt-5" style={{ color: 'rgba(248,243,232,.38)' }}>v0.3 · educational use</div>
+          <div className="text-[10px] mt-5" style={{ color: 'rgba(230,247,251,.52)' }}>v0.3 · educational use</div>
         </div>
       </aside>
       <div className="content-wrap">
         <header className="mobile-header">
-          <Link href="/" className="flex items-center gap-2" data-testid="link-mobile-brand">
-            <span className="brand-mark" style={{ width: 32, height: 32 }}><PawPrint size={17} /></span>
-            <span className="brand-word">SilverPaws</span>
+          <Link href="/" className="flex items-center gap-3 no-underline" data-testid="link-mobile-brand">
+            <img src={`${import.meta.env.BASE_URL}petlens-dog-mark.png`} alt="PetLens analysis for dogs" className="brand-mark" style={{ width: 36, height: 36 }} />
+            <span>
+              <span className="brand-word block">PetLens</span>
+              <span className="brand-sub block">analysis for dogs</span>
+            </span>
           </Link>
-          <span className="eyebrow">Beta lab</span>
+          <span className="eyebrow">Beta</span>
         </header>
-        <main>{children}</main>
+        <main className="page-content">
+          <img
+            src={`${import.meta.env.BASE_URL}petlens-dog-mark.png`}
+            alt=""
+            aria-hidden="true"
+            className="page-watermark"
+          />
+          {children}
+        </main>
         <footer className="page-frame pt-0" data-testid="text-safety-disclaimer">
           <div className="soft-note p-4 text-xs leading-relaxed flex gap-3 items-start">
             <ShieldAlert size={16} className="shrink-0 mt-[1px]" />

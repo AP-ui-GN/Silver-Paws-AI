@@ -27,10 +27,10 @@ function Sparkline({ points }: { points: TrendPoint[] }) {
       data-testid="trend-sparkline"
     >
       {layout.segments.map((segment) => (
-        <polyline key={segment} fill="none" stroke="#174946" strokeWidth="2" points={segment} />
+        <polyline key={segment} fill="none" stroke="#3eb49c" strokeWidth="2" points={segment} />
       ))}
       {layout.dots.map((dot, index) => (
-        <circle key={`${dot.x}-${index}`} cx={dot.x} cy={dot.y} r="3.5" fill="#b9684d">
+        <circle key={`${dot.x}-${index}`} cx={dot.x} cy={dot.y} r="3.5" fill="#3794a4">
           <title>{formatTrendScore(dot.score)} out of 100</title>
         </circle>
       ))}

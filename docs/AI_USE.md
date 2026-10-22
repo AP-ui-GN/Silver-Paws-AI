@@ -1,6 +1,6 @@
 # How AI is used in SilverPaws
 
-SilverPaws can use a dog detector and an animal pose model to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers. Pose quality on pet dogs is unproven until a labeled set is measured.
+SilverPaws can use a dog detector and a pose model to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers. This checkpoint's pose head outputs 17 COCO joint names and does not output the neck or the base of the tail. Pose quality on pet dogs is unproven until a labeled set is measured.
 
 This page is generated from `lib/ai-use/registry.json`. Edit that file and run `node scripts/sync-ai-use.mjs`. Do not edit the copies by hand.
 

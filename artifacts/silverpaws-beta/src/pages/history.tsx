@@ -8,9 +8,19 @@ import { formatDate, formatDuration, formatPoseFrames, formatRelative } from '@/
 import { downloadAnalysisReport } from '@/lib/report';
 import { downloadTelemetryCsv, downloadTelemetryJson } from '@/lib/telemetry-export';
 import { TrendPanel } from '@/components/trend-panel';
+import PoseFrameScrubber from '@/components/PoseFrameScrubber';
+import ProductTour from '@/components/ProductTour';
+import VetReportModal from '@/components/VetReportModal';
 import { SAMPLE_DATA_LABEL } from '@/lib/sample-analysis';
 
-type Props = { pets: Pet[]; analyses: Analysis[]; deleteAnalysis: (id: string) => void; demoAnalysis?: Analysis | null };
+type Props = {
+  pets: Pet[];
+  analyses: Analysis[];
+  deleteAnalysis: (id: string) => void;
+  demoAnalysis?: Analysis | null;
+  demoTourActive?: boolean;
+  onDemoTourComplete?: () => void;
+};
 
 const FACTOR_LABELS: { key: keyof NonNullable<Analysis['factors']>; label: string; help: string }[] = [
   { key: 'movementConsistency', label: 'Movement consistency', help: 'How steady the amount of movement stayed between frames.' },
@@ -136,13 +146,13 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
         ? 'This fallback measures picture motion and does not produce pose landmarks.'
         : 'No usable pose keypoints were returned, so frame-motion coverage is shown instead.';
     return (
-      <section className="panel panel-padded mt-5" aria-label="Frame motion coverage fallback">
+      <section id="movenet-card" className="panel panel-padded mt-5 telemetry-card" aria-label="Frame motion coverage fallback">
         <div className="eyebrow">Computer vision activity</div>
         <h2 className="display-title text-2xl mt-2">Frame Motion Coverage</h2>
         <p className="body-muted text-sm mt-2">Share of analyzed frame pairs with visible picture motion. {reason}</p>
         <div className="flex justify-between items-center text-sm mt-5">
           <span className="font-semibold">Frames with movement</span>
-          <span className="mono">{percent === null ? 'Not measured' : `${percent.toFixed(0)}%`}</span>
+          <span>{percent === null ? 'Not measured' : <span className="font-mono">{percent.toFixed(0)}%</span>}</span>
         </div>
         <div className="progress-track mt-2" role="progressbar" aria-label="Frame Motion Coverage" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined}>
           <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
@@ -154,7 +164,7 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   const byName = new Map(points.map((point) => [point.name, point]));
 
   return (
-    <section className="panel panel-padded mt-5" aria-label={sampleFrame ? 'Sample pose frame' : 'Saved pose landmark summary'}>
+    <section id="movenet-card" className="panel panel-padded mt-5 telemetry-card" aria-label={sampleFrame ? 'Sample pose frame' : 'Saved pose landmark summary'}>
       <div className="eyebrow">Computer vision activity</div>
       <h2 className="display-title text-2xl mt-2">{sampleFrame ? 'Gait measurements' : 'Saved landmark summary'}</h2>
       <p className="body-muted text-sm mt-2">
@@ -166,7 +176,7 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
         <>
           <div className="grid md:grid-cols-[1.2fr_.8fr] gap-5 items-center mt-5">
             <svg
-              className="w-full rounded-xl bg-[#263b35]"
+              className="w-full rounded-xl bg-[#0a4267]"
               style={{ aspectRatio: '10 / 7' }}
               viewBox="0 0 100 70"
               role="img"
@@ -183,7 +193,7 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
                     y1={start.y * 70}
                     x2={end.x * 100}
                     y2={end.y * 70}
-                    stroke="#b7d6c5"
+                    stroke="#3794a4"
                     strokeWidth="1.2"
                   />
                 ) : null;
@@ -194,8 +204,8 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
                   cx={point.x * 100}
                   cy={point.y * 70}
                   r="2.2"
-                  fill="#f1a77a"
-                  stroke="#fff4e7"
+                  fill="#3eb49c"
+                  stroke="#e8f7fb"
                   strokeWidth="0.6"
                   role="button"
                   tabIndex={0}
@@ -276,7 +286,7 @@ function FactorRow({ label, help, score }: { label: string; help: string; score:
       </div>
       <div className="text-right">
         {measured
-          ? <><div className="font-bold text-lg" style={{ color: scoreColor }}>{score}</div><div className="body-muted text-[10px] mono">OUT OF 100</div></>
+          ? <><div className="font-mono font-semibold text-lg" style={{ color: scoreColor }}>{score}</div><div className="body-muted text-[10px]">OUT OF 100</div></>
           : <span className="tag">Not scored</span>}
       </div>
     </div>
@@ -305,7 +315,20 @@ function AnalysisList({ analyses, pets }: { analyses: Analysis[]; pets: Pet[] })
   </div>;
 }
 
-function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: Pet; onDelete: () => void }) {
+function ResultDetail({
+  analysis,
+  pet,
+  onDelete,
+  demoTourActive,
+  onDemoTourComplete,
+}: {
+  analysis: Analysis;
+  pet?: Pet;
+  onDelete: () => void;
+  demoTourActive: boolean;
+  onDemoTourComplete: () => void;
+}) {
+  const [showReport, setShowReport] = useState(false);
   const score = displayScore(analysis);
   const factors = analysis.factors;
   const measurements = analysis.measurements;
@@ -316,6 +339,7 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
     <div className="flex flex-wrap items-end justify-between gap-5 mt-6 stagger">
       <div><div className="eyebrow">{analysis.demo ? 'Demo result' : `Saved observation · ${formatDate(analysis.createdAt)}`}</div><h1 className="display-title text-5xl mt-3">A closer look at<br /><span className="accent-label">{analysis.demo ? 'the sample pet' : pet?.name ?? 'your pet'}’s walk.</span></h1></div>
        <div className="flex flex-wrap gap-2">
+         <button id="vet-summary-export" type="button" className="btn-secondary" onClick={() => setShowReport(true)} data-testid={`button-vet-summary-report-${analysis.id}`}>Export Vet Summary PDF</button>
          {!analysis.demo && <button className="btn-quiet" onClick={() => { if (window.confirm('Remove this saved observation from this device?')) onDelete(); }} data-testid={`button-delete-analysis-${analysis.id}`}><Trash2 size={15} /> Remove</button>}
        </div>
     </div>
@@ -408,7 +432,7 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
         <Stethoscope size={19} style={{ flexShrink: 0 }} />
         <div>
           <h2 className="font-bold text-sm">Worth asking a veterinarian about</h2>
-          <p className="text-sm leading-relaxed mt-2">The measured values changed enough to be worth a professional opinion. SilverPaws cannot tell you why they changed, and this is not a diagnosis — a veterinarian can examine what a video cannot show.</p>
+          <p className="text-sm leading-relaxed mt-2">The measured values changed enough to be worth a professional opinion. PetLens cannot tell you why they changed, and this is not a diagnosis — a veterinarian can examine what a video cannot show.</p>
         </div>
       </section>
     )}
@@ -421,7 +445,7 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
             <div className="metric-number mt-4" data-testid="text-overall-score">{score === null ? 'Not scored' : <>{score}<span className="text-2xl tracking-normal">/100</span></>}</div>
             <p className="body-muted text-sm mt-3">A blend of the factors below. It describes this clip, not your pet’s health.</p>
           </div>
-          {score !== null && <div className="score-ring" style={{ '--score': `${score * 3.6}deg` } as CSSProperties}><div><div className="metric-number text-3xl">{score}</div><div className="mono text-[9px] body-muted mt-1">SCORE</div></div></div>}
+          {score !== null && <div className="score-ring" style={{ '--score': `${score * 3.6}deg` } as CSSProperties}><div><div className="metric-number text-3xl">{score}</div><div className="text-[9px] body-muted mt-1">SCORE</div></div></div>}
         </div>
         <div className="flex flex-wrap gap-2 mt-7">
           {analysis.signalQuality && <span className="tag">{SIGNAL_LABELS[analysis.signalQuality] ?? analysis.signalQuality}</span>}
@@ -440,16 +464,17 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
         )}
       </div>
       <div className="panel panel-padded">
-        <div className="flex items-center gap-2"><Gauge size={18} style={{ color: '#b9684d' }} /><div className="eyebrow">What we noticed</div></div>
+        <div className="flex items-center gap-2"><Gauge size={18} style={{ color: '#3eb49c' }} /><div className="eyebrow">What we noticed</div></div>
         <p className="text-base leading-relaxed mt-5" data-testid="text-observation">{analysis.observation ?? 'No interpretation was saved for this observation.'}</p>
         <div className="video-meta mt-7"><div className="video-icon"><FileVideo size={16} /></div><div><div className="font-semibold text-sm">{analysis.fileName}</div><div className="body-muted text-xs mt-1">{formatDuration(analysis.durationSeconds)} · {analysis.demo ? 'Sample pet' : pet?.name ?? 'Pet'}</div></div></div>
       </div>
     </div>
 
     <PipelineVisual analysis={analysis} />
+    <PoseFrameScrubber analysis={analysis} />
 
     {factors && (
-      <section className="panel panel-padded mt-5 stagger-3">
+      <section id="factor-scores" className="panel panel-padded mt-5 stagger-3 telemetry-card">
         <div className="eyebrow">Where the score came from</div>
         <h2 className="display-title text-2xl mt-2">Factor breakdown</h2>
         <p className="body-muted text-sm mt-2 max-w-2xl">Each factor is measured separately. A factor with no score means this clip did not carry enough signal to measure it — it does not mean zero.</p>
@@ -468,32 +493,32 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
 
     {measurements && (
       <section className="panel panel-padded mt-5 stagger-3">
-        <div className="flex items-center gap-2"><Ruler size={17} style={{ color: '#b9684d' }} /><div className="eyebrow">Raw measurements</div></div>
+        <div className="flex items-center gap-2"><Ruler size={17} style={{ color: '#3eb49c' }} /><div className="eyebrow">Raw measurements</div></div>
         <p className="body-muted text-sm mt-3 max-w-2xl">The values the pipeline measured, before any interpretation.</p>
         <div className="measure-grid mt-5">
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Frames read</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.frameCount, '', 0)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Measured length</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.durationSeconds, 's', 2)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Mean frame motion</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.motionMean, '', 4)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Motion variation</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.motionStd, '', 4)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Frame Motion Coverage</div><div className="font-bold text-lg mt-1">{formatMeasure(typeof measurements.motionCoverage === 'number' ? measurements.motionCoverage * 100 : undefined, '%', 0)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Front strides</div><div className="font-bold text-lg mt-1">{formatStrideCounts(measurements.strides?.frontLeft?.strideCount, measurements.strides?.frontRight?.strideCount)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Rear strides</div><div className="font-bold text-lg mt-1">{formatStrideCounts(measurements.strides?.rearLeft?.strideCount, measurements.strides?.rearRight?.strideCount)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Front symmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.limbSymmetry?.front)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Rear symmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.limbSymmetry?.rear)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Front stride length</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.strideLengthBodyLengths?.front, ' body lengths')}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Rear stride length</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.strideLengthBodyLengths?.rear, ' body lengths')}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Cadence</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.cadenceStridesPerMinute, ' / min', 1)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Stride regularity</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.strideTimeCv)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Head vertical asymmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.headBobAsymmetry)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Pelvis vertical asymmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.pelvisAsymmetry)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Dog in frame</div><div className="font-bold text-lg mt-1">{formatMeasure(typeof measurements.subject?.dogFramesShare === 'number' ? measurements.subject.dogFramesShare * 100 : undefined, '%', 0)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Stride symmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.strideSymmetry)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Asymmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.asymmetryPercent, '%', 2)}</div></div>
-          {typeof measurements.leftAnkleMotion === 'number' && <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Left ankle motion</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.leftAnkleMotion)}</div></div>}
-          {typeof measurements.rightAnkleMotion === 'number' && <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Right ankle motion</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.rightAnkleMotion)}</div></div>}
-          {typeof measurements.hipStability === 'number' && <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Hip stability</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>}
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Pose confidence</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.confidence, '%', 1)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Confident frames</div><div className="font-bold text-lg mt-1">{formatPoseFrames(analysis.framesUsed, analysis.framesTotal)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Frames read</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.frameCount, '', 0)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Measured length</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.durationSeconds, 's', 2)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Mean frame motion</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.motionMean, '', 4)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Motion variation</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.motionStd, '', 4)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Frame Motion Coverage</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(typeof measurements.motionCoverage === 'number' ? measurements.motionCoverage * 100 : undefined, '%', 0)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Front strides</div><div className="font-mono font-medium text-lg mt-1">{formatStrideCounts(measurements.strides?.frontLeft?.strideCount, measurements.strides?.frontRight?.strideCount)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Rear strides</div><div className="font-mono font-medium text-lg mt-1">{formatStrideCounts(measurements.strides?.rearLeft?.strideCount, measurements.strides?.rearRight?.strideCount)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Front symmetry</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.limbSymmetry?.front)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Rear symmetry</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.limbSymmetry?.rear)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Front stride length</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.strideLengthBodyLengths?.front, ' body lengths')}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Rear stride length</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.strideLengthBodyLengths?.rear, ' body lengths')}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Cadence</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.cadenceStridesPerMinute, ' / min', 1)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Stride regularity</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.strideTimeCv)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Head vertical asymmetry</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.headBobAsymmetry)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Pelvis vertical asymmetry</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.pelvisAsymmetry)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Dog in frame</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(typeof measurements.subject?.dogFramesShare === 'number' ? measurements.subject.dogFramesShare * 100 : undefined, '%', 0)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Stride symmetry</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.strideSymmetry)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Asymmetry</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(analysis.asymmetryPercent, '%', 2)}</div></div>
+          {typeof measurements.leftAnkleMotion === 'number' && <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Left ankle motion</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.leftAnkleMotion)}</div></div>}
+          {typeof measurements.rightAnkleMotion === 'number' && <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Right ankle motion</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.rightAnkleMotion)}</div></div>}
+          {typeof measurements.hipStability === 'number' && <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Hip stability</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>}
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Pose confidence</div><div className="font-mono font-medium text-lg mt-1">{formatMeasure(analysis.confidence, '%', 1)}</div></div>
+          <div className="soft-note p-3"><div className="text-xs font-bold uppercase tracking-wider text-slate-400/90">Confident frames</div><div className="font-mono font-medium text-lg mt-1">{formatPoseFrames(analysis.framesUsed, analysis.framesTotal)}</div></div>
         </div>
         {(measurements.notMeasuredReasons ?? []).length > 0 && (
           <ul className="body-muted text-sm mt-4 flex flex-col gap-1" data-testid="text-not-measured-reasons">
@@ -503,24 +528,32 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
       </section>
     )}
 
-    <section className="soft-note p-5 mt-5 stagger-3 flex gap-3 items-start"><CircleAlert size={19} style={{ color: '#b9684d', flexShrink: 0 }} /><div><h2 className="font-bold text-sm">Important limitations</h2><p className="body-muted text-sm leading-relaxed mt-2" data-testid="text-limitations">{analysis.limitations ?? SAFETY_DISCLAIMER}</p></div></section>
+    <section className="soft-note p-5 mt-5 stagger-3 flex gap-3 items-start"><CircleAlert size={19} style={{ color: '#3794a4', flexShrink: 0 }} /><div><h2 className="font-bold text-sm">Important limitations</h2><p className="body-muted text-sm leading-relaxed mt-2" data-testid="text-limitations">{analysis.limitations ?? SAFETY_DISCLAIMER}</p></div></section>
     <p className="body-muted text-[11px] mt-6 flex items-center gap-2"><Info size={13} /> Compare observations over time, and share concerns with a veterinary professional.</p>
+    {analysis.demo && demoTourActive && (
+      <ProductTour
+        initialStep={1}
+        onComplete={() => { setShowReport(false); onDemoTourComplete(); }}
+        onStepChange={(step) => setShowReport(step === 3)}
+      />
+    )}
+    {showReport && <VetReportModal analysis={analysis} pet={pet} onClose={() => setShowReport(false)} />}
   </div>;
 }
 
-export default function History({ pets, analyses, deleteAnalysis, demoAnalysis }: Props) {
+export default function History({ pets, analyses, deleteAnalysis, demoAnalysis, demoTourActive = false, onDemoTourComplete = () => {} }: Props) {
   const params = useParams<{ id?: string }>();
   const selected = params.id
     ? analyses.find((analysis) => analysis.id === params.id) ?? (demoAnalysis?.id === params.id ? demoAnalysis : undefined)
     : undefined;
   if (params.id && selected) {
-    return <ResultDetail analysis={selected} pet={pets.find((pet) => pet.id === selected.petId)} onDelete={() => deleteAnalysis(selected.id)} />;
+    return <ResultDetail analysis={selected} pet={pets.find((pet) => pet.id === selected.petId)} onDelete={() => deleteAnalysis(selected.id)} demoTourActive={demoTourActive} onDemoTourComplete={onDemoTourComplete} />;
   }
   if (params.id && !selected) {
-    return <div className="page-frame"><div className="panel panel-padded text-center max-w-lg mx-auto mt-16"><CircleAlert size={28} className="mx-auto" style={{ color: '#b9684d' }} /><h1 className="display-title text-3xl mt-5">That observation moved on.</h1><p className="body-muted mt-3">It may have been removed from local storage.</p><Link href="/history" className="btn-primary mt-6" data-testid="link-return-history">Back to history</Link></div></div>;
+    return <div className="page-frame"><div className="panel panel-padded text-center max-w-lg mx-auto mt-16"><CircleAlert size={28} className="mx-auto" style={{ color: '#ff8b84' }} /><h1 className="display-title text-3xl mt-5">That observation moved on.</h1><p className="body-muted mt-3">It may have been removed from local storage.</p><Link href="/history" className="btn-primary mt-6" data-testid="link-return-history">Back to history</Link></div></div>;
   }
   return <div className="page-frame max-w-5xl">
-    <div className="flex flex-wrap justify-between items-end gap-5 stagger"><div><div className="eyebrow">Your local notebook</div><h1 className="display-title text-5xl mt-3">History, not<br /><span style={{ color: '#b9684d' }}>a verdict.</span></h1><p className="body-muted mt-4 max-w-md leading-relaxed">A dated trail of observations to help you notice patterns and ask better questions.</p></div><Link href="/analyze" className="btn-primary" data-testid="link-history-new-analysis"><FileVideo size={16} /> New analysis</Link></div>
+    <div className="flex flex-wrap justify-between items-end gap-5 stagger"><div><div className="eyebrow">Your local notebook</div><h1 className="display-title text-5xl mt-3">History, not<br /><span style={{ color: '#3eb49c' }}>a verdict.</span></h1><p className="body-muted mt-4 max-w-md leading-relaxed">A dated trail of observations to help you notice patterns and ask better questions.</p></div><Link href="/analyze" className="btn-primary" data-testid="link-history-new-analysis"><FileVideo size={16} /> New analysis</Link></div>
     <div className="flex items-center gap-2 body-muted text-xs mt-8"><CalendarDays size={14} /> {analyses.length} saved observation{analyses.length === 1 ? '' : 's'} on this device</div>
     <TrendPanel analyses={analyses} />
     <div className="mt-4 stagger-2"><AnalysisList analyses={analyses} pets={pets} /></div>

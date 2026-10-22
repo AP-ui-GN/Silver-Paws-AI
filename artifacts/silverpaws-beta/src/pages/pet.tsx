@@ -60,7 +60,7 @@ export default function PetProfile({ pets, addPet, updatePet }: Props) {
   return (
     <div className="page-frame max-w-5xl">
       <div className="flex flex-wrap justify-between items-end gap-5 stagger">
-        <div><div className="eyebrow">The companion file</div><h1 className="display-title text-5xl mt-3">Make it<br /><span style={{ color: '#b9684d' }}>personal.</span></h1><p className="body-muted mt-4 max-w-md leading-relaxed">A little context helps every saved observation stay connected to the right pet.</p></div>
+        <div><div className="eyebrow">The companion file</div><h1 className="display-title text-5xl mt-3">Make it<br /><span style={{ color: '#3eb49c' }}>personal.</span></h1><p className="body-muted mt-4 max-w-md leading-relaxed">A little context helps every saved observation stay connected to the right pet.</p></div>
         <div className="soft-note p-3 text-xs flex items-center gap-2"><ShieldCheck size={15} /> Saved only in this browser</div>
       </div>
 
@@ -71,37 +71,37 @@ export default function PetProfile({ pets, addPet, updatePet }: Props) {
             <button className="btn-secondary" onClick={() => setSelectedId('new')} data-testid="button-add-pet"><Plus size={15} /> Add pet</button>
           </div>
           <div className="flex flex-wrap gap-3 mt-6">
-            {pets.map((pet) => <button className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${selectedId === pet.id ? 'border-[#174946] bg-[#edf2e8]' : 'bg-transparent'}`} onClick={() => setSelectedId(pet.id)} key={pet.id} data-testid={`button-select-pet-${pet.id}`}><span className="pet-orb" style={{ width: 42, height: 42, borderRadius: 15, fontSize: 14 }}>{pet.name.slice(0, 2).toUpperCase()}</span><span><span className="font-bold text-sm block">{pet.name}</span><span className="body-muted text-xs block mt-1">{pet.breed || pet.species}</span></span>{selectedId === pet.id && <Check size={15} style={{ color: '#174946' }} />}</button>)}
+            {pets.map((pet) => <button className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${selectedId === pet.id ? 'border-[#5e17eb]/60 bg-[#1669aa]/20 ring-2 ring-[#5e17eb]/60 shadow-[0_0_15px_rgba(94,23,235,0.35)]' : 'bg-transparent'}`} onClick={() => setSelectedId(pet.id)} key={pet.id} data-testid={`button-select-pet-${pet.id}`}><span className="pet-orb" style={{ width: 42, height: 42, borderRadius: 15, fontSize: 14 }}>{pet.name.slice(0, 2).toUpperCase()}</span><span><span className="font-bold text-sm block">{pet.name}</span><span className="body-muted text-xs block mt-1">{pet.breed || pet.species}</span></span>{selectedId === pet.id && <Check size={15} style={{ color: '#5e17eb' }} />}</button>)}
           </div>
         </div>
       )}
 
       <form onSubmit={submit} noValidate className="grid lg:grid-cols-[.85fr_1.15fr] gap-5 mt-5 stagger-3">
-        <div className="panel panel-padded" style={{ background: '#e5eee2' }}>
+        <div className="panel panel-padded">
           <div className="pet-orb"><PawPrint size={28} /></div>
           <div className="eyebrow mt-7">{selectedPet ? 'Editing profile' : 'New profile'}</div>
           <h2 className="display-title text-3xl mt-2">{form.name || 'Your companion'}</h2>
-          <p className="text-sm leading-relaxed mt-3" style={{ color: '#4f6e66' }}>The basics are enough. Notes are optional and can hold details you want to remember when reviewing a walk.</p>
-          <div className="flex items-center gap-2 text-xs font-semibold mt-7" style={{ color: '#4f6e66' }}><Sparkles size={14} style={{ color: '#b9684d' }} /> Built for noticing, not diagnosing.</div>
+          <p className="body-muted text-sm leading-relaxed mt-3">The basics are enough. Notes are optional and can hold details you want to remember when reviewing a walk.</p>
+          <div className="flex items-center gap-2 text-xs font-semibold mt-7"><Sparkles size={14} style={{ color: '#3eb49c' }} /> Built for noticing, not diagnosing.</div>
         </div>
         <div className="panel panel-padded">
           <div className="grid sm:grid-cols-2 gap-5">
             <div className="sm:col-span-2">
-              <label className="field-label" htmlFor="pet-name">Name <span style={{ color: '#b9684d' }}>*</span></label>
+              <label className="field-label" htmlFor="pet-name">Name <span style={{ color: '#3eb49c' }}>*</span></label>
               <input id="pet-name" className="field-input" value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="e.g. Mabel" aria-invalid={errors.name ? true : undefined} aria-describedby={errors.name ? 'pet-name-error' : undefined} data-testid="input-pet-name" />
-              {errors.name && <p id="pet-name-error" className="text-sm mt-2 flex items-center gap-2" style={{ color: '#a54339' }} role="alert" data-testid="text-pet-name-error"><CircleAlert size={15} />{errors.name}</p>}
+              {errors.name && <p id="pet-name-error" className="text-sm mt-2 flex items-center gap-2" style={{ color: '#ff8b84' }} role="alert" data-testid="text-pet-name-error"><CircleAlert size={15} />{errors.name}</p>}
             </div>
             <div><label className="field-label" htmlFor="pet-species">Species</label><select id="pet-species" className="field-input" value={form.species} onChange={(event) => update('species', event.target.value)} data-testid="select-pet-species"><option>Dog</option><option>Cat</option><option>Other</option></select></div>
             <div><label className="field-label" htmlFor="pet-breed">Breed</label><input id="pet-breed" className="field-input" value={form.breed} onChange={(event) => update('breed', event.target.value)} placeholder="Optional" data-testid="input-pet-breed" /></div>
             <div>
               <label className="field-label" htmlFor="pet-age">Age <span className="body-muted font-normal">(years)</span></label>
               <input id="pet-age" className="field-input" inputMode="decimal" value={form.age} onChange={(event) => update('age', event.target.value)} placeholder="e.g. 7" aria-invalid={errors.age ? true : undefined} aria-describedby={errors.age ? 'pet-age-error' : undefined} data-testid="input-pet-age" />
-              {errors.age && <p id="pet-age-error" className="text-sm mt-2 flex items-center gap-2" style={{ color: '#a54339' }} role="alert" data-testid="text-pet-age-error"><CircleAlert size={15} />{errors.age}</p>}
+              {errors.age && <p id="pet-age-error" className="text-sm mt-2 flex items-center gap-2" style={{ color: '#ff8b84' }} role="alert" data-testid="text-pet-age-error"><CircleAlert size={15} />{errors.age}</p>}
             </div>
             <div>
               <label className="field-label" htmlFor="pet-weight">Weight <span className="body-muted font-normal">(kg)</span></label>
               <input id="pet-weight" className="field-input" inputMode="decimal" value={form.weight} onChange={(event) => update('weight', event.target.value)} placeholder="Optional" aria-invalid={errors.weight ? true : undefined} aria-describedby={errors.weight ? 'pet-weight-error' : undefined} data-testid="input-pet-weight" />
-              {errors.weight && <p id="pet-weight-error" className="text-sm mt-2 flex items-center gap-2" style={{ color: '#a54339' }} role="alert" data-testid="text-pet-weight-error"><CircleAlert size={15} />{errors.weight}</p>}
+              {errors.weight && <p id="pet-weight-error" className="text-sm mt-2 flex items-center gap-2" style={{ color: '#ff8b84' }} role="alert" data-testid="text-pet-weight-error"><CircleAlert size={15} />{errors.weight}</p>}
             </div>
             <div className="sm:col-span-2"><label className="field-label" htmlFor="pet-notes">Notes</label><textarea id="pet-notes" className="field-input min-h-28 resize-y" value={form.notes} onChange={(event) => update('notes', event.target.value)} placeholder="Anything that may help you interpret a clip later…" data-testid="textarea-pet-notes" /></div>
           </div>

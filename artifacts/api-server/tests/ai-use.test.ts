@@ -16,6 +16,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ".
 
 const copies = [
   "artifacts/silverpaws-beta/src/lib/ai-use-registry.json",
+  "mobile/src/lib/ai-use-registry.json",
 ];
 
 test("registry copies and AI_USE.md match the source", () => {

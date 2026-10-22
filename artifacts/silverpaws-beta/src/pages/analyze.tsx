@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, CircleAlert, FileVideo, Film, LoaderCircle, LockKeyhole, PawPrint, Play, RotateCcw, Sparkles, UploadCloud } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
+import { toast } from 'sonner';
+import LocationSpecialistCard from '@/components/LocationSpecialistCard';
+import PoseFrameScrubber from '@/components/PoseFrameScrubber';
+import ProductTour from '@/components/ProductTour';
 import { findBaseline, toAnalysisRecord, type Analysis, type Pet } from '@/lib/storage';
 import { checkClip, describeAnalysisError, MAX_UPLOAD_MB, requestAnalysis } from '@/lib/analysis-api';
 import { formatDuration } from '@/lib/format';
@@ -10,19 +14,21 @@ type Props = {
   pets: Pet[];
   analyses: Analysis[];
   addAnalysis: (analysis: Omit<Analysis, 'id' | 'createdAt'>) => Analysis;
-  openDemoAnalysis: (analysis: Analysis) => void;
+  openDemoAnalysis: (analysis: Analysis, continueTour: boolean) => void;
 };
 
 type Phase = 'upload' | 'review' | 'processing' | 'done';
 
-// Shown in order while the request is in flight. The service does not report
-// progress, so these describe the pipeline stages rather than a percentage.
+// The API does not report live stage progress; these are elapsed-time hints only.
 const STAGES = [
-  'Sending the clip to the analysis service',
-  'Reading frames and measuring movement',
-  'Scoring the wellness factors',
-  'Writing a plain-language note',
+  'Sending the clip and starting analysis',
+  'Analyzing video frames and movement',
+  'Preparing mobility scores',
+  'Finalizing your observation',
 ];
+const ANALYSIS_REQUEST_TIMEOUT_MS = 240_000;
+const ANALYSIS_TIMEOUT_MESSAGE = 'Analysis took too long and was stopped. Try a shorter clip or try again later.';
+const STANDARD_OBSERVATION = 'Gait analysis completed. Numerical telemetry recorded; plain-language AI summary unavailable.';
 
 export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis }: Props) {
   const [, setLocation] = useLocation();
@@ -35,6 +41,7 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
   const [license, setLicense] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [phase, setPhase] = useState<Phase>('upload');
+  const [showTour, setShowTour] = useState(false);
   const [stage, setStage] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
@@ -124,7 +131,7 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
 
   const tryDemo = () => {
     requestRef.current?.abort();
-    openDemoAnalysis(createSampleAnalysis());
+    openDemoAnalysis(createSampleAnalysis(), showTour);
   };
 
   const runAnalysis = async () => {
@@ -138,6 +145,11 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
 
     const controller = new AbortController();
     requestRef.current = controller;
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, ANALYSIS_REQUEST_TIMEOUT_MS);
     setError('');
     setStage(0);
     setElapsed(0);
@@ -155,24 +167,47 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
         signal: controller.signal,
       });
 
-      const saved = addAnalysis(
-        toAnalysisRecord(result, {
-          petId,
-          fileName: file.name,
-          durationSeconds: duration,
-          source,
-          license,
-          sourceUrl,
-        }),
-      );
+      const record = toAnalysisRecord(result, {
+        petId,
+        fileName: file.name,
+        durationSeconds: duration,
+        source,
+        license,
+        sourceUrl,
+      });
+      const poseTimedOut = result.signalNote?.includes('Pose analysis exceeded its time limit') ?? false;
+      if (poseTimedOut) {
+        toast.info('Pose analysis timed out; your result is ready with motion-only telemetry.', {
+          duration: 6000,
+        });
+      }
+      if (!result.usedLlm) {
+        console.warn(
+          poseTimedOut
+            ? 'Pose analysis timed out; saving the motion-only fallback result.'
+            : 'Plain-language summary unavailable; saving numerical telemetry with the standard note.',
+        );
+        record.observation = STANDARD_OBSERVATION;
+        if (!poseTimedOut) {
+          toast.info('AI summary unavailable; completed using standard telemetry template.', {
+          duration: 6000,
+          });
+        }
+      }
+      const saved = addAnalysis(record);
 
       setPhase('done');
       window.setTimeout(() => setLocation(`/history/${saved.id}`), 400);
     } catch (caught) {
-      if (controller.signal.aborted) return;
-      setError(describeAnalysisError(caught));
+      if (controller.signal.aborted && !timedOut) return;
+      const message = timedOut ? ANALYSIS_TIMEOUT_MESSAGE : describeAnalysisError(caught);
+      if (timedOut) {
+        console.warn(`Analysis request exceeded ${ANALYSIS_REQUEST_TIMEOUT_MS / 1000} seconds and was stopped.`);
+      }
+      setError(message);
       setPhase('review');
     } finally {
+      window.clearTimeout(timeout);
       requestRef.current = null;
     }
   };
@@ -180,48 +215,61 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
   const currentPet = pets.find((pet) => pet.id === petId);
 
   return (
-    <div className="page-frame max-w-4xl">
+    <div className={`page-frame max-w-4xl${showTour ? ' pb-60' : ''}`}>
       <Link href="/" className="btn-quiet -ml-3" data-testid="link-back-home"><ArrowLeft size={15} /> Overview</Link>
-      <div className="mt-6 stagger">
-        <div className="eyebrow">New mobility observation</div>
-        <h1 className="display-title text-5xl mt-3">One walk.<br /><span className="accent-label">A little more context.</span></h1>
-        <p className="body-muted mt-4 max-w-lg leading-relaxed">Choose a short video and the analysis service will measure the movement it can see, then save an educational observation.</p>
+      <div className="mt-6 flex flex-wrap items-start justify-between gap-4 stagger">
+        <div>
+          <div className="eyebrow">New mobility observation</div>
+          <h1 className="mb-3 font-sans text-3xl font-extrabold leading-[1.15] tracking-tight sm:text-4xl lg:text-[2.75rem]">
+            <span className="block text-white sm:mr-2 sm:inline">One walk.</span>
+            <span className="block bg-gradient-to-r from-[#1669aa] via-[#3794a4] to-[#3eb49c] bg-clip-text text-transparent sm:inline">A little more context.</span>
+          </h1>
+          <p className="max-w-2xl text-sm font-normal leading-relaxed text-slate-300/90 sm:text-base">Choose a short video and the analysis service will measure the movement it can see, then save an educational observation.</p>
+        </div>
+        <button
+          className="btn-secondary"
+          onClick={() => setShowTour(true)}
+          type="button"
+          data-testid="button-replay-guided-tour"
+        >
+          Replay Guided Tour
+        </button>
       </div>
 
       <div className="flex items-center gap-2 mt-9 text-xs font-semibold">
         {['Choose video', 'Review clip', 'Analysis'].map((label, index) => {
           const active = index === 0 ? phase === 'upload' : index === 1 ? phase === 'review' : phase === 'processing' || phase === 'done';
           const complete = (index === 0 && phase !== 'upload') || (index === 1 && (phase === 'processing' || phase === 'done'));
-          return <div key={label} className="flex items-center gap-2"><span className="w-7 h-7 rounded-full grid place-items-center" style={{ background: active || complete ? '#174946' : '#e3e9df', color: active || complete ? '#f8f3e8' : '#668078' }}>{complete ? <Check size={14} /> : index + 1}</span><span className={active ? '' : 'body-muted'}>{label}</span>{index < 2 && <span className="w-8 h-px bg-border mx-1" />}</div>;
+          return <div key={label} className="flex items-center gap-2"><span className={`grid h-7 w-7 place-items-center rounded-full ${active ? 'bg-[#1669aa] text-white ring-2 ring-[#5e17eb] shadow-[0_0_10px_rgba(94,23,235,0.4)]' : 'border border-slate-700 bg-slate-800 text-slate-300'}`}>{complete ? <Check size={14} /> : index + 1}</span><span className={active ? 'text-white' : 'text-slate-300'}>{label}</span>{index < 2 && <span className="w-8 h-px bg-border mx-1" />}</div>;
         })}
       </div>
 
       {phase === 'upload' && (
-        <section className="panel panel-padded mt-7 stagger-2">
+        <section className="mt-7 rounded-2xl border border-[#1669aa]/50 border-t-[#3794a4]/40 bg-gradient-to-b from-[#0a4267]/60 to-[#061826]/95 p-6 shadow-2xl backdrop-blur-md stagger-2">
           <div className="grid md:grid-cols-[1fr_220px] gap-7">
             <div>
               <label className="field-label" htmlFor="pet-select">Who is in this video?</label>
               {pets.length
-                ? <select id="pet-select" className="field-input" value={petId} onChange={(event) => setPetId(event.target.value)} data-testid="select-analysis-pet">{pets.map((pet) => <option value={pet.id} key={pet.id}>{pet.name} · {pet.species}</option>)}</select>
+                ? <select id="pet-select" className="field-input border-[#1669aa]/60 text-white placeholder:text-slate-400" value={petId} onChange={(event) => setPetId(event.target.value)} data-testid="select-analysis-pet">{pets.map((pet) => <option value={pet.id} key={pet.id}>{pet.name} · {pet.species}</option>)}</select>
                 : <div className="soft-note p-3 text-sm" data-testid="text-no-pet-warning">Create a pet profile before starting an analysis. <Link href="/pet" className="font-bold underline">Add a pet</Link></div>}
-              <div className="dotted-drop mt-6 min-h-[245px] flex flex-col items-center justify-center text-center p-7">
+              <div id="tour-upload-dropzone" className="dotted-drop mt-6 min-h-[245px] flex flex-col items-center justify-center text-center p-7">
                 <div className="empty-art"><UploadCloud size={27} /></div>
                 <h2 className="font-bold text-lg mt-5">Drop a walking video here</h2>
                 <p className="body-muted text-sm mt-2">Have the dog walk across the frame. Hold the camera at the dog's shoulder height. Keep the whole dog in frame, including all four paws. Film one dog, with a steady camera, on a leash, on flat ground, for 10 to 15 seconds, in good light. The server accepts a longer clip, up to 120 seconds.</p>
                 <div className="flex flex-wrap justify-center gap-3 mt-5">
                   <button type="button" className="btn-secondary" onClick={() => inputRef.current?.click()} disabled={!pets.length} data-testid="button-choose-video"><Film size={16} /> Choose video</button>
                   <button type="button" className="btn-secondary" onClick={() => recordRef.current?.click()} disabled={!pets.length} data-testid="button-record-walk"><Film size={16} /> Record walk</button>
-                  <button type="button" className="btn-quiet" onClick={tryDemo} data-testid="button-try-demo"><Sparkles size={16} /> Try Demo Mode</button>
+                  <button id="try-sample-btn" type="button" className="btn-quiet scroll-mt-20 font-semibold text-[#3eb49c] transition-colors hover:text-white" onClick={tryDemo} data-testid="button-try-demo"><Sparkles size={16} /> Try Sample Dog Walk</button>
                 </div>
                 <input ref={inputRef} className="hidden" type="file" accept="video/*" onChange={(event) => selectFile(event.target.files?.[0])} data-testid="input-walking-video" />
                 <input ref={recordRef} className="hidden" type="file" accept="video/*" capture="environment" onChange={(event) => selectFile(event.target.files?.[0])} data-testid="input-record-walk" />
               </div>
-              {error && <div className="text-sm mt-3 flex items-center gap-2" style={{ color: '#a54339' }} role="alert" data-testid="text-upload-error"><CircleAlert size={15} />{error}</div>}
+              {error && <div className="text-sm mt-3 flex items-center gap-2" style={{ color: '#ff8b84' }} role="alert" data-testid="text-upload-error"><CircleAlert size={15} />{error}</div>}
             </div>
             <div className="soft-note p-4 h-fit">
               <LockKeyhole size={17} />
               <h3 className="font-bold text-sm mt-3">Sent only for analysis</h3>
-              <p className="body-muted text-xs leading-relaxed mt-2">The clip is sent to the SilverPaws analysis service, measured in a temporary folder, and deleted straight after. Only the numbers and the note are saved, in this browser.</p>
+              <p className="body-muted text-xs leading-relaxed mt-2">The clip is sent to the PetLens analysis service, measured in a temporary folder, and deleted straight after. Only the numbers and the note are saved, in this browser.</p>
             </div>
           </div>
         </section>
@@ -231,8 +279,8 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
         <section className="panel panel-padded mt-7 stagger-2">
           <div className="flex justify-between items-start gap-4"><div><div className="eyebrow">Step two · check your clip</div><h2 className="display-title text-3xl mt-2">Looks ready to read.</h2></div><button className="btn-quiet" onClick={reset} data-testid="button-replace-video"><RotateCcw size={15} /> Replace</button></div>
           <div className="grid md:grid-cols-[1.1fr_.9fr] gap-7 mt-7">
-            <div className="rounded-2xl overflow-hidden aspect-video bg-[#dbe7d7] flex items-center justify-center relative">
-              {previewUrl ? <video src={previewUrl} controls className="w-full h-full object-contain" data-testid="video-preview" /> : <FileVideo size={42} style={{ color: '#5d8177' }} />}
+            <div className="rounded-2xl overflow-hidden aspect-video bg-[#0a4267] flex items-center justify-center relative">
+              {previewUrl ? <video src={previewUrl} controls className="w-full h-full object-contain" data-testid="video-preview" /> : <FileVideo size={42} style={{ color: '#3eb49c' }} />}
               {!previewUrl && <div className="absolute inset-0 grid place-items-center"><Play size={25} /></div>}
             </div>
             <div>
@@ -259,8 +307,8 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
                    <input id="analysis-source-url" type="url" className="field-input" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://..." data-testid="input-analysis-source-url" />
                  </div>
                </div>
-              {error && <div className="text-sm mt-4 flex items-start gap-2" style={{ color: '#a54339' }} role="alert" data-testid="text-analysis-error"><CircleAlert size={15} className="mt-[2px] shrink-0" />{error}</div>}
-              <button className="btn-primary w-full mt-6" onClick={runAnalysis} disabled={!petId} data-testid="button-run-analysis"><Sparkles size={16} style={{ color: '#ef9b7f' }} /> Run analysis <ArrowRight size={15} /></button>
+              {error && <div className="text-sm mt-4 flex items-start gap-2" style={{ color: '#ff8b84' }} role="alert" data-testid="text-analysis-error"><CircleAlert size={15} className="mt-[2px] shrink-0" />{error}</div>}
+              <button className="btn-primary w-full mt-6" onClick={runAnalysis} disabled={!petId} data-testid="button-run-analysis"><Sparkles size={16} style={{ color: '#3eb49c' }} /> Run analysis <ArrowRight size={15} /></button>
               <p className="body-muted text-[11px] leading-relaxed mt-4">The result describes visible movement only. It is not a diagnosis and should never replace veterinary advice.</p>
             </div>
           </div>
@@ -268,20 +316,41 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
       )}
 
       {phase === 'processing' && (
+        <>
         <section className="panel panel-padded mt-7 stagger-2 text-center max-w-2xl mx-auto" aria-busy="true">
           <div className="empty-art mx-auto" style={{ animation: 'pulse-soft 1.3s infinite' }}><LoaderCircle size={28} className="animate-spin" /></div>
           <div className="eyebrow mt-7">Analysis in progress</div>
           <h2 className="display-title text-3xl mt-2" data-testid="text-processing-stage">{STAGES[stage]}</h2>
           <p className="body-muted text-sm mt-3">Keeping the language clear, cautious, and useful.</p>
           <div className="progress-track progress-indeterminate mt-8" role="progressbar" aria-label="Analyzing clip" />
-          <div className="mono text-xs body-muted mt-3">{elapsed}s elapsed · a longer clip takes longer to measure</div>
+          <div className="text-xs body-muted mt-3"><span className="font-mono">{elapsed}s</span> elapsed · a longer clip takes longer to measure</div>
+          <p className="body-muted mt-2 text-xs">Analysis progress is not reported live. If pose analysis is too slow, the service will try motion-only telemetry before reporting a failure.</p>
+          <button
+            className="btn-quiet mt-3"
+            onClick={() => {
+              requestRef.current?.abort();
+              requestRef.current = null;
+              setError('Analysis cancelled.');
+              setPhase('review');
+            }}
+            type="button"
+            data-testid="button-cancel-analysis"
+          >
+            Cancel analysis
+          </button>
         </section>
+        {previewUrl && <PoseFrameScrubber videoUrl={previewUrl} />}
+        </>
       )}
 
       {phase === 'done' && (
         <section className="panel panel-padded mt-7 text-center"><div className="empty-art mx-auto"><Check size={29} /></div><h2 className="display-title text-3xl mt-5">Your note is ready.</h2><p className="body-muted text-sm mt-2">Opening the saved observation for {currentPet?.name ?? 'your pet'}…</p></section>
       )}
+      <div className="mt-5" id="vet-summary-export">
+        <LocationSpecialistCard />
+      </div>
       {phase === 'review' && <div className="flex items-center gap-2 body-muted text-xs mt-6"><PawPrint size={14} /> You’re in control — review the clip before anything runs.</div>}
+      {showTour && <ProductTour onComplete={() => setShowTour(false)} />}
     </div>
   );
 }

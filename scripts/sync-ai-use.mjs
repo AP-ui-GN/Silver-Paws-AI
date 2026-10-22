@@ -15,6 +15,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const registryPath = path.join(root, "lib", "ai-use", "registry.json");
 const copies = [
   path.join(root, "artifacts", "silverpaws-beta", "src", "lib", "ai-use-registry.json"),
+  path.join(root, "mobile", "src", "lib", "ai-use-registry.json"),
 ];
 const markdownPath = path.join(root, "docs", "AI_USE.md");
 

@@ -89,7 +89,9 @@ Error mapping seen by the user:
 
 ### 2.4 Client
 
-October 21, 2026: the separate phone app was removed and the web app is the only client.
+October 21, 2026: the separate phone app was removed and the web app was the only client.
+
+October 22, 2026: merging `origin/main` (`1093191`, "Update web and mobile UI") restored `mobile/` and `docs/EXPO_TESTING.md`. That commit had edited the phone UI. Leaving the directory deleted would have dropped those edits. The phone app was not given a second pose pipeline. It accepts a `dog-pose` result, and its screens still use the PetLens name from that commit.
 
 Also removed in the earlier client pass: three orphaned files from a pre-existing attempt
 that nothing imported (`api-server/src/lib/read-upload.ts`,
@@ -661,9 +663,11 @@ per request. No persistent worker was added.
 - Sudarshan should re-review `CONCERNING_ASYMMETRY` (still 20) and
   `CONCERNING_DROP` (still 10), plus the placeholder peak, spacing, and
   phase cutoffs in `docs/GAIT_METRICS.md`, after a labeled clip set exists.
-- Confirm the AP-10K expert index (docs say 3) and the keypoint order from
-  `outputs/pose-check/` images. Those images were not committed. On the one
-  clip that was drawn, the names did not match the body parts.
+- Dataset index 3 is an AP-10K backbone expert. It does not change the
+  keypoint head. Channel order is COCO-17, from `config.id2label` and one
+  side-view frame (right ear 91.0 px from the nose and 352.6 px from the
+  left hip). That is not a labeled validation. The review images were not
+  committed.
 
 ### Pose schema correction (October 22, 2026)
 
@@ -681,3 +685,9 @@ Stride length stays unmeasured on real clips, because this head has no neck
 and no base of the tail. Left/right on a side view is still not reliable,
 and `left_knee` on that frame scored 0.38. A real AP-10K head would be a
 different checkpoint, not a rename.
+
+### Main integration (October 22, 2026)
+
+`origin/main` was one commit ahead (`1093191`). The merge kept that commit's
+web tour, sample-walk button, and phone UI. The pose head is still not
+validated. Stride length on a real clip stays unmeasured.

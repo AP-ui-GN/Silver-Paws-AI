@@ -15,11 +15,10 @@ What those cover:
 
 - TypeScript across libs, API, and the app
 - Production builds of the API and the frontend
-- Multipart parsing and explanation validation, including a mock language-model
-  provider (35 Node tests as of October 18, 2026)
-- Motion statistics, consistency, hip stability, symmetry, mobility,
-  historical change, observation text, confidence gating, and clip-quality
-  notes (55 Python tests as of October 18, 2026)
+- API tests, including multipart parsing, explanation validation, phone walk
+  helpers, and the AI-use registry (37 passed / 0 failed on October 22, 2026)
+- Motion statistics, gait metrics, keypoint-schema checks, confidence gating,
+  and clip-quality notes (70 passed / 0 failed on October 22, 2026)
 - Uploaded clips are deleted after `POST /api/analyze`, including when the
   file is rejected (`tests/upload-cleanup.test.ts`)
 - Pet-form validation and trend grouping, from the web package:
@@ -35,6 +34,15 @@ python scripts/analyze_clip.py path/to/walk.mp4 --pet-name Mabel
 ```
 
 Add `--no-pose` to force the OpenCV-only path.
+
+Pose review images (not a validation, and not committed):
+
+```bash
+python scripts/check_pose_backend.py path/to/dog-walk.mp4 --out outputs/pose-check/
+```
+
+The script labels each point with the checkpoint's COCO joint name. See
+`docs/pose-validation.md` and `docs/MODEL_CARD.md`.
 
 ## Live product checks (verified in this pass)
 

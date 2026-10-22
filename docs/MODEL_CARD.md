@@ -6,7 +6,7 @@ SilverPaws measures a walking clip. It does not diagnose pain, injury, or diseas
 
 | Pipeline | When | What it measures |
 | --- | --- | --- |
-| `dog-pose` | torch, transformers, and the weights load | A dog box, then 17 AP-10K keypoints |
+| `dog-pose` | torch, transformers, and the weights load | A dog box, then 17 COCO joints. This checkpoint has no AP-10K head. |
 | `opencv-motion` | pose cannot run, or pose throws | Frame-to-frame picture change only |
 
 New results do not use the older human-pose pipeline name. Saved walks that
@@ -35,7 +35,9 @@ Both models run on the server. The browser only uploads the clip.
 
 ## What is not validated
 
-- Keypoint order on pet dogs, until the pose-check images are reviewed
+- Pose quality on a labeled set of pet dogs. One side-view frame was compared with `config.id2label`. Channel 4 is the right ear (91.0 px from the nose, 352.6 px from the left hip on that frame). That is a naming check, not a validation set.
+- Left versus right on a side view. `left_knee` on that frame scored 0.38.
+- Stride length from this head. It has no neck and no base of the tail, so those numbers stay unmeasured.
 - Stride symmetry as a clinical measure
 - Any link between a score and pain, injury, or disease
 
