@@ -22,16 +22,24 @@ const HEALTH_BUNDLE = new URL("./.tmp-readyz-router.mjs", import.meta.url);
 async function loadHealthRouter(): Promise<{
   createHealthRouter: (check: () => Promise<ReadinessReport>) => IRouter;
 }> {
-  await build({
-    entryPoints: [HEALTH_ENTRY.pathname],
-    bundle: true,
-    platform: "node",
-    format: "esm",
-    outfile: HEALTH_BUNDLE.pathname,
-    external: ["express", "pino", "pino-http", "pino-pretty", "cors"],
-    logLevel: "silent",
-  });
-  return import(pathToFileURL(HEALTH_BUNDLE.pathname).href);
+  const previousNodeEnv = process.env["NODE_ENV"];
+  process.env["NODE_ENV"] = "production";
+  try {
+    await build({
+      entryPoints: [HEALTH_ENTRY.pathname],
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      outfile: HEALTH_BUNDLE.pathname,
+      external: ["express", "pino", "pino-http", "pino-pretty", "cors"],
+      logLevel: "silent",
+    });
+    // Avoid starting pino-pretty's worker thread in the integration test.
+    return await import(pathToFileURL(HEALTH_BUNDLE.pathname).href);
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env["NODE_ENV"];
+    else process.env["NODE_ENV"] = previousNodeEnv;
+  }
 }
 
 const readyReport: ReadinessReport = {
