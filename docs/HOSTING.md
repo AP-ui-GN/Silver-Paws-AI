@@ -100,7 +100,7 @@ took 4.02 seconds of wall time (3.552 seconds after the process had started).
 That is under 20 seconds, so the API still starts Python once per request.
 No persistent worker was added.
 
-The API handles SIGTERM/SIGINT by stopping new accepts, allowing in-flight requests to drain, and terminating remaining Python analysis processes after `SHUTDOWN_TIMEOUT_MS`. The Docker image was not built. The `docker` command is not installed here.
+The API handles SIGTERM/SIGINT by stopping new accepts, allowing in-flight requests to drain, and terminating remaining Python analysis processes after `SHUTDOWN_TIMEOUT_MS`. The original local benchmark environment did not have Docker installed. On October 22, 2026, GitHub Actions subsequently built the image and passed the container/API smoke test; see the hosted verification section below.
 1665 MB is this CPU run, not a measurement from a hosted container.
 
 To see what a real clip uses:
@@ -121,7 +121,7 @@ docker compose up --build
 
 Then open `http://127.0.0.1:8080/api/healthz`.
 
-This environment did not have a `docker` command, so this image was not built here.
+The local benchmark environment did not have a `docker` command. GitHub Actions now builds the image and smoke-tests readiness and the analysis API; the smoke fixture is synthetic, not a dog-walk video.
 
 ## Deploy on Render
 
