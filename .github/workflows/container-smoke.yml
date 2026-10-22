@@ -87,6 +87,27 @@ jobs:
             }
           '
 
+      - name: Verify cached QuadPose ONNX inference and output shape
+        run: |
+          docker exec silverpaws-api-ci /opt/venv/bin/python -c '
+          import numpy as np
+          from gait_engine.quadpose import load_quadpose, _predict_frame
+
+          session = load_quadpose()
+          frame = np.zeros((240, 320, 3), dtype=np.uint8)
+          keypoints = _predict_frame(
+              session,
+              frame,
+              np.asarray([30.0, 20.0, 290.0, 220.0], dtype=np.float64),
+          )
+          assert keypoints.shape == (17, 3), keypoints.shape
+          assert np.isfinite(keypoints).all(), "non-finite keypoint output"
+          assert np.all((keypoints[:, :2] >= 0.0) & (keypoints[:, :2] <= 1.0)), "coordinates not normalized"
+          assert np.all((keypoints[:, 2] >= 0.0) & (keypoints[:, 2] <= 1.0)), "scores out of range"
+          print("QuadPose F2 ONNX loaded; output shape:", keypoints.shape)
+          print("This black-frame smoke check validates loading and schema only, not dog-pose accuracy.")
+          '
+
       - name: Create a deterministic synthetic motion clip
         run: |
           python3 -m pip install --disable-pip-version-check -r requirements-opencv.txt
