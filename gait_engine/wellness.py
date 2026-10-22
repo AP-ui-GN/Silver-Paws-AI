@@ -381,8 +381,8 @@ def build_limitations(pipeline: str, signal_quality: str) -> str:
         )
     else:
         parts.append(
-            "Pose landmarks come from a model trained on human bodies, so limb detections "
-            "on pets can be unreliable."
+            "This saved observation uses a legacy pose pipeline. Its landmark and metric "
+            "semantics are not guaranteed to match the current AP-10K pipeline."
         )
 
     if signal_quality != "good":
