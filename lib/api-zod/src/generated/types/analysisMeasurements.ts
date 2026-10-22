@@ -54,6 +54,6 @@ export interface AnalysisMeasurements {
   headBobAsymmetry?: number | null;
   pelvisAsymmetry?: number | null;
   notMeasuredReasons?: string[];
-  /** One sampled frame, 17 AP-10K points normalized to that frame's dog box from 0 to 1. This is not the uploaded video and stores no pixels. */
+  /** One sampled frame, 17 COCO-17 output points normalized to that frame's dog box from 0 to 1. These are checkpoint COCO labels applied inside a dog box, not validated canine anatomical landmarks. The checkpoint does not emit AP-10K neck or root-of-tail points. This is not the uploaded video and stores no pixels. */
   poseSample?: PoseKeypointSummary[] | null;
 }
