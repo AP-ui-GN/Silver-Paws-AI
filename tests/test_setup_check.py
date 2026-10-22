@@ -1,6 +1,9 @@
 """The setup report reads local files and does not fetch a model."""
 
 import json
+import os
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -80,6 +83,29 @@ class SetupCheckTests(unittest.TestCase):
             report = inspect_model(root, POSE_ID)
         self.assertEqual(report["channel4"], "root_of_tail")
         self.assertEqual(report["schema"], "unverified")
+
+    def test_setup_cli_json_is_valid_and_never_downloads_weights(self):
+        repository_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as cache:
+            environment = os.environ.copy()
+            environment["HF_HOME"] = cache
+            completed = subprocess.run(
+                [sys.executable, str(repository_root / "scripts" / "check_setup.py"), "--json"],
+                cwd=repository_root,
+                env=environment,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+
+        report = json.loads(completed.stdout)
+        self.assertFalse(report["downloadsWeights"])
+        self.assertIn("fallbackReady", report)
+        self.assertIn("poseReady", report)
+        self.assertIn("poseDependencies", report)
+        self.assertIn("detector", report)
+        self.assertIn("pose", report)
 
     def _temp(self):
         import tempfile
