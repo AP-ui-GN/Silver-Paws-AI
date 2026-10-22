@@ -1,95 +1,130 @@
 # Model card
 
-SilverPaws measures a walking clip. It does not diagnose pain, injury, or disease.
+SilverPaws AI records observable movement patterns from a walking clip. It is a
+wellness observation tool, not a veterinary diagnostic system. It does not
+diagnose injury, pain, or disease.
 
-## What runs
+## Current analysis path
 
-| Pipeline | When | What it measures |
-| --- | --- | --- |
-| `dog-pose` | torch, transformers, and the weights load | A dog box, then 17 COCO joints. This checkpoint has no AP-10K head. |
-| `opencv-motion` | pose cannot run, or pose throws | Frame-to-frame picture change only |
+| Component | Model / method | Role |
+|---|---|---|
+| Dog detector | RT-DETR, `PekingU/rtdetr_r50vd_coco_o365` | Finds dog bounding boxes in sampled frames |
+| Dog identity | SilverPaws temporal association in `gait_engine/tracking.py` | Preserves the selected track and marks ambiguous or lost intervals |
+| Pose estimator | QuadPose F2 ONNX, pinned source commit `52f0329b5c9af513b5a8f2820aaea6bbd945d0c0` | Estimates 17 AP-10K-order animal landmarks in the selected dog box |
+| Motion fallback | OpenCV frame difference | Measures picture changes when the pose path is unavailable |
+| Gait calculations | Deterministic functions in `gait_engine/gait.py` | Derives experimental movement observations from usable landmarks |
+| Score and wording | Fixed formulas/templates in `gait_engine/wellness.py` | Summarizes observed values; optional LLM rewrite does not choose measurements |
 
-New results do not use the older human-pose pipeline name. Saved walks that
-used it still validate.
+The detector and pose estimator are separate models. QuadPose is called with
+the existing tracked dog box; the motion fallback is not used as a dog detector.
 
-**Dog detector.** `PekingU/rtdetr_r50vd_coco_o365` (`RTDetrForObjectDetection`).
-The model card on Hugging Face lists Apache-2.0. The dog class id is read
-from `config.id2label`. It is not hard-coded. A box is kept at
-`DOG_DETECT_THRESHOLD` 0.3.
+## QuadPose F2 provenance and setup
 
-**Pose.** `usyd-community/vitpose-plus-base` (`VitPoseForPoseEstimation`).
-The Transformers docs list dataset index 3 as an AP-10K backbone expert.
-The checkpoint file has one keypoint head. `config.id2label` and
-`config.edges` are the 17 COCO human joints. Index 4 is `R_Ear`. The
-original ViTPose++ training config defines a separate AP-10K head, and that
-head is not in this file. Passing dataset index 3 does not change the
-channel order.
-
-On one side-view frame, channel 0 sat on the nose and channel 4 sat on the
-ear, next to the head, not at the base of the tail. The pipeline therefore
-names these channels with the COCO schema. It does not call channel 4
-`root_of_tail`. Stride length, which needs the neck and the base of the
-tail, stays unmeasured.
-
-The loaded file has one decoder. Its last convolution has 17 output
-channels. `config.id2label` is Nose through R_Ankle. The backbone config
-has six experts. Dataset index 3 only selects one of those experts.
-
-## Side-view review
-
-This is one clip, not a validation set. `scripts/check_pose_backend.py` on
-that clip sampled 60 frames at 960×544 and printed `schema=coco-17`,
-`dogFramesShare=1.0`, `multipleDogs=False`, and `personPresent=True`. The
-right ear's median was 91.0 px from the nose and 352.6 px from the left hip.
-Both ankles were below the hips.
-
-The dog box stays on the dog. A person at the left edge is recorded as
-present and is not returned as the dog. The nose tracks the snout as the
-dog walks left. On the drawn frames the nose, eyes, and ears sit on the
-head, the shoulders sit on the withers, and the elbows, wrists, knees, and
-ankles sit on the legs. Left and right are not a dog's left and right: the
-median left and right eyes were 11.1 px apart, and the ears were 5.4 px
-apart. On some frames the rear-leg links cross, and both hips can land on
-the same part of the rump. The tail in the picture has no landmark.
-
-Do not rename a channel to force a nose-farther-than-eyes rule or a
-nose-to-tail rule. This head has no neck and no base of the tail. Those
-stride numbers stay unmeasured until a checkpoint with an AP-10K keypoint
-head is checked on its own.
-
-Both models run on the server. The browser only uploads the clip.
-
-## What is not validated
-
-- Pose quality on a labeled set of pet dogs. One side-view frame was compared with `config.id2label`. Channel 4 is the right ear (91.0 px from the nose, 352.6 px from the left hip on that frame). That is a naming check, not a validation set.
-- Left versus right on a side view. `left_knee` on that frame scored 0.38.
-- Stride length from this head. It has no neck and no base of the tail, so those numbers stay unmeasured.
-- Stride symmetry as a clinical measure
-- Any link between a score and pain, injury, or disease
-
-Placeholder peak, spacing, and phase cutoffs are in `docs/GAIT_METRICS.md`.
-
-## Fallback
-
-If torch, transformers, or the weights are missing, or pose throws, the clip
-is still measured with OpenCV frame difference. `diagnostics.poseSkipReason`
-says why. The request does not fail because pose failed.
-
-## Cache
+- Upstream project: [EstevanSL/snapml-quadruped-pose](https://github.com/EstevanSL/snapml-quadruped-pose)
+- Pinned source commit: `52f0329b5c9af513b5a8f2820aaea6bbd945d0c0`
+- Checkpoint: `models/quadpose_f2.onnx`
+- SHA-256: `f3807433962d8abcee18f1bd45e5ff9e56bd899768b03a6996c3db4ebd12b884`
+- The upstream publisher labels the model code and weights Apache-2.0 and states
+  that it was trained on AP-10K. AP-10K annotations are published under CC BY 4.0;
+  see the [dataset repository](https://github.com/AlexTheBad/AP-10K).
+- SilverPaws does not train or fine-tune QuadPose F2.
+- Model weights are not committed to this repository. Install them explicitly:
 
 ```bash
 pip install -r requirements.txt
 python scripts/cache_models.py
+python scripts/check_setup.py
 ```
 
-Weights go to `HF_HOME`, default `models/hf`. That directory is gitignored.
+The setup check reads the local caches and does not download weights. Inference
+also requires an already-cached detector and a checksum-verified QuadPose
+checkpoint; an upload must not trigger an implicit download. The default ONNX
+cache is `models/quadpose/quadpose_f2.onnx`, overridable with
+`SILVERPAWS_QUADPOSE_CACHE`. The detector is cached under `HF_HOME`.
 
-## Time and memory
+## Keypoint output contract
 
-On this CPU, a 15.000-second 30 fps file made by repeating a 5-second clip
-took 40.127 seconds end to end (`scripts/time_clip.py`: sample 0.949 s,
-pose including weight load 39.162 s, gait math 0.015 s). Peak RSS was
-1665.3 MB. One-shot `analyze_clip.py` on the same file took 37.543 seconds.
-Loading both models in a new process, without a clip, took 4.02 seconds of
-wall time. GitHub Actions built and smoke-tested the Docker image on October 22, 2026 using a synthetic motion clip. This did not measure production-host memory or validate canine pose accuracy; hosted RAM remains unmeasured.
-Details are in `docs/HOSTING.md`.
+QuadPose returns a 17-channel heatmap in the AP-10K order. SilverPaws maps its
+decoder output to this canonical schema:
+
+1. left eye
+2. right eye
+3. nose
+4. neck
+5. root of tail
+6. left shoulder
+7. left elbow
+8. left front paw
+9. right shoulder
+10. right elbow
+11. right front paw
+12. left hip
+13. left knee
+14. left back paw
+15. right hip
+16. right knee
+17. right back paw
+
+The adapter converts normalized `(y, x, score)` output to source-frame pixel
+`(x, y, score)` coordinates and rejects non-finite, low-score, and out-of-frame
+points. Heatmap peak scores are **not calibrated probabilities**. The schema
+name describes output ordering; it is not a guarantee that every point is
+visible or accurate in a given frame.
+
+The ONNX decoder and box crop are implemented in `gait_engine/quadpose.py`.
+The RT-DETR detection and identity association remain in
+`gait_engine/pose_backend.py`.
+
+## Evaluation and limitations
+
+The upstream project reports AP 0.6289 on its AP-10K validation split with
+ground-truth boxes. See the upstream [benchmark and evaluation details](https://github.com/EstevanSL/snapml-quadruped-pose).
+That number is **not a SilverPaws end-to-end result**: it does not measure the
+combination of SilverPaws dog detection, tracking, decoding, and gait formulas.
+
+SilverPaws has not validated the complete pose-and-gait pipeline on a labeled
+set of pet-dog walking videos. There is no app-specific accuracy, sensitivity,
+specificity, or clinical-performance claim. The formulas and cutoffs in
+`docs/GAIT_METRICS.md` remain experimental and need an appropriate labeled
+evaluation before their performance can be characterized.
+
+Important boundaries:
+
+- A point may be occluded, misplaced, or confused with another limb. The model's
+  confidence-like heatmap peak is not a calibrated probability.
+- A single side view can hide far-side limbs or make anatomical left/right
+  difficult to confirm.
+- The app estimates 2D movement. A pixel displacement is not physical distance.
+- Stride excursion is reported in relative body-length units where supported;
+  it is not a measurement in meters or centimeters.
+- A camera that pans or shakes can change image motion independently of the dog.
+- Derived gait metrics are experimental movement observations, not a diagnosis
+  or validated medical screen.
+- Insufficient or ambiguous data must produce a missing measurement and reason,
+  not a fabricated zero.
+
+The tests exercise coordinate conversion, output shape handling, checksum
+checking, tracking decisions, and mathematical behavior on synthetic inputs.
+Those tests do not establish real-world canine pose accuracy.
+
+## Fallback
+
+If the pose stack, detector assets, or checksum-verified checkpoint is not
+available—or pose inference fails—the analysis may return the OpenCV
+`opencv-motion` result if that path succeeds. The result identifies the active
+pipeline and explains the pose skip. A motion-only result does not contain dog
+landmarks and must not be mixed with pose-derived history as if the pipelines
+were equivalent.
+
+## Runtime and resource measurements
+
+The old COCO/ViTPose path had a recorded CPU run of about 40 seconds and peak
+resident memory around 1.7 GB, largely including model-loading overhead. Those
+numbers are historical and **must not be treated as QuadPose F2 benchmarks**.
+The current QuadPose integration and Docker deployment need their own measured
+latency and memory results.
+
+GitHub Actions builds the Docker image and runs a setup/readiness check plus a
+synthetic-motion `POST /api/analyze` smoke request. The synthetic clip checks
+container packaging and the API-to-Python response path; it is not a dog video
+and does not validate canine pose accuracy or production-host memory.
