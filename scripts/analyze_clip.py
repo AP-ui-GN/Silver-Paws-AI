@@ -67,11 +67,27 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def write_json(path: Path, result: dict) -> None:
+    """Replace the output file only after the JSON is fully written."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(result) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
 def main() -> int:
     args = parse_args()
 
     # Imported here so --help works without OpenCV installed.
     from gait_engine.pipeline import analyze_clip
+
+    motion_ready = None
+    if args.output_json is not None and not args.no_pose:
+        output_path = args.output_json
+
+        def motion_ready(result: dict, destination: Path = output_path) -> None:
+            write_json(destination, result)
 
     try:
         result = analyze_clip(
@@ -80,6 +96,7 @@ def main() -> int:
             previous_overall=args.previous_overall,
             previous_pipeline=args.previous_pipeline,
             use_pose=not args.no_pose,
+            motion_ready=motion_ready,
         )
         exit_code = 0
     except (FileNotFoundError, ValueError) as exc:
@@ -98,8 +115,7 @@ def main() -> int:
         write_debug_video(args.video, args.debug_video)
     payload = json.dumps(result)
     if args.output_json:
-        args.output_json.parent.mkdir(parents=True, exist_ok=True)
-        args.output_json.write_text(payload + "\n", encoding="utf-8")
+        write_json(args.output_json, result)
     print(payload)
 
     return exit_code

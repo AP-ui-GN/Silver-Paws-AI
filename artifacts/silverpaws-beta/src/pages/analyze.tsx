@@ -19,15 +19,11 @@ type Props = {
 
 type Phase = 'upload' | 'review' | 'processing' | 'done';
 
-// The API does not report live stage progress; these are elapsed-time hints only.
-const STAGES = [
-  'Sending the clip and starting analysis',
-  'Analyzing video frames and movement',
-  'Preparing mobility scores',
-  'Finalizing your observation',
-];
-const ANALYSIS_REQUEST_TIMEOUT_MS = 240_000;
-const ANALYSIS_TIMEOUT_MESSAGE = 'Analysis took too long and was stopped. Try a shorter clip or try again later.';
+// The service does not report live phases. One status stays up for the whole
+// request. A browser timer used to abort at four minutes and show this page as
+// "Finalizing your observation" the whole time, including while pose was still
+// loading. The service owns the deadline now.
+const PROCESSING_STATUS = 'Measuring this clip';
 const STANDARD_OBSERVATION = 'Gait analysis completed. Numerical telemetry recorded; plain-language AI summary unavailable.';
 
 export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis }: Props) {
@@ -42,7 +38,6 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
   const [sourceUrl, setSourceUrl] = useState('');
   const [phase, setPhase] = useState<Phase>('upload');
   const [showTour, setShowTour] = useState(false);
-  const [stage, setStage] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,7 +54,6 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
     const timer = window.setInterval(() => {
       const seconds = Math.floor((Date.now() - started) / 1000);
       setElapsed(seconds);
-      setStage(Math.min(STAGES.length - 1, Math.floor(seconds / 4)));
     }, 500);
     return () => window.clearInterval(timer);
   }, [phase]);
@@ -119,7 +113,6 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
     setSource('');
     setLicense('');
     setSourceUrl('');
-    setStage(0);
     setElapsed(0);
     setPhase('upload');
     setError('');
@@ -142,13 +135,7 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
 
     const controller = new AbortController();
     requestRef.current = controller;
-    let timedOut = false;
-    const timeout = window.setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, ANALYSIS_REQUEST_TIMEOUT_MS);
     setError('');
-    setStage(0);
     setElapsed(0);
     setPhase('processing');
 
@@ -196,15 +183,10 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
       setPhase('done');
       window.setTimeout(() => setLocation(`/history/${saved.id}`), 400);
     } catch (caught) {
-      if (controller.signal.aborted && !timedOut) return;
-      const message = timedOut ? ANALYSIS_TIMEOUT_MESSAGE : describeAnalysisError(caught);
-      if (timedOut) {
-        console.warn(`Analysis request exceeded ${ANALYSIS_REQUEST_TIMEOUT_MS / 1000} seconds and was stopped.`);
-      }
-      setError(message);
+      if (controller.signal.aborted) return;
+      setError(describeAnalysisError(caught));
       setPhase('review');
     } finally {
-      window.clearTimeout(timeout);
       requestRef.current = null;
     }
   };
@@ -315,11 +297,11 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
         <section className="panel panel-padded mt-7 stagger-2 text-center max-w-2xl mx-auto" aria-busy="true">
           <div className="empty-art mx-auto" style={{ animation: 'pulse-soft 1.3s infinite' }}><LoaderCircle size={28} className="animate-spin" /></div>
           <div className="eyebrow mt-7">Analysis in progress</div>
-          <h2 className="display-title text-3xl mt-2" data-testid="text-processing-stage">{STAGES[stage]}</h2>
-          <p className="body-muted text-sm mt-3">Keeping the language clear, cautious, and useful.</p>
+          <h2 className="display-title text-3xl mt-2" data-testid="text-processing-stage">{PROCESSING_STATUS}</h2>
+          <p className="body-muted text-sm mt-3">This page waits while the analysis service is still working.</p>
           <div className="progress-track progress-indeterminate mt-8" role="progressbar" aria-label="Analyzing clip" />
           <div className="text-xs body-muted mt-3"><span className="font-mono">{elapsed}s</span> elapsed · a longer clip takes longer to measure</div>
-          <p className="body-muted mt-2 text-xs">Analysis progress is not reported live. If pose analysis is too slow, the service will try motion-only telemetry before reporting a failure.</p>
+          <p className="body-muted mt-2 text-xs">Progress is not reported live. If pose runs past the service limit, the motion measurements already taken are kept. Stride values that were not measured stay unmeasured.</p>
           <button
             className="btn-quiet mt-3"
             onClick={() => {

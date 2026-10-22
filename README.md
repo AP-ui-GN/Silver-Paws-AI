@@ -160,7 +160,7 @@ Optional environment variables:
 | `SILVERPAWS_PYTHON` | API | project `.venv` if present | Python used to run the pipeline |
 | `SILVERPAWS_REPO_ROOT` | API | inferred | Repo root so the CLI can be found |
 | `MAX_UPLOAD_MB` | API | `60` | Upload size cap |
-| `ANALYSIS_TIMEOUT_MS` | API | `120000` | Pipeline timeout |
+| `ANALYSIS_TIMEOUT_MS` | API | `600000` | Stop the pipeline after this many milliseconds. Motion saved before pose is returned if pose is still running |
 | `SILVERPAWS_LLM_URL` | API | unset | Optional chat-completions endpoint |
 | `SILVERPAWS_LLM_KEY` | API | unset | Bearer token for that endpoint; never logged |
 | `SILVERPAWS_LLM_MODEL` | API | unset | Model name. Required, with the URL, before a rewrite is attempted |

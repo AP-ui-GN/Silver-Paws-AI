@@ -16,6 +16,7 @@ The returned dictionary matches the ``AnalyzeResult`` schema in
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -214,6 +215,13 @@ def _assess_signal(pipeline: str, measurements: dict) -> tuple[str, str]:
     )
 
 
+# The screen looks for this sentence when pose was stopped and motion was kept.
+POSE_TIME_LIMIT_NOTE = (
+    "Pose analysis exceeded its time limit. Picture motion was measured. "
+    "Stride length and symmetry were not measured."
+)
+
+
 def analyze_clip(
     video_path: str | Path,
     *,
@@ -222,6 +230,7 @@ def analyze_clip(
     previous_pipeline: str | None = None,
     use_pose: bool = True,
     model_url: str | None = None,
+    motion_ready: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     del model_url  # Older callers passed a pose URL. It is ignored.
     """Analyze one movement clip and return an ``AnalyzeResult`` dictionary.
@@ -259,6 +268,116 @@ def analyze_clip(
     low_confidence = False
 
     pose_payload = None
+
+    def pack(note_override: str | None = None) -> dict[str, Any]:
+        signal_quality, signal_note = _assess_signal(pipeline, measurements)
+        if low_confidence and signal_quality != "unusable":
+            signal_quality = "limited"
+            signal_note = (
+                "Pose landmarks were found, but confidence was too low to measure the legs. "
+                "Try a clearer clip, filmed from the side with the whole body in frame."
+            )
+        if note_override is not None and signal_quality != "unusable":
+            signal_quality = "limited"
+            signal_note = note_override
+
+        notes = quality_notes(
+            frames_read=signal.frames_read,
+            fps=signal.fps,
+            duration_seconds=signal.duration_seconds,
+            width=signal.width,
+            height=signal.height,
+            brightness=signal.brightness,
+            motion_mean=motion_mean,
+            motion_coverage=motion_coverage,
+        )
+
+        if signal_quality == "unusable":
+            # Refuse to publish scores that were built from nothing.
+            factors: dict[str, float | None] = {
+                "movementConsistency": None,
+                "symmetry": None,
+                "mobility": None,
+                "activity": None,
+                "historicalChange": None,
+            }
+            overall = None
+        else:
+            factors = score_factors(measurements)
+            overall = overall_score(factors)
+
+        # Trends are only meaningful between clips measured the same way.
+        comparable_previous = (
+            previous_overall
+            if previous_overall is not None and previous_pipeline == pipeline
+            else None
+        )
+
+        # historical_change_factor returns None on a first walk. When that factor
+        # has a weight, the overall indicator is recomputed so the comparison counts.
+        if signal_quality != "unusable":
+            factors["historicalChange"] = historical_change_factor(
+                overall, comparable_previous
+            )
+            if "historicalChange" in DEFAULT_WEIGHTS:
+                overall = overall_score(factors)
+
+        concerning = concerning_change(overall, comparable_previous, measurements)
+        observation = build_observation(
+            pet_name=_clean_pet_name(pet_name),
+            measurements=measurements,
+            factors=factors,
+            overall=overall,
+            previous_overall=comparable_previous,
+            signal_quality=signal_quality,
+            signal_note=signal_note,
+            concerning=concerning,
+        )
+
+        confidence = measurements["meanKeypointConfidence"]
+
+        return {
+            "ok": True,
+            "pipeline": pipeline,
+            "signalQuality": signal_quality,
+            "signalNote": signal_note,
+            "measurements": measurements,
+            "factors": factors,
+            "overallScore": overall,
+            "strideSymmetryScore": factors["symmetry"],
+            "asymmetryPercent": (
+                measurements["asymmetryPercent"] if measurements["symmetryReliable"] else None
+            ),
+            "confidence": None if confidence is None else round(confidence * 100, 1),
+            "observation": observation,
+            "limitations": build_limitations(pipeline, signal_quality),
+            "concerningChange": concerning,
+            "usedLlm": False,
+            "weightsUsed": weights_used(factors),
+            "modelInfo": _model_info(pipeline, pose_payload),
+            "modelConfidence": model_confidence,
+            "framesUsed": frames_used,
+            "framesTotal": frames_total,
+            "lowConfidence": low_confidence,
+            "qualityNotes": notes,
+            "aiUse": ai_use_ids(pipeline),
+            "diagnostics": {
+                "fps": signal.fps,
+                "framePairs": len(signal.frame_motion),
+                "poseSkipReason": pose_skip_reason,
+                "dogFramesShare": None if pose_payload is None else pose_payload["dog_frames_share"],
+                "multipleDogs": None if pose_payload is None else pose_payload["multiple_dogs"],
+                "personPresent": None if pose_payload is None else pose_payload["person_present"],
+                "configuredWeights": DEFAULT_WEIGHTS,
+                "comparedToPrevious": comparable_previous is not None,
+            },
+        }
+
+    # Motion is already measured. Save it before pose starts so a deadline
+    # during model load can keep this result instead of failing the clip.
+    if use_pose and motion_ready is not None:
+        motion_ready(pack(POSE_TIME_LIMIT_NOTE))
+
     if use_pose:
         pose_payload, pose_skip_reason = _try_pose(path)
         if pose_payload is not None:
@@ -322,102 +441,4 @@ def analyze_clip(
             if not pose_is_trusted(summary, minimum=MIN_POSE_CONFIDENCE):
                 low_confidence = True
 
-    signal_quality, signal_note = _assess_signal(pipeline, measurements)
-    if low_confidence and signal_quality != "unusable":
-        signal_quality = "limited"
-        signal_note = (
-            "Pose landmarks were found, but confidence was too low to measure the legs. "
-            "Try a clearer clip, filmed from the side with the whole body in frame."
-        )
-
-    notes = quality_notes(
-        frames_read=signal.frames_read,
-        fps=signal.fps,
-        duration_seconds=signal.duration_seconds,
-        width=signal.width,
-        height=signal.height,
-        brightness=signal.brightness,
-        motion_mean=motion_mean,
-        motion_coverage=motion_coverage,
-    )
-
-    if signal_quality == "unusable":
-        # Refuse to publish scores that were built from nothing.
-        factors: dict[str, float | None] = {
-            "movementConsistency": None,
-            "symmetry": None,
-            "mobility": None,
-            "activity": None,
-            "historicalChange": None,
-        }
-        overall = None
-    else:
-        factors = score_factors(measurements)
-        overall = overall_score(factors)
-
-    # Trends are only meaningful between clips measured the same way.
-    comparable_previous = (
-        previous_overall
-        if previous_overall is not None and previous_pipeline == pipeline
-        else None
-    )
-
-    # historical_change_factor returns None on a first walk. When that factor
-    # has a weight, the overall indicator is recomputed so the comparison counts.
-    if signal_quality != "unusable":
-        factors["historicalChange"] = historical_change_factor(
-            overall, comparable_previous
-        )
-        if "historicalChange" in DEFAULT_WEIGHTS:
-            overall = overall_score(factors)
-
-    concerning = concerning_change(overall, comparable_previous, measurements)
-    observation = build_observation(
-        pet_name=_clean_pet_name(pet_name),
-        measurements=measurements,
-        factors=factors,
-        overall=overall,
-        previous_overall=comparable_previous,
-        signal_quality=signal_quality,
-        signal_note=signal_note,
-        concerning=concerning,
-    )
-
-    confidence = measurements["meanKeypointConfidence"]
-
-    return {
-        "ok": True,
-        "pipeline": pipeline,
-        "signalQuality": signal_quality,
-        "signalNote": signal_note,
-        "measurements": measurements,
-        "factors": factors,
-        "overallScore": overall,
-        "strideSymmetryScore": factors["symmetry"],
-        "asymmetryPercent": (
-            measurements["asymmetryPercent"] if measurements["symmetryReliable"] else None
-        ),
-        "confidence": None if confidence is None else round(confidence * 100, 1),
-        "observation": observation,
-        "limitations": build_limitations(pipeline, signal_quality),
-        "concerningChange": concerning,
-        "usedLlm": False,
-        "weightsUsed": weights_used(factors),
-        "modelInfo": _model_info(pipeline, pose_payload),
-        "modelConfidence": model_confidence,
-        "framesUsed": frames_used,
-        "framesTotal": frames_total,
-        "lowConfidence": low_confidence,
-        "qualityNotes": notes,
-        "aiUse": ai_use_ids(pipeline),
-        "diagnostics": {
-            "fps": signal.fps,
-            "framePairs": len(signal.frame_motion),
-            "poseSkipReason": pose_skip_reason,
-            "dogFramesShare": None if pose_payload is None else pose_payload["dog_frames_share"],
-            "multipleDogs": None if pose_payload is None else pose_payload["multiple_dogs"],
-            "personPresent": None if pose_payload is None else pose_payload["person_present"],
-            "configuredWeights": DEFAULT_WEIGHTS,
-            "comparedToPrevious": comparable_previous is not None,
-        },
-    }
+    return pack()

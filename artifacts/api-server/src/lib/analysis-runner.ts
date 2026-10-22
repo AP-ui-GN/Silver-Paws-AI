@@ -6,7 +6,7 @@
  * generated schema before anything reaches a user.
  */
 
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -16,6 +16,13 @@ import { fileURLToPath } from "node:url";
 import { AnalyzeMovementClipResponse, type AnalyzeResult } from "@workspace/api-zod";
 
 import { logger } from "./logger";
+import {
+  ANALYSIS_TIMEOUT_MS,
+  isFinishedAnalysis,
+  readPipelineFailure,
+} from "./saved-result";
+
+export { ANALYSIS_TIMEOUT_MS, DEFAULT_ANALYSIS_TIMEOUT_MS } from "./saved-result";
 
 // This file is bundled to artifacts/api-server/dist, so the repository root is
 // three levels up. SILVERPAWS_REPO_ROOT overrides it for other layouts.
@@ -30,9 +37,22 @@ const CLIP_PROBLEM_EXIT_CODE = 2;
 
 const STDERR_LOG_LIMIT = 4000;
 
-export const ANALYSIS_TIMEOUT_MS = Number(
-  process.env["ANALYSIS_TIMEOUT_MS"] ?? 120_000,
-);
+function stopPipeline(child: ChildProcess): void {
+  const pid = child.pid;
+  if (pid && process.platform !== "win32") {
+    try {
+      process.kill(-pid, "SIGKILL");
+      return;
+    } catch {
+      // The group is already gone.
+    }
+  }
+  try {
+    child.kill("SIGKILL");
+  } catch {
+    // Already exited.
+  }
+}
 
 export interface AnalysisRequest {
   videoPath: string;
@@ -89,7 +109,10 @@ interface ProcessOutcome {
 
 function runPython(command: string, args: string[]): Promise<ProcessOutcome> {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { cwd: REPOSITORY_ROOT });
+    const child = spawn(command, args, {
+      cwd: REPOSITORY_ROOT,
+      detached: process.platform !== "win32",
+    });
 
     let stdout = "";
     let stderr = "";
@@ -98,7 +121,7 @@ function runPython(command: string, args: string[]): Promise<ProcessOutcome> {
 
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill();
+      stopPipeline(child);
     }, ANALYSIS_TIMEOUT_MS);
 
     child.stdout.on("data", (chunk: Buffer) => {
@@ -146,18 +169,6 @@ async function readPipelineJson(
   }
 }
 
-/** The CLI reports its own failures as `{ ok: false, error: "..." }`. */
-function readPipelineFailure(payload: unknown): string | null {
-  if (typeof payload !== "object" || payload === null) return null;
-
-  const record = payload as Record<string, unknown>;
-  if (record["ok"] !== false) return null;
-
-  return typeof record["error"] === "string"
-    ? record["error"]
-    : "The clip could not be analyzed.";
-}
-
 export async function runAnalysis(
   request: AnalysisRequest,
 ): Promise<AnalysisOutcome> {
@@ -182,7 +193,19 @@ export async function runAnalysis(
       };
     }
 
+    const payload = await readPipelineJson(outputPath, outcome.stdout);
+
     if (outcome.timedOut) {
+      if (isFinishedAnalysis(payload)) {
+        const saved = AnalyzeMovementClipResponse.safeParse(payload);
+        if (saved.success && saved.data.ok === true) {
+          logger.warn(
+            { timeoutMs: ANALYSIS_TIMEOUT_MS },
+            "Pose was stopped after the motion result was saved",
+          );
+          return { ok: true, result: saved.data };
+        }
+      }
       logger.error({ timeoutMs: ANALYSIS_TIMEOUT_MS }, "Analysis pipeline timed out");
       return {
         ok: false,
@@ -190,8 +213,6 @@ export async function runAnalysis(
         error: "Analysis took too long and was stopped. Try a shorter clip.",
       };
     }
-
-    const payload = await readPipelineJson(outputPath, outcome.stdout);
 
     if (payload === null) {
       logger.error(

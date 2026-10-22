@@ -36,7 +36,7 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | `PORT` | `8080` | Listen port |
 | `NODE_ENV` | unset | `production` turns on the HTTPS check |
 | `MAX_UPLOAD_MB` | `60` | Largest clip accepted |
-| `ANALYSIS_TIMEOUT_MS` | `120000` | Stop a pipeline run after this many milliseconds |
+| `ANALYSIS_TIMEOUT_MS` | `600000` | Stop the pipeline after this many milliseconds. A motion result written before pose starts is returned if pose is still running |
 | `ANALYZE_RATE_LIMIT_PER_MINUTE` | `10` | Analyses allowed per client address each minute |
 | `SILVERPAWS_PYTHON` | `/opt/venv/bin/python` in the image | Python that runs the pipeline |
 | `SILVERPAWS_REPO_ROOT` | `/app` in the image | Where `gait_engine` and `scripts` live |
