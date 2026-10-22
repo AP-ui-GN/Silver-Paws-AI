@@ -62,11 +62,12 @@ Those screens still use the PetLens name from that commit.
 ### Analysis — `gait_engine/`
 
 - `motion.py` — OpenCV frame motion
-- `pose_backend.py` — dog detector and ViTPose++ COCO-17 output; canine landmark semantics are unvalidated and AP-10K gait metrics remain unavailable
+- `pose_backend.py` — RT-DETR dog detection + temporal identity tracking + QuadPose F2 AP-10K landmarks; gait formulas remain experimental
 - `sampling.py` — 15 fps samples and the busiest 20-second window
 - `features.py` — consistency, coverage, hip stability
 - `wellness.py` — factor scores, including mobility and historical change
 - `pipeline.py` — chooses `dog-pose` or `opencv-motion`, builds `AnalyzeResult`
+- `quadpose.py` — checksum-pinned ONNX pose model, crop/heatmap decoding, no implicit model download during inference
 - `confidence.py` — pose confidence gate (`modelConfidence`, frames used)
 - `clip_quality.py` — duration, resolution, brightness, and motion notes
 
