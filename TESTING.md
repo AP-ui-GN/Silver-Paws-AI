@@ -19,7 +19,7 @@ What those cover:
   validation, phone walk helpers, and the AI-use registry (45 passed / 0 failed
   on October 22, 2026)
 - Motion statistics, gait metrics, keypoint-schema checks, dog-box association,
-  the local setup check, confidence gating, and clip-quality notes (90 passed /
+  the local setup check, confidence gating, and clip-quality notes (96 passed /
   0 failed on October 22, 2026)
 - Uploaded clips are deleted after `POST /api/analyze`, including when the
   file is rejected (`tests/upload-cleanup.test.ts`)
