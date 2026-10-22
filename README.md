@@ -161,6 +161,8 @@ Optional environment variables:
 | `SILVERPAWS_REPO_ROOT` | API | inferred | Repo root so the CLI can be found |
 | `MAX_UPLOAD_MB` | API | `60` | Upload size cap |
 | `ANALYSIS_TIMEOUT_MS` | API | `600000` | Stop the pipeline after this many milliseconds. Motion saved before pose is returned if pose is still running |
+| `ANALYZE_MAX_CONCURRENT` | API | `2` | Pipelines running at once. Extra uploads are refused before the body is read |
+| `TRUST_PROXY` | API | unset | Set to `1` only behind a proxy that sets `X-Forwarded-Proto` |
 | `SILVERPAWS_LLM_URL` | API | unset | Optional chat-completions endpoint |
 | `SILVERPAWS_LLM_KEY` | API | unset | Bearer token for that endpoint; never logged |
 | `SILVERPAWS_LLM_MODEL` | API | unset | Model name. Required, with the URL, before a rewrite is attempted |

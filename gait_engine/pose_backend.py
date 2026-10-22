@@ -22,6 +22,7 @@ from pathlib import Path
 import numpy as np
 
 from .sampling import DETECT_EVERY_N_FRAMES, SampledFrame
+from .tracking import associate_tracks, choose_initial_dog, choose_tracked_dog
 
 DETECTOR_ID = "PekingU/rtdetr_r50vd_coco_o365"
 POSE_ID = "usyd-community/vitpose-plus-base"
@@ -201,6 +202,8 @@ class PoseResult:
     detector_revision: str | None
     pose_revision: str | None
     keypoint_schema: str = MODEL_OUTPUT_SCHEMA
+    track_states: tuple[str, ...] = ()
+    track_segment_ids: tuple[int | None, ...] = ()
 
 
 class PoseBackend(ABC):
@@ -209,54 +212,6 @@ class PoseBackend(ABC):
     @abstractmethod
     def process(self, frames: list[SampledFrame]) -> PoseResult:
         """Return keypoints for already-sampled frames."""
-
-
-def _box_iou(a: tuple[float, float, float, float], b: tuple[float, float, float, float]) -> float:
-    ax, ay, aw, ah = a
-    bx, by, bw, bh = b
-    ax2, ay2 = ax + aw, ay + ah
-    bx2, by2 = bx + bw, by + bh
-    ix1, iy1 = max(ax, bx), max(ay, by)
-    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
-    iw, ih = max(0.0, ix2 - ix1), max(0.0, iy2 - iy1)
-    intersection = iw * ih
-    union = aw * ah + bw * bh - intersection
-    if union <= 0:
-        return 0.0
-    return intersection / union
-
-
-def _center_distance(box: tuple[float, float, float, float], width: int, height: int) -> float:
-    x, y, w, h = box
-    cx, cy = x + w / 2.0, y + h / 2.0
-    return ((cx - width / 2.0) ** 2 + (cy - height / 2.0) ** 2) ** 0.5
-
-
-def choose_initial_dog(
-    boxes: list[tuple[float, float, float, float]],
-    width: int,
-    height: int,
-) -> tuple[float, float, float, float] | None:
-    """Largest dog box, then the one closest to the image center."""
-
-    if not boxes:
-        return None
-    return min(boxes, key=lambda box: (-(box[2] * box[3]), _center_distance(box, width, height)))
-
-
-def choose_tracked_dog(
-    boxes: list[tuple[float, float, float, float]],
-    previous: tuple[float, float, float, float] | None,
-    width: int,
-    height: int,
-) -> tuple[float, float, float, float] | None:
-    """Follow the previous dog by IoU. The first box uses size and center."""
-
-    if previous is None:
-        return choose_initial_dog(boxes, width, height)
-    if not boxes:
-        return None
-    return max(boxes, key=lambda box: _box_iou(box, previous))
 
 
 def crop_from_keypoints(
@@ -404,58 +359,31 @@ class VitPoseAp10kBackend(PoseBackend):
         self._ensure_loaded()
 
         keypoints = _empty_keypoints(len(frames))
-        boxes: list[tuple[float, float, float, float] | None] = [None] * len(frames)
+        observations: list[list[tuple[float, float, float, float]]] = []
         multiple_dogs = False
         person_present = False
-        previous_box: tuple[float, float, float, float] | None = None
 
-        # Detector frames are independent. In-between frames at the same
-        # offset depend only on the previous offset, so each offset is one
-        # pose batch. A low score forces the next frame back to the detector.
-        forced: set[int] = set()
+        # The detector runs on a fixed stride. Frames in between are empty
+        # observations. Tracking does not copy the last box into that gap.
+        for index, frame in enumerate(frames):
+            if index % DETECT_EVERY_N_FRAMES != 0:
+                observations.append([])
+                continue
+            detected, dog_count, saw_person = self._detect(frame)
+            multiple_dogs = multiple_dogs or dog_count > 1
+            person_present = person_present or saw_person
+            observations.append(detected)
 
-        def assign(index: int, use_detector: bool) -> None:
-            nonlocal previous_box, multiple_dogs, person_present
-            frame = frames[index]
-            box: tuple[float, float, float, float] | None = None
-            if use_detector:
-                detected, dog_count, saw_person = self._detect(frame)
-                multiple_dogs = multiple_dogs or dog_count > 1
-                person_present = person_present or saw_person
-                box = choose_tracked_dog(
-                    detected, previous_box, frame.width, frame.height
-                )
-            elif index > 0:
-                box = crop_from_keypoints(
-                    keypoints[index - 1], frame.width, frame.height
-                )
-                if box is None:
-                    box = previous_box
-            if box is None:
-                previous_box = None
-                return
-            boxes[index] = box
-            previous_box = box
-
-        for offset in range(DETECT_EVERY_N_FRAMES):
-            indexes = list(range(offset, len(frames), DETECT_EVERY_N_FRAMES))
-            ready: list[int] = []
-            for index in indexes:
-                scheduled = index % DETECT_EVERY_N_FRAMES == 0 or index in forced
-                low_previous = False
-                if index > 0:
-                    low_previous = float(np.mean(keypoints[index - 1, :, 2])) < KEYPOINT_MIN_SCORE
-                assign(index, scheduled or low_previous or index == 0)
-                if boxes[index] is not None:
-                    ready.append(index)
-                if index + 1 < len(frames) and boxes[index] is None:
-                    forced.add(index + 1)
-            for start in range(0, len(ready), POSE_BATCH):
-                chunk = ready[start : start + POSE_BATCH]
-                self._pose_chunk(frames, boxes, chunk, keypoints)
-                for index in chunk:
-                    if float(np.mean(keypoints[index, :, 2])) < KEYPOINT_MIN_SCORE:
-                        forced.add(index + 1)
+        decisions = associate_tracks(observations)
+        if any(decision.state == "ambiguous" for decision in decisions):
+            multiple_dogs = True
+        boxes: list[tuple[float, float, float, float] | None] = [
+            decision.box if decision.state in ("tracked", "new_segment") else None
+            for decision in decisions
+        ]
+        ready = [index for index, box in enumerate(boxes) if box is not None]
+        for start in range(0, len(ready), POSE_BATCH):
+            self._pose_chunk(frames, boxes, ready[start : start + POSE_BATCH], keypoints)
 
         dog_frames = sum(1 for box in boxes if box is not None)
         share = dog_frames / len(frames)
@@ -474,6 +402,8 @@ class VitPoseAp10kBackend(PoseBackend):
             detector_revision=self._detector_revision,
             pose_revision=self._pose_revision,
             keypoint_schema=MODEL_OUTPUT_SCHEMA,
+            track_states=tuple(decision.state for decision in decisions),
+            track_segment_ids=tuple(decision.segment_id for decision in decisions),
         )
 
     def _pose_chunk(

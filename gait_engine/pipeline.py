@@ -177,7 +177,22 @@ def _try_pose(video_path: Path) -> tuple[Any | None, str | None]:
         "timestamps": result.timestamps_seconds,
         "boxes": result.boxes,
         "keypoint_schema": result.keypoint_schema,
+        "track_states": result.track_states,
+        "track_segment_ids": result.track_segment_ids,
     }, None
+
+
+def _track_segment_count(pose: dict | None) -> int | None:
+    if pose is None:
+        return None
+    ids = {segment for segment in pose.get("track_segment_ids") or [] if segment is not None}
+    return len(ids)
+
+
+def _ambiguous_track_frames(pose: dict | None) -> int | None:
+    if pose is None:
+        return None
+    return sum(1 for state in pose.get("track_states") or [] if state == "ambiguous")
 
 
 def _assess_signal(pipeline: str, measurements: dict) -> tuple[str, str]:
@@ -365,6 +380,8 @@ def analyze_clip(
                 "fps": signal.fps,
                 "framePairs": len(signal.frame_motion),
                 "poseSkipReason": pose_skip_reason,
+                "trackSegments": _track_segment_count(pose_payload),
+                "ambiguousTrackFrames": _ambiguous_track_frames(pose_payload),
                 "dogFramesShare": None if pose_payload is None else pose_payload["dog_frames_share"],
                 "multipleDogs": None if pose_payload is None else pose_payload["multiple_dogs"],
                 "personPresent": None if pose_payload is None else pose_payload["person_present"],
