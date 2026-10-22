@@ -86,6 +86,55 @@ export function clientAddress(
   return forwarded[forwarded.length - 1] || remoteAddress || "unknown";
 }
 
+export const ANALYSIS_BUSY_MESSAGE =
+  "The analysis service is busy. Wait a moment and try again.";
+export const ANALYSIS_RATE_MESSAGE =
+  "Too many analyses from this address. Wait a minute and try again.";
+
+/**
+ * What the route must do so a refused upload is answered and then dropped
+ * before the multipart body is read.
+ */
+export interface UploadGate {
+  forwardedFor: string | undefined;
+  remoteAddress: string | undefined;
+  trustProxy: boolean;
+  now: number;
+  writeRefusal: (status: number, error: string) => void;
+  afterResponse: (fn: () => void) => void;
+  onClose: (fn: () => void) => void;
+  destroy: () => void;
+}
+
+/** Reserve capacity, or refuse without asking the caller to read the body. */
+export function gateAnalyzeUpload(gate: UploadGate, next: () => void): void {
+  if (!tryStartAnalysis()) {
+    gate.writeRefusal(429, ANALYSIS_BUSY_MESSAGE);
+    gate.afterResponse(() => gate.destroy());
+    return;
+  }
+
+  const allowed = takeAnalyzeSlot(
+    clientAddress(gate.forwardedFor, gate.remoteAddress, gate.trustProxy),
+    gate.now,
+    analyzeRateLimitPerMinute(),
+  );
+  if (!allowed) {
+    finishAnalysis();
+    gate.writeRefusal(429, ANALYSIS_RATE_MESSAGE);
+    gate.afterResponse(() => gate.destroy());
+    return;
+  }
+
+  let released = false;
+  gate.onClose(() => {
+    if (released) return;
+    released = true;
+    finishAnalysis();
+  });
+  next();
+}
+
 export function requestIsHttps(
   secure: boolean,
   forwardedProto: string | undefined,

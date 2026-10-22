@@ -6,13 +6,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { spawnAnalysisProcess, stopAnalysisProcess } from "../src/lib/analysis-runner.ts";
+import { spawnAnalysisProcess, stopAnalysisProcess } from "../src/lib/process-stop.ts";
 
 test("stopAnalysisProcess ends a still-running pipeline process", async () => {
-  const child = spawnAnalysisProcess(process.execPath, [
-    "-e",
-    "setTimeout(() => {}, 30000)",
-  ]);
+  const child = spawnAnalysisProcess(
+    process.execPath,
+    ["-e", "setTimeout(() => {}, 30000)"],
+    process.cwd(),
+  );
   try {
     await new Promise<void>((resolve, reject) => {
       child.once("spawn", () => resolve());

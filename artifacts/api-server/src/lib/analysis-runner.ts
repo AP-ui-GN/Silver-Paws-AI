@@ -6,7 +6,6 @@
  * generated schema before anything reaches a user.
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -17,6 +16,7 @@ import { AnalyzeMovementClipResponse, type AnalyzeResult } from "@workspace/api-
 
 import { positiveInteger } from "./hosting";
 import { logger } from "./logger";
+import { spawnAnalysisProcess, stopAnalysisProcess } from "./process-stop";
 
 // This file is bundled to artifacts/api-server/dist, so the repository root is
 // three levels up. SILVERPAWS_REPO_ROOT overrides it for other layouts.
@@ -90,35 +90,9 @@ interface ProcessOutcome {
   spawnError: Error | null;
 }
 
-/** Start the pipeline in its own group so a timeout can stop it and anything it starts. */
-export function spawnAnalysisProcess(command: string, args: string[]): ChildProcess {
-  return spawn(command, args, {
-    cwd: REPOSITORY_ROOT,
-    detached: process.platform !== "win32",
-  });
-}
-
-/** SIGKILL the pipeline. A hung native call can ignore the default terminate signal. */
-export function stopAnalysisProcess(child: ChildProcess): void {
-  const pid = child.pid;
-  if (pid && process.platform !== "win32") {
-    try {
-      process.kill(-pid, "SIGKILL");
-      return;
-    } catch {
-      // The group is already gone. Signal the child directly.
-    }
-  }
-  try {
-    child.kill("SIGKILL");
-  } catch {
-    // Already exited.
-  }
-}
-
 function runPython(command: string, args: string[]): Promise<ProcessOutcome> {
   return new Promise((resolve) => {
-    const child = spawnAnalysisProcess(command, args);
+    const child = spawnAnalysisProcess(command, args, REPOSITORY_ROOT);
     const timeoutMs = analysisTimeoutMs();
 
     let stdout = "";
@@ -131,10 +105,10 @@ function runPython(command: string, args: string[]): Promise<ProcessOutcome> {
       stopAnalysisProcess(child);
     }, timeoutMs);
 
-    child.stdout.on("data", (chunk: Buffer) => {
+    child.stdout?.on("data", (chunk: Buffer) => {
       stdout += chunk.toString();
     });
-    child.stderr.on("data", (chunk: Buffer) => {
+    child.stderr?.on("data", (chunk: Buffer) => {
       if (stderr.length < STDERR_LOG_LIMIT) stderr += chunk.toString();
     });
 

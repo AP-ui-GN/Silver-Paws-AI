@@ -16,24 +16,13 @@ import { AnalyzeMovementClipResponse, type AnalyzeError } from "@workspace/api-z
 
 import { aiUseForResult } from "../lib/ai-use";
 import { runAnalysis } from "../lib/analysis-runner";
-import {
-  analyzeRateLimitPerMinute,
-  clientAddress,
-  finishAnalysis,
-  positiveInteger,
-  takeAnalyzeSlot,
-  trustProxyEnabled,
-  tryStartAnalysis,
-} from "../lib/hosting";
+import { gateAnalyzeUpload, positiveInteger, trustProxyEnabled } from "../lib/hosting";
 import { explainObservation } from "../lib/explanation";
 import { logger } from "../lib/logger";
 import { MultipartError, parseBoundary, parseMultipart } from "../lib/multipart";
 
 const MAX_UPLOAD_MB = positiveInteger(process.env["MAX_UPLOAD_MB"], 60, 1);
 const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
-
-const BUSY_MESSAGE = "The analysis service is busy. Wait a moment and try again.";
-const RATE_MESSAGE = "Too many analyses from this address. Wait a minute and try again.";
 
 const MAX_PET_NAME_LENGTH = 40;
 
@@ -70,54 +59,33 @@ export function uploadRoot(): string {
 }
 
 /**
- * Refuse before the upload is buffered. The response is written first, then the
- * socket is closed so a rejected client cannot keep filling the body limit.
- */
-function refuseUpload(req: Request, res: Response, status: number, error: string) {
-  sendError(res, status, error);
-  res.on("finish", () => {
-    req.destroy();
-  });
-}
-
-/**
  * Capacity checks run before the multipart body is read. A refused request
  * does not hold an upload buffer or a pipeline process.
  */
-export function gateAnalyzeRequest(
+function gateAnalyzeRequest(
   req: Request,
   res: Response,
   next: (error?: unknown) => void,
 ) {
-  if (!tryStartAnalysis()) {
-    refuseUpload(req, res, 429, BUSY_MESSAGE);
-    return;
-  }
-
-  const allowed = takeAnalyzeSlot(
-    clientAddress(
-      req.header("x-forwarded-for"),
-      req.socket.remoteAddress,
-      trustProxyEnabled(),
-    ),
-    Date.now(),
-    analyzeRateLimitPerMinute(),
+  gateAnalyzeUpload(
+    {
+      forwardedFor: req.header("x-forwarded-for"),
+      remoteAddress: req.socket.remoteAddress,
+      trustProxy: trustProxyEnabled(),
+      now: Date.now(),
+      writeRefusal: (status, error) => sendError(res, status, error),
+      afterResponse: (fn) => {
+        res.on("finish", fn);
+      },
+      onClose: (fn) => {
+        res.on("close", fn);
+      },
+      destroy: () => {
+        req.destroy();
+      },
+    },
+    () => next(),
   );
-  if (!allowed) {
-    finishAnalysis();
-    refuseUpload(req, res, 429, RATE_MESSAGE);
-    return;
-  }
-
-  let released = false;
-  const release = () => {
-    if (released) return;
-    released = true;
-    finishAnalysis();
-  };
-  // `close` covers a finished response and a client that disconnects midway.
-  res.on("close", release);
-  next();
 }
 
 function looksLikeVideo(contentType: string, fileName: string): boolean {
