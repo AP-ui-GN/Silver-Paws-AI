@@ -1,15 +1,11 @@
-"""Dog detection and the checkpoint's COCO-17 pose head.
+"""Dog detection, temporal association, and QuadPose F2 canine landmarks.
 
-The detector is RT-DETR (``PekingU/rtdetr_r50vd_coco_o365``, Apache-2.0).
-The pose model is ViTPose++ (``usyd-community/vitpose-plus-base``). The
-Transformers docs list dataset index 3 as an AP-10K backbone expert. The
-checkpoint's only keypoint head is the 17-channel COCO head in
-``config.id2label``. Index 4 of that head is the right ear. The AP-10K name
-``root_of_tail`` is index 4 of a different schema and is not this channel.
-
-Pose quality on pet dogs is unproven until a labeled clip set is measured.
-A failure to load weights or run pose must be caught by the pipeline and
-must not fail the request.
+RT-DETR detects dogs and the existing temporal tracker preserves a selected
+identity. QuadPose F2 estimates AP-10K-order animal landmarks inside that
+tracked box. The checkpoint is pinned and checksum-verified; model heatmap
+scores are not calibrated probabilities. The gait formulas remain experimental
+until tested against a labeled dog-walking dataset. Pose failure falls back to
+the independently measured OpenCV picture-motion signal.
 """
 
 from __future__ import annotations
@@ -21,14 +17,13 @@ from pathlib import Path
 
 import numpy as np
 
+from .quadpose import MODEL_NAME as QUADPOSE_MODEL_NAME, MODEL_VERSION as QUADPOSE_MODEL_VERSION
 from .sampling import DETECT_EVERY_N_FRAMES, SampledFrame
 from .tracking import associate_tracks, choose_initial_dog, choose_tracked_dog
 
 DETECTOR_ID = "PekingU/rtdetr_r50vd_coco_o365"
-POSE_ID = "usyd-community/vitpose-plus-base"
-# Hugging Face docs (transformers model_doc/vitpose), read October 21, 2026:
-# 0 COCO, 1 AiC, 2 MPII, 3 AP-10K, 4 APT-36K, 5 COCO-WholeBody.
-AP10K_DATASET_INDEX = 3
+POSE_ID = QUADPOSE_MODEL_NAME
+POSE_REVISION = QUADPOSE_MODEL_VERSION
 DOG_DETECT_THRESHOLD = 0.3
 KEYPOINT_MIN_SCORE = 0.3
 CROP_EXPAND = 0.25
@@ -85,12 +80,8 @@ AP10K_SWAP_PAIRS: tuple[tuple[int, int], ...] = (
     (LEFT_BACK_PAW, RIGHT_BACK_PAW),
 )
 
-# Channels emitted by usyd-community/vitpose-plus-base. This matches
-# config.id2label and config.edges on the checkpoint. dataset_index selects
-# a backbone expert only. The original ViTPose++ training config has a
-# separate AP-10K keypoint head, and that head is not in this checkpoint.
-# Do not read these indices as AP-10K names. Index 4 is the right ear, not
-# the base of the tail.
+# Legacy COCO-17 names are retained only to interpret old saved results and
+# setup history. New pose results use the verified AP-10K-order QuadPose head.
 COCO17_KEYPOINTS: tuple[str, ...] = (
     "nose",
     "left_eye",
@@ -131,12 +122,12 @@ COCO17_EDGES: tuple[tuple[int, int], ...] = (
     (3, 5),
     (4, 6),
 )
-MODEL_OUTPUT_SCHEMA = "coco-17"
-MODEL_OUTPUT_KEYPOINTS = COCO17_KEYPOINTS
-MODEL_OUTPUT_EDGES = COCO17_EDGES
+MODEL_OUTPUT_SCHEMA = "ap10k"
+MODEL_OUTPUT_KEYPOINTS = AP10K_KEYPOINTS
+MODEL_OUTPUT_EDGES = AP10K_SKELETON_EDGES
 SCHEMA_LIMIT = (
-    "This pose head outputs 17 human COCO joints. It does not output the neck "
-    "or the base of the tail, so stride length and symmetry were not measured."
+    "The AP-10K landmarks are model estimates. Gait metrics are experimental "
+    "and have not been validated on a labeled dog-walking dataset."
 )
 
 # Anatomical links for an AP-10K array. These are not the checkpoint edges.
@@ -222,7 +213,7 @@ def crop_from_keypoints(
     min_score: float = KEYPOINT_MIN_SCORE,
     expand: float = CROP_EXPAND,
 ) -> tuple[float, float, float, float] | None:
-    """COCO box around valid keypoints, expanded by ``expand`` on each side."""
+    """Bounding box around valid keypoints, expanded by ``expand`` on each side."""
 
     if keypoints.shape != (len(AP10K_KEYPOINTS), 3):
         return None
@@ -302,12 +293,8 @@ def _empty_keypoints(count: int) -> np.ndarray:
     return array
 
 
-class VitPoseAp10kBackend(PoseBackend):
-    """Top-down pose from the COCO-17 head. Models load once per process.
-
-    Dataset index 3 selects a backbone expert. It does not switch this
-    checkpoint to an AP-10K keypoint head.
-    """
+class QuadPoseBackend(PoseBackend):
+    """Run RT-DETR plus the pinned QuadPose F2 model; load each once per process."""
 
     def __init__(self) -> None:
         self._loaded = False
@@ -315,7 +302,6 @@ class VitPoseAp10kBackend(PoseBackend):
         self._detector = None
         self._detector_processor = None
         self._pose = None
-        self._pose_processor = None
         self._dog_id: int | None = None
         self._person_id: int | None = None
         self._detector_revision: str | None = None
@@ -342,15 +328,17 @@ class VitPoseAp10kBackend(PoseBackend):
         self._detector.to(self._device)
         self._detector.eval()
         labels = {value: key for key, value in self._detector.config.id2label.items()}
+        if "dog" not in labels:
+            raise RuntimeError("RT-DETR checkpoint does not declare a dog class.")
         self._dog_id = labels["dog"]
         self._person_id = labels.get("person")
 
-        self._pose_processor = VitPoseImageProcessor.from_pretrained(POSE_ID)
-        self._pose = VitPoseForPoseEstimation.from_pretrained(POSE_ID)
-        self._pose.to(self._device)
-        self._pose.eval()
+        # Pose weights must be installed explicitly. Inference never downloads
+        # a large checkpoint as an unexpected side effect of an upload.
+        from .quadpose import load_quadpose
+        self._pose = load_quadpose()
         self._detector_revision = _revision(DETECTOR_ID)
-        self._pose_revision = _revision(POSE_ID)
+        self._pose_revision = POSE_REVISION
         self._loaded = True
 
     def process(self, frames: list[SampledFrame]) -> PoseResult:
@@ -413,13 +401,10 @@ class VitPoseAp10kBackend(PoseBackend):
         indexes: list[int],
         keypoints: np.ndarray,
     ) -> None:
-        from PIL import Image
-
-        images = [Image.fromarray(frames[index].image_bgr[:, :, ::-1]) for index in indexes]
         chunk_boxes = [boxes[index] for index in indexes]
         if any(box is None for box in chunk_boxes):
             return
-        self._run_pose_batch(images, chunk_boxes, indexes, keypoints)  # type: ignore[arg-type]
+        self._run_pose_batch(frames, chunk_boxes, indexes, keypoints)  # type: ignore[arg-type]
 
     def _detect(
         self, frame: SampledFrame
@@ -454,73 +439,47 @@ class VitPoseAp10kBackend(PoseBackend):
 
     def _run_pose_batch(
         self,
-        images: list,
+        frames: list[SampledFrame],
         boxes: list[tuple[float, float, float, float]],
         indexes: list[int],
         keypoints: np.ndarray,
     ) -> None:
-        import torch
+        """Estimate AP-10K landmarks in the selected dog's detector crop."""
 
-        assert self._pose is not None
-        assert self._pose_processor is not None
-        box_array = np.asarray(boxes, dtype=np.float32)
-        # One box per image. The processor wants a list of boxes per image.
-        per_image = [[list(map(float, box))] for box in boxes]
-        inputs = self._pose_processor(images, boxes=per_image, return_tensors="pt")
-        inputs = {key: value.to(self._device) for key, value in inputs.items()}
-        dataset_index = torch.full(
-            (len(images),),
-            AP10K_DATASET_INDEX,
-            dtype=torch.long,
-            device=self._device,
-        )
-        with torch.inference_mode():
-            outputs = self._pose(**inputs, dataset_index=dataset_index)
-        processed = self._pose_processor.post_process_pose_estimation(
-            outputs, boxes=per_image
-        )
-        for index, poses in zip(indexes, processed):
-            parsed = _first_pose(poses)
-            if parsed is None:
+        from .quadpose import _predict_frame
+
+        if self._pose is None:
+            raise RuntimeError("QuadPose session is not initialized.")
+        for index, box in zip(indexes, boxes):
+            frame = frames[index]
+            x, y, width, height = (float(value) for value in box)
+            if not np.isfinite([x, y, width, height]).all() or width <= 1 or height <= 1:
                 continue
-            keypoints[index] = parsed
+            xyxy = np.asarray([x, y, x + width, y + height], dtype=np.float64)
+            predicted = _predict_frame(self._pose, frame.image_bgr, xyxy)
+            if predicted.shape != (len(AP10K_KEYPOINTS), 3):
+                raise RuntimeError(
+                    f"QuadPose returned {predicted.shape}; expected "
+                    f"({len(AP10K_KEYPOINTS)}, 3) AP-10K keypoints."
+                )
 
-
-def _first_pose(poses) -> np.ndarray | None:
-    """Read the first pose dict into ``(17, 3)`` pixel coordinates."""
-
-    if not poses:
-        return None
-    pose = poses[0] if isinstance(poses, list) else poses
-    if not isinstance(pose, dict):
-        return None
-    raw = pose.get("keypoints")
-    if raw is None:
-        return None
-    array = np.asarray(raw.detach().cpu() if hasattr(raw, "detach") else raw, dtype=np.float32)
-    scores = pose.get("scores")
-    if scores is not None:
-        score_array = np.asarray(
-            scores.detach().cpu() if hasattr(scores, "detach") else scores,
-            dtype=np.float32,
-        ).reshape(-1)
-    elif array.ndim == 2 and array.shape[-1] >= 3:
-        score_array = array[:, 2]
-        array = array[:, :2]
-    else:
-        return None
-    if array.ndim != 2 or array.shape[0] < len(AP10K_KEYPOINTS) or array.shape[1] < 2:
-        return None
-    points = np.zeros((len(AP10K_KEYPOINTS), 3), dtype=np.float32)
-    count = len(AP10K_KEYPOINTS)
-    points[:, 0] = array[:count, 0]
-    points[:, 1] = array[:count, 1]
-    if score_array.shape[0] >= count:
-        points[:, 2] = score_array[:count]
-    low = points[:, 2] < KEYPOINT_MIN_SCORE
-    points[low, 0] = np.nan
-    points[low, 1] = np.nan
-    return points
+            # QuadPose returns (y_norm, x_norm, confidence). PoseResult uses
+            # source-frame pixel coordinates in (x, y, confidence) order.
+            converted = np.empty_like(predicted, dtype=np.float32)
+            converted[:, 0] = predicted[:, 1] * frame.width
+            converted[:, 1] = predicted[:, 0] * frame.height
+            converted[:, 2] = predicted[:, 2]
+            valid = (
+                np.isfinite(converted).all(axis=1)
+                & (converted[:, 2] >= KEYPOINT_MIN_SCORE)
+                & (converted[:, 0] >= 0.0)
+                & (converted[:, 0] < frame.width)
+                & (converted[:, 1] >= 0.0)
+                & (converted[:, 1] < frame.height)
+            )
+            converted[~valid, :2] = np.nan
+            converted[~valid, 2] = 0.0
+            keypoints[index] = converted
 
 
 def _revision(model_id: str) -> str | None:
@@ -540,13 +499,16 @@ def _revision(model_id: str) -> str | None:
     return parts[parts.index("snapshots") + 1]
 
 
-_BACKEND: VitPoseAp10kBackend | None = None
+# Preserve the old import name for callers that only depended on the interface.
+VitPoseAp10kBackend = QuadPoseBackend
+
+_BACKEND: QuadPoseBackend | None = None
 
 
-def get_pose_backend() -> VitPoseAp10kBackend:
+def get_pose_backend() -> QuadPoseBackend:
     """Return the process-wide backend. Weights load on the first ``process``."""
 
     global _BACKEND
     if _BACKEND is None:
-        _BACKEND = VitPoseAp10kBackend()
+        _BACKEND = QuadPoseBackend()
     return _BACKEND
