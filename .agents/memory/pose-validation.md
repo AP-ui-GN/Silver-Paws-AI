@@ -1,6 +1,6 @@
 ---
 name: Pet pose validation
-description: The dog detector and animal pose model are unproven on pet dogs until a labeled set is measured.
+description: The detector and COCO-17 pose output applied to dog clips are unvalidated until a labeled canine set is measured.
 ---
 
 The current pose path uses a dog detector and `usyd-community/vitpose-plus-base`.
