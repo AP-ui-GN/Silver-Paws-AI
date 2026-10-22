@@ -315,12 +315,7 @@ class QuadPoseBackend(PoseBackend):
         os.environ["HF_HOME"] = str(home)
 
         import torch
-        from transformers import (
-            RTDetrForObjectDetection,
-            RTDetrImageProcessor,
-            VitPoseForPoseEstimation,
-            VitPoseImageProcessor,
-        )
+        from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
 
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
         self._detector_processor = RTDetrImageProcessor.from_pretrained(DETECTOR_ID)
