@@ -1,15 +1,17 @@
-# SilverPaws AI — MoveNet path.
+# Dog-pose path for SilverPaws AI.
 #
-# Supported Python: 3.10 or 3.11 only. TensorFlow 2.15 does not support
-# Python 3.12. The OpenCV fallback (requirements-opencv.txt) does support 3.12.
+# Python 3.10, 3.11, or 3.12. TensorFlow is not used.
+# Torch is the CPU wheel. The +cpu build is published on the PyTorch CPU
+# index, not as the default PyPI file.
 #
-# Versions are pinned. Do not float them: a different MoveNet or OpenCV build
-# would change measurements without saying so.
-#
-# Warm the weight cache at build or deploy time:
-#   python scripts/cache_movenet.py
-tensorflow==2.15.1
-tensorflow-hub==0.16.1
+# Versions were read from PyPI and download.pytorch.org on October 21, 2026.
+# transformers 5.20.2 documents VitPoseForPoseEstimation and dataset_index
+# 3 = AP-10K, 4 = APT-36K.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu
+torchvision==0.29.1+cpu
+pillow==11.3.0
+transformers==5.20.2
+scipy==1.15.3
 opencv-python==4.10.0.84
-numpy==1.26.4
-reportlab==5.0.1
+numpy==2.2.6

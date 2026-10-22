@@ -30,6 +30,7 @@ test("every registry entry points at real code, and development stays a product 
   const registry = readRegistry();
   const ids = registry.entries.map((entry: { id: string }) => entry.id);
   assert.deepEqual(ids, [
+    "dog-detector",
     "pose-model",
     "motion-fallback",
     "scoring",
@@ -50,14 +51,15 @@ test("every registry entry points at real code, and development stays a product 
   }
 
   const byId = new Map(registry.entries.map((entry: { id: string; codePath: string }) => [entry.id, entry.codePath]));
-  assert.equal(byId.get("pose-model"), "gait_engine/movenet.py");
+  assert.equal(byId.get("dog-detector"), "gait_engine/pose_backend.py");
+  assert.equal(byId.get("pose-model"), "gait_engine/pose_backend.py");
   assert.equal(byId.get("motion-fallback"), "gait_engine/motion.py");
   assert.equal(byId.get("scoring"), "gait_engine/wellness.py");
   assert.equal(byId.get("observation-rules"), "gait_engine/wellness.py");
   assert.equal(byId.get("llm-rewrite"), "artifacts/api-server/src/lib/explanation.ts");
 
   const pipeline = readFileSync(path.join(root, "gait_engine", "pipeline.py"), "utf8");
-  for (const id of ["pose-model", "motion-fallback", "scoring", "observation-rules"]) {
+  for (const id of ["dog-detector", "pose-model", "motion-fallback", "scoring", "observation-rules"]) {
     assert.match(pipeline, new RegExp(`"${id}"`));
   }
   assert.doesNotMatch(pipeline, /"llm-rewrite"/);
@@ -66,8 +68,8 @@ test("every registry entry points at real code, and development stays a product 
   const explanation = readFileSync(path.join(root, "artifacts", "api-server", "src", "lib", "explanation.ts"), "utf8");
   assert.match(explanation, /requestModelRewrite/);
   assert.match(explanation, /validateExplanation/);
-  const movenet = readFileSync(path.join(root, "gait_engine", "movenet.py"), "utf8");
-  assert.match(movenet, /MoveNet Thunder/);
+  const pose = readFileSync(path.join(root, "gait_engine", "pose_backend.py"), "utf8");
+  assert.match(pose, /VitPose/);
   const motion = readFileSync(path.join(root, "gait_engine", "motion.py"), "utf8");
   assert.match(motion, /frame-to-frame/);
 });

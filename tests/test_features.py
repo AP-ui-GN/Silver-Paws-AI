@@ -10,7 +10,6 @@ from gait_engine.features import (
     motion_statistics,
     movement_consistency,
 )
-from gait_engine.metrics import compute_gait_metrics
 
 
 def build_keypoints(frames, *, hip_offsets=None, confidence=0.9):
@@ -72,41 +71,6 @@ class HipStabilityTests(unittest.TestCase):
         wobbly = hip_stability(build_keypoints(10, hip_offsets=offsets))
         self.assertIsNotNone(wobbly)
         self.assertLess(wobbly, 1.0)
-
-
-class GaitSymmetryTests(unittest.TestCase):
-    """Guards the existing MoveNet symmetry metric."""
-
-    def test_identical_sides_are_symmetric(self):
-        keypoints = np.zeros((6, 17, 3), dtype=np.float32)
-        keypoints[:, :, 2] = 0.9
-        motion = [0.0, 0.1, 0.2, 0.1, 0.0, 0.1]
-        keypoints[:, 15, 0] = motion
-        keypoints[:, 16, 0] = motion
-
-        metrics = compute_gait_metrics(keypoints)
-
-        self.assertEqual(metrics.stride_symmetry_score, 1.0)
-        self.assertEqual(metrics.asymmetry_percent, 0.0)
-
-    def test_a_still_pet_is_reported_as_unavailable_not_perfect(self):
-        keypoints = np.zeros((6, 17, 3), dtype=np.float32)
-        keypoints[:, :, 2] = 0.9
-
-        metrics = compute_gait_metrics(keypoints)
-
-        self.assertIsNone(metrics.stride_symmetry_score)
-        self.assertIsNone(metrics.asymmetry_percent)
-
-    def test_one_sided_motion_is_reported_as_asymmetric(self):
-        keypoints = np.zeros((6, 17, 3), dtype=np.float32)
-        keypoints[:, :, 2] = 0.9
-        keypoints[:, 15, 0] = [0.0, 0.1, 0.2, 0.1, 0.0, 0.1]
-
-        metrics = compute_gait_metrics(keypoints)
-
-        self.assertEqual(metrics.stride_symmetry_score, 0.0)
-        self.assertEqual(metrics.asymmetry_percent, 100.0)
 
 
 if __name__ == "__main__":

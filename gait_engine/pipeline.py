@@ -5,10 +5,10 @@
 
 Two pipelines are supported and the best available one is chosen per clip:
 
-* ``movenet``       pose landmarks, so left/right stride symmetry can be measured.
-* ``opencv-motion`` frame-to-frame picture change only. Used whenever TensorFlow
-                    or the pose model is unavailable, which keeps the product
-                    usable on a machine with just OpenCV installed.
+* ``dog-pose``      RT-DETR dog boxes and ViTPose++ AP-10K keypoints.
+* ``opencv-motion`` frame-to-frame picture change only. Used whenever torch,
+                    transformers, or the weights are unavailable, or when pose
+                    throws. The request still returns a result.
 
 The returned dictionary matches the ``AnalyzeResult`` schema in
 `lib/api-spec/openapi.yaml`, so the API server can validate it before replying.
@@ -23,10 +23,8 @@ import cv2
 
 from .clip_quality import quality_notes
 from .confidence import pose_is_trusted, summarize_keypoints, summarize_pose_coordinates
-from .features import MOTION_FLOOR, hip_stability, motion_statistics
-from .metrics import compute_gait_metrics
+from .features import MOTION_FLOOR, motion_statistics
 from .motion import read_motion_signal
-from .movenet import DEFAULT_MODEL_URL, MOVENET_MODEL_NAME, MOVENET_MODEL_VERSION
 from .wellness import (
     DEFAULT_WEIGHTS,
     build_limitations,
@@ -38,41 +36,32 @@ from .wellness import (
     weights_used,
 )
 
-# Long clips are truncated. The motion pipeline is cheap, pose inference is not.
-MAX_MOTION_FRAMES = 900
-MAX_POSE_FRAMES = 120
+# Motion is read for the whole clip so a long video can pick its busiest window.
+# Pose sampling itself caps the analyzed span at 20 seconds.
+MAX_MOTION_FRAMES = 20000
 
 POSE_CONFIDENCE_THRESHOLD = 0.2
 
 # Pose detections below this mean confidence are reported but not trusted enough
-# to score left/right symmetry from.
+# to score stride symmetry from.
 MIN_POSE_CONFIDENCE = 0.3
-MIN_ANKLE_FRAMES = 10
 
 MIN_COMPARABLE_FRAMES = 5
 
 
-def _pose_model_identity(model_url: str | None) -> tuple[str, str]:
-    """Name and version for the pose model that was actually requested.
-
-    A different URL is not labeled as MoveNet Thunder. The fallback path never
-    claims to be pose.
-    """
-
-    url = (model_url or DEFAULT_MODEL_URL).rstrip("/")
-    if url == DEFAULT_MODEL_URL.rstrip("/"):
-        return MOVENET_MODEL_NAME, MOVENET_MODEL_VERSION
-    return "MoveNet", url
-
-
-def _model_info(pipeline: str, model_url: str | None) -> dict[str, str]:
+def _model_info(pipeline: str, pose: dict | None) -> dict[str, str]:
     """Describe the model that produced this result. Inference stays on the server."""
 
-    if pipeline == "movenet":
-        name, version = _pose_model_identity(model_url)
+    if pipeline == "dog-pose" and pose is not None:
+        version = pose["pose_id"]
+        if pose.get("pose_revision"):
+            version = f"{version}@{pose['pose_revision']}"
+        detector = pose["detector_id"]
+        if pose.get("detector_revision"):
+            detector = f"{detector}@{pose['detector_revision']}"
         return {
-            "pipeline": "movenet",
-            "modelName": name,
+            "pipeline": "dog-pose",
+            "modelName": f"RT-DETR ({detector}) + ViTPose++ AP-10K ({version})",
             "modelVersion": version,
             "runsOn": "server",
         }
@@ -89,11 +78,15 @@ def ai_use_ids(pipeline: str) -> list[str]:
     """Registry ids for the steps that produced one result.
 
     Frame-difference motion runs on every successful clip, including when
-    MoveNet also runs. ``development`` is a product fact, not a per-clip step.
+    pose also runs. ``development`` is a product fact, not a per-clip step.
     ``llm-rewrite`` is added by the API only when a validated rewrite is kept.
+    ``movenet`` is accepted so an old caller still gets a list. This pipeline
+    does not emit that name.
     """
 
     shared = ["motion-fallback", "scoring", "observation-rules"]
+    if pipeline == "dog-pose":
+        return ["dog-detector", "pose-model", *shared]
     if pipeline == "movenet":
         return ["pose-model", *shared]
     return shared
@@ -108,34 +101,35 @@ def _clean_pet_name(pet_name: str | None) -> str | None:
     return cleaned or None
 
 
-def _try_pose(
-    video_path: Path,
-    *,
-    model_url: str | None,
-    max_frames: int,
-) -> tuple[Any | None, str | None]:
-    """Try to extract pose landmarks. Returns (keypoints, skip_reason)."""
+def _try_pose(video_path: Path) -> tuple[Any | None, str | None]:
+    """Try the dog pose backend. Returns (pose_payload, skip_reason)."""
 
     try:
-        from .movenet import DEFAULT_MODEL_URL, extract_keypoints_from_video, load_movenet
+        from .pose_backend import get_pose_backend
+        from .sampling import sample_video
     except ImportError as exc:
         return None, f"pose modules unavailable: {exc}"
 
     try:
-        model = load_movenet(model_url or DEFAULT_MODEL_URL)
-        keypoints, _fps = extract_keypoints_from_video(
-            video_path,
-            model,
-            min_confidence=POSE_CONFIDENCE_THRESHOLD,
-            max_frames=max_frames,
-        )
+        frames = sample_video(video_path)
+        result = get_pose_backend().process(frames)
     except Exception as exc:  # noqa: BLE001 - any pose failure must fall back
-        # Missing TensorFlow, no network for the model download, an unreadable
-        # frame: none of these should fail the request, because the motion
-        # pipeline can still measure the clip.
+        # Missing torch, missing weights, or a pose exception must not fail
+        # the request. The motion pipeline can still measure the clip.
         return None, f"{type(exc).__name__}: {exc}"
 
-    return keypoints, None
+    return {
+        "keypoints": result.keypoints,
+        "dog_frames_share": result.dog_frames_share,
+        "multiple_dogs": result.multiple_dogs,
+        "person_present": result.person_present,
+        "detector_id": result.detector_id,
+        "pose_id": result.pose_id,
+        "detector_revision": result.detector_revision,
+        "pose_revision": result.pose_revision,
+        "width": frames[0].width if frames else None,
+        "height": frames[0].height if frames else None,
+    }, None
 
 
 def _assess_signal(pipeline: str, measurements: dict) -> tuple[str, str]:
@@ -156,8 +150,8 @@ def _assess_signal(pipeline: str, measurements: dict) -> tuple[str, str]:
     if pipeline == "opencv-motion":
         return (
             "limited",
-            "No pet pose landmarks were available for this clip, so the left and right "
-            "sides were not compared.",
+            "No pet pose landmarks were available for this clip, so stride symmetry "
+            "was not measured.",
         )
 
     if not measurements["symmetryReliable"]:
@@ -182,6 +176,7 @@ def analyze_clip(
     use_pose: bool = True,
     model_url: str | None = None,
 ) -> dict[str, Any]:
+    del model_url  # The TensorFlow Hub override is gone with MoveNet.
     """Analyze one movement clip and return an ``AnalyzeResult`` dictionary.
 
     Raises:
@@ -216,14 +211,12 @@ def analyze_clip(
     frames_total: int | None = None
     low_confidence = False
 
+    pose_payload = None
     if use_pose:
-        keypoints, pose_skip_reason = _try_pose(
-            path,
-            model_url=model_url,
-            max_frames=MAX_POSE_FRAMES,
-        )
-        if keypoints is not None:
-            pipeline = "movenet"
+        pose_payload, pose_skip_reason = _try_pose(path)
+        if pose_payload is not None:
+            pipeline = "dog-pose"
+            keypoints = pose_payload["keypoints"]
             summary = summarize_keypoints(
                 keypoints,
                 frame_threshold=MIN_POSE_CONFIDENCE,
@@ -235,32 +228,14 @@ def analyze_clip(
                 keypoints,
                 frame_threshold=MIN_POSE_CONFIDENCE,
                 keypoint_threshold=POSE_CONFIDENCE_THRESHOLD,
-                frame_width=signal.width,
-                frame_height=signal.height,
+                frame_width=pose_payload["width"],
+                frame_height=pose_payload["height"],
             )
             measurements["meanKeypointConfidence"] = model_confidence
-            # Below the trust line, limb numbers are left unset. They are not
-            # published as zero, and the result UI shows "Not measured".
-            if pose_is_trusted(summary, minimum=MIN_POSE_CONFIDENCE):
-                gait = compute_gait_metrics(
-                    keypoints,
-                    confidence_threshold=POSE_CONFIDENCE_THRESHOLD,
-                )
-                measurements["leftAnkleMotion"] = gait.left_ankle_motion
-                measurements["rightAnkleMotion"] = gait.right_ankle_motion
-                measurements["strideSymmetry"] = gait.stride_symmetry_score
-                measurements["asymmetryPercent"] = gait.asymmetry_percent
-                measurements["hipStability"] = hip_stability(
-                    keypoints,
-                    confidence_threshold=POSE_CONFIDENCE_THRESHOLD,
-                )
-                measurements["symmetryReliable"] = bool(
-                    gait.stride_symmetry_score is not None
-                    and gait.mean_keypoint_confidence >= MIN_POSE_CONFIDENCE
-                    and gait.valid_left_ankle_frames >= MIN_ANKLE_FRAMES
-                    and gait.valid_right_ankle_frames >= MIN_ANKLE_FRAMES
-                )
-            else:
+            # Stride numbers are filled by gait.py. Until that pass, a trusted
+            # pose still does not invent ankle motion. Untrusted pose leaves
+            # limb numbers unset. They are not published as zero.
+            if not pose_is_trusted(summary, minimum=MIN_POSE_CONFIDENCE):
                 low_confidence = True
 
     signal_quality, signal_note = _assess_signal(pipeline, measurements)
@@ -344,7 +319,7 @@ def analyze_clip(
         "concerningChange": concerning,
         "usedLlm": False,
         "weightsUsed": weights_used(factors),
-        "modelInfo": _model_info(pipeline, model_url),
+        "modelInfo": _model_info(pipeline, pose_payload),
         "modelConfidence": model_confidence,
         "framesUsed": frames_used,
         "framesTotal": frames_total,
@@ -355,6 +330,9 @@ def analyze_clip(
             "fps": signal.fps,
             "framePairs": len(signal.frame_motion),
             "poseSkipReason": pose_skip_reason,
+            "dogFramesShare": None if pose_payload is None else pose_payload["dog_frames_share"],
+            "multipleDogs": None if pose_payload is None else pose_payload["multiple_dogs"],
+            "personPresent": None if pose_payload is None else pose_payload["person_present"],
             "configuredWeights": DEFAULT_WEIGHTS,
             "comparedToPrevious": comparable_previous is not None,
         },

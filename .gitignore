@@ -15,11 +15,12 @@ __pycache__/
 
 # ML validation outputs and local media
 outputs/
+validation_clips/
 *.mp4
 *.mov
 *.avi
-# MoveNet Hub cache from scripts/cache_movenet.py. Do not commit the weights.
-models/tfhub/
+# Detector and pose weights. Do not commit them.
+models/
 
 # Firebase credentials — never commit service-account keys
 firebase-service-account*.json

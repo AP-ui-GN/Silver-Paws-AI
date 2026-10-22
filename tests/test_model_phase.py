@@ -51,9 +51,9 @@ class ConfidenceSummaryTests(unittest.TestCase):
 
     def test_pose_coordinates_average_confident_frames_only(self):
         array = keypoints(2, 0.9)
-        array[0, 5, :2] = (0.2, 0.4)
-        array[1, 5, :2] = (0.6, 0.8)
-        array[:, 6, 2] = 0.1
+        array[0, 5, :2] = (0.4, 0.2)
+        array[1, 5, :2] = (0.8, 0.6)
+        array[:, 8, 2] = 0.1
 
         points = summarize_pose_coordinates(
             array,
@@ -82,17 +82,19 @@ class ConfidenceSummaryTests(unittest.TestCase):
         )
 
         array = keypoints(1, 0.9)
-        array[0, 0, 1] = 1.2
+        array[0, 2, 0] = 20.0
         points = summarize_pose_coordinates(
             array,
             frame_threshold=0.3,
             keypoint_threshold=0.2,
+            frame_width=16,
+            frame_height=9,
         )
         self.assertNotIn("nose", {point["name"] for point in points})
 
-    def test_pose_coordinates_map_letterboxed_landmarks_to_source_frame(self):
+    def test_pose_coordinates_divide_pixels_by_the_frame_size(self):
         array = keypoints(1, 0.9)
-        array[0, 0, :2] = (0.3, 0.5)
+        array[0, 2, :2] = (8.0, 3.0)
         points = summarize_pose_coordinates(
             array,
             frame_threshold=0.3,
@@ -103,7 +105,7 @@ class ConfidenceSummaryTests(unittest.TestCase):
 
         nose = next(point for point in points if point["name"] == "nose")
         self.assertAlmostEqual(nose["x"], 0.5)
-        self.assertAlmostEqual(nose["y"], (0.3 - 0.21875) / 0.5625, places=4)
+        self.assertAlmostEqual(nose["y"], 3.0 / 9.0, places=4)
 
 
 class ClipQualityTests(unittest.TestCase):

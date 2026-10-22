@@ -1,5 +1,8 @@
-# OpenCV-only path for SilverPaws AI.
-# Python 3.10, 3.11, or 3.12. This does not install TensorFlow, so clips are
-# measured with the opencv-motion pipeline and labeled that way.
+# OpenCV motion path for SilverPaws AI.
+#
+# Python 3.10, 3.11, or 3.12. This file does not install torch or
+# transformers. Clips are measured with the opencv-motion pipeline.
+# scipy is pinned for the gait math, which does not import a model.
 opencv-python==4.10.0.84
-numpy==1.26.4
+numpy==2.2.6
+scipy==1.15.3

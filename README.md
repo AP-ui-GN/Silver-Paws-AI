@@ -94,12 +94,12 @@ pip install -r requirements-opencv.txt
 `requirements-opencv.txt` pins OpenCV and NumPy for Python 3.10–3.12. That
 path measures picture motion only and labels the result `opencv-motion`.
 
-For pose landmarks, use Python 3.10 or 3.11 (TensorFlow 2.15 does not support
-3.12) and warm the model cache so the first request does not download it:
+For dog pose, install the CPU torch stack (Python 3.10–3.12) and warm the
+weight cache so the first request does not download it:
 
 ```bash
 pip install -r requirements.txt
-python scripts/cache_movenet.py
+python scripts/cache_models.py
 ```
 
 See `docs/MODEL_CARD.md` for what each model is and what it cannot do.

@@ -17,9 +17,9 @@ PYTHON PIPELINE      scripts/analyze_clip.py → gait_engine.pipeline.analyze_cl
   ↓
 FRAMES               gait_engine/motion.py
   ↓
-POSE (optional)      gait_engine/movenet.py
+POSE (optional)      gait_engine/pose_backend.py
   ↓
-FEATURES             gait_engine/features.py, gait_engine/metrics.py
+FEATURES             gait_engine/features.py
   ↓
 WELLNESS MODEL       gait_engine/wellness.py
   ↓
@@ -59,11 +59,11 @@ that comes back. The web app is the only client.
 ### Analysis — `gait_engine/`
 
 - `motion.py` — OpenCV frame motion
-- `movenet.py` — pose landmarks
-- `metrics.py` — left/right ankle symmetry
+- `pose_backend.py` — dog detector and AP-10K pose
+- `sampling.py` — 15 fps samples and the busiest 20-second window
 - `features.py` — consistency, coverage, hip stability
 - `wellness.py` — factor scores, including mobility and historical change
-- `pipeline.py` — chooses `movenet` or `opencv-motion`, builds `AnalyzeResult`
+- `pipeline.py` — chooses `dog-pose` or `opencv-motion`, builds `AnalyzeResult`
 - `confidence.py` — pose confidence gate (`modelConfidence`, frames used)
 - `clip_quality.py` — duration, resolution, brightness, and motion notes
 

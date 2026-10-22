@@ -3,7 +3,7 @@
 venv
 **/node_modules
 mobile
-models/tfhub
+models
 attached_assets
 tmp
 dist

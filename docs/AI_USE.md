@@ -1,26 +1,36 @@
 # How AI is used in SilverPaws
 
-SilverPaws can use one pose-detection model, MoveNet Thunder, to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers.
+SilverPaws can use a dog detector and an animal pose model to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers. Pose quality on pet dogs is unproven until a labeled set is measured.
 
 This page is generated from `lib/ai-use/registry.json`. Edit that file and run `node scripts/sync-ai-use.mjs`. Do not edit the copies by hand.
 
 Pose landmarks are described further in `docs/MODEL_CARD.md`.
 
+## dog-detector
+
+**What it is.** RT-DETR, PekingU/rtdetr_r50vd_coco_o365, an object detector. The model card license is Apache-2.0.
+
+**What it does.** When torch and the weights are installed, the server finds dog boxes in sampled frames. The dog class id is read from the model labels. It also notes when a person box is present. That note is informational.
+
+**What it doesn't do.** It does not name a condition, decide which leg is weaker, or choose the wellness score.
+
+Code: `gait_engine/pose_backend.py`
+
 ## pose-model
 
-**What it is.** MoveNet Thunder, a machine-learning pose model published by Google on TensorFlow Hub as singlepose/thunder/4. It was trained on human bodies.
+**What it is.** ViTPose++ base, usyd-community/vitpose-plus-base, using the AP-10K animal expert (dataset index 3 in the current Transformers docs). It is not a human-pose checkpoint used as an animal model.
 
-**What it does.** When TensorFlow is installed, the analysis server runs MoveNet on video frames. It returns 17 body keypoints, each with a position and a confidence. It does not run on the phone.
+**What it does.** When torch and the weights are installed, the server estimates 17 AP-10K keypoints inside the dog box. Each point has a position and a confidence. How accurate this is on pet dogs has not been validated here.
 
-**What it doesn't do.** It outputs positions and confidences only. It does not name a condition, detect pain, or choose the wellness score.
+**What it doesn't do.** It outputs positions and confidences only. It does not name a condition, detect pain, or choose the wellness score. A low score is not stored as a measurement.
 
-Code: `gait_engine/movenet.py`
+Code: `gait_engine/pose_backend.py`
 
 ## motion-fallback
 
 **What it is.** Standard OpenCV frame-difference analysis. This is not a learned model.
 
-**What it does.** The server compares consecutive frames and records how much the picture changed. This runs on every clip. When MoveNet is unavailable, it is the only movement measurement. When MoveNet runs, this measurement still supplies movement consistency and activity.
+**What it does.** The server compares consecutive frames and records how much the picture changed. This runs on every clip. When pose is unavailable, it is the only movement measurement. When pose runs, this measurement still supplies movement consistency and activity.
 
 **What it doesn't do.** It does not find limbs or keypoints, and it is not an AI model.
 

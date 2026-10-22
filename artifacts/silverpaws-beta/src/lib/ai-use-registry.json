@@ -1,18 +1,26 @@
 {
-  "summary": "SilverPaws can use one pose-detection model, MoveNet Thunder, to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers.",
+  "summary": "SilverPaws can use a dog detector and an animal pose model to find body points in a clip. Every clip also gets a standard frame-to-frame motion measurement. Scores and the note come from fixed formulas. An optional language model can reword the note when the server is configured for it; it cannot change the numbers. Pose quality on pet dogs is unproven until a labeled set is measured.",
   "entries": [
     {
+      "id": "dog-detector",
+      "whatItIs": "RT-DETR, PekingU/rtdetr_r50vd_coco_o365, an object detector. The model card license is Apache-2.0.",
+      "whatItDoes": "When torch and the weights are installed, the server finds dog boxes in sampled frames. The dog class id is read from the model labels. It also notes when a person box is present. That note is informational.",
+      "whatItDoesnt": "It does not name a condition, decide which leg is weaker, or choose the wellness score.",
+      "codePath": "gait_engine/pose_backend.py",
+      "resultLine": "The dog was located with an object detector (RT-DETR)."
+    },
+    {
       "id": "pose-model",
-      "whatItIs": "MoveNet Thunder, a machine-learning pose model published by Google on TensorFlow Hub as singlepose/thunder/4. It was trained on human bodies.",
-      "whatItDoes": "When TensorFlow is installed, the analysis server runs MoveNet on video frames. It returns 17 body keypoints, each with a position and a confidence. It does not run on the phone.",
-      "whatItDoesnt": "It outputs positions and confidences only. It does not name a condition, detect pain, or choose the wellness score.",
-      "codePath": "gait_engine/movenet.py",
-      "resultLine": "Movement measured with a pose-detection model (MoveNet)."
+      "whatItIs": "ViTPose++ base, usyd-community/vitpose-plus-base, using the AP-10K animal expert (dataset index 3 in the current Transformers docs). It is not a human-pose checkpoint used as an animal model.",
+      "whatItDoes": "When torch and the weights are installed, the server estimates 17 AP-10K keypoints inside the dog box. Each point has a position and a confidence. How accurate this is on pet dogs has not been validated here.",
+      "whatItDoesnt": "It outputs positions and confidences only. It does not name a condition, detect pain, or choose the wellness score. A low score is not stored as a measurement.",
+      "codePath": "gait_engine/pose_backend.py",
+      "resultLine": "Body points estimated with an animal pose model (ViTPose++)."
     },
     {
       "id": "motion-fallback",
       "whatItIs": "Standard OpenCV frame-difference analysis. This is not a learned model.",
-      "whatItDoes": "The server compares consecutive frames and records how much the picture changed. This runs on every clip. When MoveNet is unavailable, it is the only movement measurement. When MoveNet runs, this measurement still supplies movement consistency and activity.",
+      "whatItDoes": "The server compares consecutive frames and records how much the picture changed. This runs on every clip. When pose is unavailable, it is the only movement measurement. When pose runs, this measurement still supplies movement consistency and activity.",
       "whatItDoesnt": "It does not find limbs or keypoints, and it is not an AI model.",
       "codePath": "gait_engine/motion.py",
       "resultLine": "Motion measured with standard video analysis (no AI model)."

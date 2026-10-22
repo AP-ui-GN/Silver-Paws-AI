@@ -1,6 +1,6 @@
 # Analysis API plus the Python gait pipeline.
-# Node 20. Python 3.11 from Debian bookworm (TensorFlow 2.15 does not run on 3.12).
-# MoveNet weights are downloaded while the image builds, not on the first request.
+# Node 20. Python 3.11 from Debian bookworm. The pins also support 3.10 and 3.12.
+# CPU torch. Detector and pose weights download while the image builds.
 
 FROM node:20-bookworm-slim AS build
 
@@ -29,24 +29,25 @@ RUN apt-get update \
     python3-venv \
     python3-pip \
     libglib2.0-0 \
+    libgomp1 \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY --from=build /app/artifacts/api-server/dist ./artifacts/api-server/dist
 COPY gait_engine ./gait_engine
-COPY scripts/analyze_clip.py scripts/cache_movenet.py ./scripts/
+COPY scripts/analyze_clip.py scripts/cache_models.py ./scripts/
 COPY requirements-docker.txt ./
 
 RUN python3 -m venv /opt/venv \
   && /opt/venv/bin/pip install --no-cache-dir -r requirements-docker.txt \
-  && SILVERPAWS_MOVENET_CACHE=/app/models/tfhub /opt/venv/bin/python scripts/cache_movenet.py
+  && HF_HOME=/app/models/hf /opt/venv/bin/python scripts/cache_models.py
 
 ENV NODE_ENV=production \
     PORT=8080 \
     SILVERPAWS_PYTHON=/opt/venv/bin/python \
     SILVERPAWS_REPO_ROOT=/app \
-    SILVERPAWS_MOVENET_CACHE=/app/models/tfhub \
+    HF_HOME=/app/models/hf \
     MAX_UPLOAD_MB=60 \
     ANALYSIS_TIMEOUT_MS=120000 \
     ANALYZE_RATE_LIMIT_PER_MINUTE=10

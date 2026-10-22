@@ -329,6 +329,12 @@ def build_limitations(pipeline: str, signal_quality: str) -> str:
             "No pet pose landmarks were used for this clip, so the measurements describe "
             "overall picture movement rather than individual limbs."
         )
+    elif pipeline == "dog-pose":
+        parts.append(
+            "Pose landmarks come from an animal keypoint model. How well it finds "
+            "pet dogs has not been validated on a labeled set here, so limb "
+            "detections can be unreliable."
+        )
     else:
         parts.append(
             "Pose landmarks come from a model trained on human bodies, so limb detections "

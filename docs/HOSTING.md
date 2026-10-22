@@ -13,13 +13,15 @@ mean a server is already running, and it does not include a public URL.
 
 ## What the image contains
 
-`Dockerfile` uses Node 20 and Debian bookworm's Python 3.11. TensorFlow 2.15
-does not run on Python 3.12. The image installs `opencv-python-headless` (the
+`Dockerfile` uses Node 20 and Debian bookworm's Python 3.11. The same pins
+support Python 3.10–3.12. The image installs `opencv-python-headless` (the
 laptop file `requirements.txt` uses `opencv-python`, which expects a display),
-NumPy, and TensorFlow at the versions in `requirements-docker.txt`.
+NumPy, SciPy, CPU torch, and transformers at the versions in
+`requirements-docker.txt`.
 
-While the image builds, `scripts/cache_movenet.py` downloads MoveNet Thunder
-into `/app/models/tfhub`. A later request reuses that cache.
+While the image builds, `scripts/cache_models.py` downloads the dog detector
+and the pose model into `/app/models/hf` (`HF_HOME`). A later request reuses
+that cache.
 
 The container listens on port 8080. `GET /api/healthz` returns `{ "status": "ok" }`.
 That path stays on plain HTTP so the Docker healthcheck can call localhost.
@@ -38,7 +40,7 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | `ANALYZE_RATE_LIMIT_PER_MINUTE` | `10` | Analyses allowed per client address each minute |
 | `SILVERPAWS_PYTHON` | `/opt/venv/bin/python` in the image | Python that runs the pipeline |
 | `SILVERPAWS_REPO_ROOT` | `/app` in the image | Where `gait_engine` and `scripts` live |
-| `SILVERPAWS_MOVENET_CACHE` | `/app/models/tfhub` in the image | MoveNet weight cache |
+| `HF_HOME` | `/app/models/hf` in the image | Detector and pose weight cache |
 | `SILVERPAWS_LLM_URL` | unset | Optional rewrite endpoint. Leave unset to stay on the rule-based note |
 | `SILVERPAWS_LLM_KEY` | unset | Bearer token for that endpoint. Keep it on the server |
 | `SILVERPAWS_LLM_MODEL` | unset | Model name. Required, with the URL, before a rewrite is attempted |

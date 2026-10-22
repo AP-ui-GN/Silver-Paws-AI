@@ -3,6 +3,8 @@
 A keypoint below the per-point threshold is already ignored inside each metric.
 This module decides whether the pose result as a whole is trustworthy enough to
 publish. A missing confidence is None, never zero.
+
+Keypoints are ``(frames, 17, 3)`` in AP-10K order: ``(x_px, y_px, score)``.
 """
 
 from __future__ import annotations
@@ -11,7 +13,7 @@ import math
 
 import numpy as np
 
-from .movenet import KEYPOINT_NAMES
+from .pose_backend import AP10K_KEYPOINTS
 
 
 def summarize_keypoints(keypoints, *, frame_threshold: float) -> dict:
@@ -69,13 +71,17 @@ def summarize_pose_coordinates(
     frame_width: int | None = None,
     frame_height: int | None = None,
 ) -> list[dict[str, float | str]]:
-    """Average source-frame-normalized coordinates over confident pose frames."""
+    """Average source-frame coordinates over confident pose frames.
+
+    Stored keypoints are pixels. When the frame size is known, x and y in the
+    summary are fractions of that frame, from 0 to 1. They are not letterboxed.
+    """
 
     array = np.asarray(keypoints, dtype=np.float32)
     if array.ndim != 3 or array.shape[-1] < 3:
         raise ValueError("keypoints must have shape (frames, points, 3).")
-    if array.shape[1] != len(KEYPOINT_NAMES):
-        raise ValueError(f"keypoints must contain {len(KEYPOINT_NAMES)} points.")
+    if array.shape[1] != len(AP10K_KEYPOINTS):
+        raise ValueError(f"keypoints must contain {len(AP10K_KEYPOINTS)} points.")
     if not 0.0 <= frame_threshold <= 1.0:
         raise ValueError("frame_threshold must be between 0 and 1.")
     if not 0.0 <= keypoint_threshold <= 1.0:
@@ -96,29 +102,30 @@ def summarize_pose_coordinates(
 
     usable = np.stack(usable_frames)
     if frame_width and frame_height and frame_width > 0 and frame_height > 0:
-        width_fraction = frame_width / max(frame_width, frame_height)
-        height_fraction = frame_height / max(frame_width, frame_height)
-        usable[:, :, 1] = (usable[:, :, 1] - (1.0 - width_fraction) / 2.0) / width_fraction
-        usable[:, :, 0] = (usable[:, :, 0] - (1.0 - height_fraction) / 2.0) / height_fraction
+        usable = usable.copy()
+        usable[:, :, 0] = usable[:, :, 0] / float(frame_width)
+        usable[:, :, 1] = usable[:, :, 1] / float(frame_height)
 
     result: list[dict[str, float | str]] = []
-    for index, name in enumerate(KEYPOINT_NAMES):
+    for index, name in enumerate(AP10K_KEYPOINTS):
         points = usable[:, index, :]
         valid = (
             np.isfinite(points).all(axis=1)
             & (points[:, 2] >= keypoint_threshold)
             & (points[:, 0] >= 0.0)
-            & (points[:, 0] <= 1.0)
+            & (points[:, 0] <= 1.0 if frame_width else True)
             & (points[:, 1] >= 0.0)
-            & (points[:, 1] <= 1.0)
+            & (points[:, 1] <= 1.0 if frame_height else True)
         )
+        if frame_width is None:
+            valid = np.isfinite(points).all(axis=1) & (points[:, 2] >= keypoint_threshold)
         if not np.any(valid):
             continue
 
         result.append({
             "name": name,
-            "x": round(float(np.mean(points[valid, 1])), 4),
-            "y": round(float(np.mean(points[valid, 0])), 4),
+            "x": round(float(np.mean(points[valid, 0])), 4),
+            "y": round(float(np.mean(points[valid, 1])), 4),
             "confidence": round(float(np.mean(points[valid, 2])), 4),
         })
 
