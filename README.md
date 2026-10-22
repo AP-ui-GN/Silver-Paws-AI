@@ -83,7 +83,7 @@ into the web app by `node scripts/sync-ai-use.mjs`. The generated page is
 
 ## How to run
 
-Needs **Node.js 20+**, **pnpm**, and **Python 3.10–3.12** with OpenCV.
+Needs **Node.js 24 LTS**, **pnpm 10.33.4**, and **Python 3.10–3.12** with OpenCV.
 
 ```bash
 pnpm install
