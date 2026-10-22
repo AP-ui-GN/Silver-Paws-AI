@@ -1,5 +1,9 @@
 """QuadPose F2, a published quadruped pose model.
 
+The checkpoint mapping and runtime are verified against the published file;
+SilverPaws gait metrics remain experimental until evaluated on labeled dog-
+walking clips. Heatmap peak scores are not calibrated probabilities.
+
 The checkpoint is ``models/quadpose_f2.onnx`` from
 https://github.com/EstevanSL/snapml-quadruped-pose at commit
 52f0329b5c9af513b5a8f2820aaea6bbd945d0c0. Copyright 2026 Sausage Labs,
@@ -129,7 +133,7 @@ def ensure_checkpoint() -> Path:
 
 
 def load_quadpose():
-    """Load the cached ONNX session. Downloads the checkpoint on first use."""
+    """Load only a verified local checkpoint; setup must download weights explicitly."""
 
     global _SESSION
     if _SESSION is not None:
@@ -141,8 +145,24 @@ def load_quadpose():
             "QuadPose needs onnxruntime. Install requirements.txt before running pose."
         ) from exc
 
-    path = ensure_checkpoint()
-    _SESSION = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    path = cache_path()
+    if not path.is_file():
+        raise RuntimeError(
+            f"QuadPose weights are missing at {path}. Run "
+            "'python scripts/cache_models.py' before enabling pose analysis."
+        )
+    actual = _sha256(path)
+    if actual != CHECKPOINT_SHA256:
+        raise RuntimeError(
+            f"QuadPose checkpoint checksum mismatch at {path}; run "
+            "'python scripts/cache_models.py' to replace it with the pinned file."
+        )
+    session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    inputs = session.get_inputs()
+    outputs = session.get_outputs()
+    if not inputs or not outputs:
+        raise RuntimeError("QuadPose checkpoint has no ONNX input or output.")
+    _SESSION = session
     return _SESSION
 
 
@@ -215,8 +235,15 @@ def _decode_heatmap(heatmap: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _compute_crop(bbox: np.ndarray) -> tuple[float, float, float]:
-    x1, y1, x2, y2 = (float(value) for value in bbox)
+    values = np.asarray(bbox, dtype=np.float64).reshape(-1)
+    if values.shape != (4,) or not np.isfinite(values).all():
+        raise ValueError("Dog bounding box must contain four finite coordinates.")
+    x1, y1, x2, y2 = (float(value) for value in values)
+    if x2 <= x1 or y2 <= y1:
+        raise ValueError("Dog bounding box must have positive width and height.")
     side = max(x2 - x1, y2 - y1) * BBOX_PADDING
+    if not np.isfinite(side) or side <= 0:
+        raise ValueError("Dog bounding box cannot produce a valid pose crop.")
     return (x1 + x2) / 2.0, (y1 + y2) / 2.0, side
 
 
@@ -279,6 +306,11 @@ def motion_bbox(frame_bgr: np.ndarray, previous_bgr: np.ndarray | None) -> np.nd
 def _predict_frame(session, frame_bgr: np.ndarray, bbox: np.ndarray) -> np.ndarray:
     """Return one frame of (17, 3) keypoints as (y, x, confidence), normalized."""
 
+    if frame_bgr.ndim != 3 or frame_bgr.shape[2] != 3:
+        raise ValueError("QuadPose expects a three-channel BGR frame.")
+    height, width = frame_bgr.shape[:2]
+    if width <= 0 or height <= 0:
+        raise ValueError("Frame has no pixels.")
     crop, (center_x, center_y, side) = _crop_frame(frame_bgr, bbox)
     rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB).astype(np.float32)
     blob = rgb.transpose(2, 0, 1)[None]
@@ -292,7 +324,6 @@ def _predict_frame(session, frame_bgr: np.ndarray, bbox: np.ndarray) -> np.ndarr
 
     crop_xy, scores = _decode_heatmap(heatmap)
     image_xy = _crop_to_image(crop_xy, center_x, center_y, side)
-    height, width = frame_bgr.shape[:2]
     keypoints = np.zeros((len(KEYPOINT_NAMES), 3), dtype=np.float32)
     for index in range(len(KEYPOINT_NAMES)):
         x_norm = float(image_xy[index, 0] / width)
