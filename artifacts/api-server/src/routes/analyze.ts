@@ -155,7 +155,7 @@ router.post(
         petName: readPetName(form.fields["petName"]),
         previousOverall: readPreviousOverall(form.fields["previousOverall"]),
         previousPipeline: readPreviousPipeline(form.fields["previousPipeline"]),
-        requestId: req.id,
+        requestId: String(req.id),
       });
 
       if (!outcome.ok) {
@@ -175,7 +175,7 @@ router.post(
 
       if (explanation.rejectedReason) {
         logger.warn(
-          { requestId: req.id, reason: explanation.rejectedReason },
+          { requestId: String(req.id), reason: explanation.rejectedReason },
           "Model rewrite not used; showing the rule-based observation",
         );
       }
@@ -190,7 +190,7 @@ router.post(
 
       if (!finalResult.success) {
         logger.error(
-          { requestId: req.id, issues: finalResult.error.issues.slice(0, 5) },
+          { requestId: String(req.id), issues: finalResult.error.issues.slice(0, 5) },
           "Final analysis payload failed validation",
         );
         sendError(res, 502, "The analysis result could not be prepared for display.", "SCHEMA_MISMATCH");
@@ -232,7 +232,7 @@ router.use(
       return;
     }
 
-    logger.error({ requestId: _req.id, err: error }, "Unexpected failure while analyzing a clip");
+    logger.error({ requestId: String(_req.id), err: error }, "Unexpected failure while analyzing a clip");
     sendError(res, 502, "Something went wrong while analyzing this clip.", "ANALYSIS_FAILED");
   },
 );
