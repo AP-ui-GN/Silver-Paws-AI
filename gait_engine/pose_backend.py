@@ -179,8 +179,9 @@ class PoseResult:
 
     ``keypoints`` is ``(frames, 17, 3)`` of ``(x_px, y_px, score)`` in the
     source frame after rotation. A missing point is NaN in x and y with
-    score 0. ``boxes`` is one COCO ``(x, y, w, h)`` per frame, or None when
-    that frame had no dog box. ``timestamps_seconds`` lines up with frames.
+    score 0. ``boxes`` is one detector ``(x, y, width, height)`` per frame,
+    or None when that frame had no dog box. ``timestamps_seconds`` lines up
+    with frames.
     """
 
     keypoints: np.ndarray
