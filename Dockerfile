@@ -2,7 +2,7 @@
 # Node 20. Python 3.11 from Debian bookworm. The pins also support 3.10 and 3.12.
 # CPU torch. Detector and pose weights download while the image builds.
 
-FROM node:20-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates python3 \
