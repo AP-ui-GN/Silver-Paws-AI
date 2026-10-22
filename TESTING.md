@@ -155,6 +155,8 @@ If no clips or a labels file are available, the command prints setup instruction
 Its summary line says the result is preliminary, a small sample, and not
 clinical validation.
 
+See [`docs/VALIDATION_RUNBOOK.md`](docs/VALIDATION_RUNBOOK.md) for dataset provenance requirements, the real-dog validation procedure, and the live language-model provider smoke-test checklist.
+
 ## What is not tested here
 
 - A production deployment and memory measurement on the hosting provider. The hosted Docker image build and synthetic API smoke test passed in GitHub Actions on October 22, 2026 (see [container-smoke run](https://github.com/AP-ui-GN/Silver-Paws-AI/actions/runs/39818601906)).
