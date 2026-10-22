@@ -16,15 +16,22 @@ What those cover:
 - TypeScript across libs, API, and the app
 - Production builds of the API and the frontend
 - API tests, including multipart parsing, explanation validation, phone walk
-  helpers, and the AI-use registry (37 passed / 0 failed on October 22, 2026)
-- Motion statistics, gait metrics, keypoint-schema checks, confidence gating,
-  and clip-quality notes (73 passed / 0 failed on October 22, 2026)
+  helpers, and the AI-use registry (43 passed / 0 failed on October 22, 2026)
+- Motion statistics, gait metrics, keypoint-schema checks, dog-box tracking,
+  the local setup report, confidence gating, and clip-quality notes
+  (88 passed / 0 failed on October 22, 2026)
 - Uploaded clips are deleted after `POST /api/analyze`, including when the
   file is rejected (`tests/upload-cleanup.test.ts`)
 - Pet-form validation and trend grouping, from the web package:
 
 ```bash
 pnpm --filter @workspace/silverpaws-beta run test
+```
+
+Local setup, without downloading weights:
+
+```bash
+python scripts/check_setup.py
 ```
 
 Standalone pipeline (no API):

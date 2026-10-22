@@ -110,7 +110,7 @@ export const AnalyzeMovementClipResponse = zod.object({
   "x": zod.number().min(analyzeMovementClipResponseMeasurementsPoseSampleItemXMin).max(analyzeMovementClipResponseMeasurementsPoseSampleItemXMax),
   "y": zod.number().min(analyzeMovementClipResponseMeasurementsPoseSampleItemYMin).max(analyzeMovementClipResponseMeasurementsPoseSampleItemYMax),
   "confidence": zod.number().min(analyzeMovementClipResponseMeasurementsPoseSampleItemConfidenceMin).max(analyzeMovementClipResponseMeasurementsPoseSampleItemConfidenceMax)
-}).describe('One keypoint. x and y are fractions from 0 to 1.')).nullish().describe('One sampled frame, 17 AP-10K points normalized to that frame\'s dog box from 0 to 1. This is not the uploaded video and stores no pixels.')
+}).describe('One keypoint. x and y are fractions from 0 to 1.')).nullish().describe('One sampled frame of 17 keypoint channels, normalized to that frame\'s dog box from 0 to 1. With the current checkpoint these channels are COCO-17 joints, not AP-10K landmarks. This is not the uploaded video and stores no pixels.')
 }).describe('Raw measurements from the clip. These describe what was measured and carry no interpretation.'),
   "factors": zod.object({
   "movementConsistency": zod.number().nullish(),

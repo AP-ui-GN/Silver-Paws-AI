@@ -62,7 +62,8 @@ Those screens still use the PetLens name from that commit.
 ### Analysis — `gait_engine/`
 
 - `motion.py` — OpenCV frame motion
-- `pose_backend.py` — dog detector and AP-10K pose
+- `tracking.py` — dog-box association across frames. No model and no copied gap boxes
+- `pose_backend.py` — dog detector and the COCO-17 pose head. Not an AP-10K skeleton
 - `sampling.py` — 15 fps samples and the busiest 20-second window
 - `features.py` — consistency, coverage, hip stability
 - `wellness.py` — factor scores, including mobility and historical change

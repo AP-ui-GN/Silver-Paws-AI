@@ -42,6 +42,8 @@ Web UI (React)  →  API (Express)  →  Python pipeline (gait_engine)
 | API | `artifacts/api-server` |
 | Shared contracts | `lib/api-spec`, `lib/api-zod`, `lib/api-client-react` |
 | Analysis / CV | `gait_engine/` |
+| Dog-box tracking | `gait_engine/tracking.py` (pure; no weights) |
+| Pose head | `gait_engine/pose_backend.py` (COCO-17 checkpoint) |
 | Database (future) | `lib/db` (schema stub only; beta uses `localStorage`) |
 
 Human-facing code (routing, forms, storage, charts) stays in the frontend.
@@ -53,10 +55,15 @@ The wording for each step lives in `lib/ai-use/registry.json` and is copied
 into the web app by `node scripts/sync-ai-use.mjs`. The generated page is
 `docs/AI_USE.md`. Pose limits are in `docs/MODEL_CARD.md`.
 
-- **RT-DETR** finds the dog. **ViTPose++** estimates 17 animal keypoints on
-  the analysis server when torch and the weights are installed. How accurate
-  that is on pet dogs is still unproven. Low confidence is reported as
-  “not measured”, not as a perfect score.
+- **RT-DETR** finds dog boxes. A person box is not used as the dog. Box
+  association across frames is a separate step in `gait_engine/tracking.py`.
+  It does not copy a box forward through a gap.
+- **ViTPose++** (`usyd-community/vitpose-plus-base`) estimates 17 COCO joints
+  when torch and the weights are installed. Dataset index 3 only switches a
+  backbone expert. Channel 4 is the right ear. This checkpoint does not emit
+  AP-10K neck, paw, or tail-base points, and stride length is not computed
+  from it. How accurate those COCO points are on pet dogs is still unproven.
+  A missing measurement is reported as “not measured”, not as zero.
 - **OpenCV frame difference** runs on every clip. It is not a learned model.
   When pose is missing, it is the only movement measurement. When pose runs,
   it still supplies movement consistency and activity. Results from different
@@ -104,6 +111,18 @@ pip install -r requirements.txt
 python scripts/cache_models.py
 ```
 
+Check the local toolchain without downloading weights:
+
+```bash
+python scripts/check_setup.py
+```
+
+That prints the Python version, the OpenCV version, whether the pose weights
+are already on disk, and the keypoint schema read from a local `config.json`
+when one is present. It does not download weights and it does not run the
+model. Exit code 0 means OpenCV imported. Missing weights are reported and
+are not a failure.
+
 See `docs/MODEL_CARD.md` for what each model is and what it cannot do.
 
 One clip, without the API:
@@ -125,8 +144,10 @@ pnpm --filter @workspace/api-server run test
 pnpm --filter @workspace/silverpaws-beta run test
 ```
 
-On October 22, 2026 those were 73 Python tests, 37 API tests, and 17 web
-tests, all passing. The pose head was not validated by those counts.
+On October 22, 2026, after the tracking split, those were 88 Python tests,
+43 API tests, and 17 web tests, all passing. The pose head was not validated
+by those counts. Baseline on `origin/main` before this branch was 73 Python,
+37 API, and 17 web tests, also passing.
 
 Start both services (two terminals):
 

@@ -5,7 +5,9 @@
 
 Two pipelines are supported and the best available one is chosen per clip:
 
-* ``dog-pose``      RT-DETR dog boxes and ViTPose++ AP-10K keypoints.
+* ``dog-pose``      RT-DETR dog boxes and the ViTPose++ COCO-17 head.
+                    Tracking is a separate step. Stride length is not
+                    computed from this head.
 * ``opencv-motion`` frame-to-frame picture change only. Used whenever torch,
                     transformers, or the weights are unavailable, or when pose
                     throws. The request still returns a result.
@@ -63,7 +65,7 @@ def _model_info(pipeline: str, pose: dict | None) -> dict[str, str]:
             detector = f"{detector}@{pose['detector_revision']}"
         return {
             "pipeline": "dog-pose",
-            "modelName": f"RT-DETR ({detector}) + ViTPose++ AP-10K ({version})",
+            "modelName": f"RT-DETR ({detector}) + ViTPose++ COCO-17 ({version})",
             "modelVersion": version,
             "runsOn": "server",
         }
@@ -176,7 +178,22 @@ def _try_pose(video_path: Path) -> tuple[Any | None, str | None]:
         "timestamps": result.timestamps_seconds,
         "boxes": result.boxes,
         "keypoint_schema": result.keypoint_schema,
+        "track_states": result.track_states,
+        "track_segment_ids": result.track_segment_ids,
     }, None
+
+
+def _track_segment_count(pose: dict | None) -> int | None:
+    if pose is None:
+        return None
+    ids = {segment for segment in pose.get("track_segment_ids") or [] if segment is not None}
+    return len(ids)
+
+
+def _ambiguous_track_frames(pose: dict | None) -> int | None:
+    if pose is None:
+        return None
+    return sum(1 for state in pose.get("track_states") or [] if state == "ambiguous")
 
 
 def _assess_signal(pipeline: str, measurements: dict) -> tuple[str, str]:
@@ -199,6 +216,15 @@ def _assess_signal(pipeline: str, measurements: dict) -> tuple[str, str]:
             "limited",
             "No pet pose landmarks were available for this clip, so stride symmetry "
             "was not measured.",
+        )
+
+    from .pose_backend import SCHEMA_LIMIT
+
+    if SCHEMA_LIMIT in (measurements.get("notMeasuredReasons") or []):
+        return (
+            "limited",
+            "Pose landmarks were found. This head does not output the neck or the "
+            "base of the tail, so stride length and symmetry were not measured.",
         )
 
     if not measurements["symmetryReliable"]:
@@ -414,6 +440,9 @@ def analyze_clip(
             "fps": signal.fps,
             "framePairs": len(signal.frame_motion),
             "poseSkipReason": pose_skip_reason,
+            "keypointSchema": None if pose_payload is None else pose_payload.get("keypoint_schema"),
+            "trackSegments": _track_segment_count(pose_payload),
+            "ambiguousTrackFrames": _ambiguous_track_frames(pose_payload),
             "dogFramesShare": None if pose_payload is None else pose_payload["dog_frames_share"],
             "multipleDogs": None if pose_payload is None else pose_payload["multiple_dogs"],
             "personPresent": None if pose_payload is None else pose_payload["person_present"],

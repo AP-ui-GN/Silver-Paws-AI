@@ -54,6 +54,6 @@ export interface AnalysisMeasurements {
   headBobAsymmetry?: number | null;
   pelvisAsymmetry?: number | null;
   notMeasuredReasons?: string[];
-  /** One sampled frame, 17 AP-10K points normalized to that frame's dog box from 0 to 1. This is not the uploaded video and stores no pixels. */
+  /** One sampled frame of 17 keypoint channels, normalized to that frame's dog box from 0 to 1. With the current checkpoint these channels are COCO-17 joints, not AP-10K landmarks. This is not the uploaded video and stores no pixels. */
   poseSample?: PoseKeypointSummary[] | null;
 }
