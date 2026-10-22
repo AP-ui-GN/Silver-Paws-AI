@@ -330,7 +330,7 @@ async function run() {
     await evaluate(cdp, `document.querySelector('[data-testid="button-vet-summary-report-${missingOptionalAnalysis.id}"]').click()`);
     await assertReportPreview(cdp, {
       text: [
-        'SILVER PAWS AI — Clinical Gait & Mobility Telemetry Summary',
+        'SILVER PAWS AI — Movement Observation Summary',
         missingOptionalAnalysis.fileName,
         'No plain-language interpretation was saved for this observation.',
         'Not measured',
