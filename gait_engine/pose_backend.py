@@ -124,7 +124,6 @@ COCO17_EDGES: tuple[tuple[int, int], ...] = (
 )
 MODEL_OUTPUT_SCHEMA = "ap10k"
 MODEL_OUTPUT_KEYPOINTS = AP10K_KEYPOINTS
-MODEL_OUTPUT_EDGES = AP10K_SKELETON_EDGES
 SCHEMA_LIMIT = (
     "The AP-10K landmarks are model estimates. Gait metrics are experimental "
     "and have not been validated on a labeled dog-walking dataset."
@@ -149,6 +148,8 @@ AP10K_SKELETON_EDGES: tuple[tuple[int, int], ...] = (
     (RIGHT_HIP, RIGHT_KNEE),
     (RIGHT_KNEE, RIGHT_BACK_PAW),
 )
+
+MODEL_OUTPUT_EDGES = AP10K_SKELETON_EDGES
 
 
 def hf_home() -> Path:
