@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download the dog detector and the AP-10K pose model into HF_HOME.
+"""Download the dog detector and ViTPose++ COCO-17 checkpoint into HF_HOME.
 
     python scripts/cache_models.py
 
