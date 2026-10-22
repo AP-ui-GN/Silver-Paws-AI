@@ -49,9 +49,30 @@ No API key is required for a clip to be measured.
 
 ## Memory
 
-Peak RAM and the time for a 15-second clip are **not measured** until a timed
-run is written here. Do not invent either number. A starting size of 2 GB is
-only a plan, not a measurement.
+Measured on this machine (Linux, CPU, Python 3.12) on October 21, 2026.
+The clip was not one continuous recording. A 5-second side-view file
+(960×544, about 12 fps, CC BY 3.0, Wikimedia Commons, PLOS supplementary
+s003) was repeated with ffmpeg to 15.000 seconds at 30 fps (450 frames).
+
+`python scripts/time_clip.py` on that file:
+
+| Stage | Seconds |
+| --- | --- |
+| Sample frames | 0.949 |
+| Pose, including weight load | 39.162 |
+| Gait math | 0.015 |
+| Total | 40.127 |
+
+Peak RSS was 1665.3 MB. A separate one-shot `python scripts/analyze_clip.py`
+of the same file returned `pipeline: dog-pose` in 37.543 seconds.
+
+A new process that only loaded both models, and did not analyze a clip,
+took 4.02 seconds of wall time (3.552 seconds after the process had started).
+That is under 20 seconds, so the API still starts Python once per request.
+No persistent worker was added.
+
+The Docker image was not built. The `docker` command is not installed here.
+1665 MB is this CPU run, not a measurement from a hosted container.
 
 To see what a real clip uses:
 

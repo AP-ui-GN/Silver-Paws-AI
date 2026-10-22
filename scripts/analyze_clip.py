@@ -58,6 +58,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Also write the JSON result to this path.",
     )
+    parser.add_argument(
+        "--debug-video",
+        type=Path,
+        default=None,
+        help="Write a skeleton video for local inspection. The API never does this.",
+    )
     return parser.parse_args()
 
 
@@ -86,6 +92,10 @@ def main() -> int:
         }
         exit_code = 1
 
+    if args.debug_video and exit_code == 0:
+        from gait_engine.debug_video import write_debug_video
+
+        write_debug_video(args.video, args.debug_video)
     payload = json.dumps(result)
     if args.output_json:
         args.output_json.parent.mkdir(parents=True, exist_ok=True)

@@ -371,6 +371,50 @@ def _vertical_metrics(series: np.ndarray, body_length: float, step: float) -> tu
     return oscillation, asymmetry
 
 
+def foot_strike_frames(
+    keypoints: np.ndarray,
+    *,
+    timestamps: np.ndarray | None = None,
+    boxes: list | None = None,
+    fps: float | None = None,
+) -> dict[str, list[int]]:
+    """Frame indexes of pawX peaks. These are the stride events drawn in debug video.
+
+    They are not a separate ground-contact detector.
+    """
+
+    array = np.asarray(keypoints, dtype=np.float64)
+    points = _prepare_points(array)
+    forward, body_length = _median_axis(points)
+    stamps = _timestamps(len(points), timestamps, fps)
+    step = None if stamps is None else _sample_step(stamps)
+    empty = {name: [] for name in PAW_INDEX}
+    if body_length is None or stamps is None or step is None:
+        return empty
+    if not _side_on(points, boxes)[0]:
+        return empty
+    front_reference = _reference(points, LEFT_SHOULDER, RIGHT_SHOULDER)
+    rear_reference = _reference(points, LEFT_HIP, RIGHT_HIP)
+    signals = {
+        "frontLeft": _paw_signal(points, LEFT_FRONT_PAW, front_reference, forward, body_length),
+        "frontRight": _paw_signal(points, RIGHT_FRONT_PAW, front_reference, forward, body_length),
+        "rearLeft": _paw_signal(points, LEFT_BACK_PAW, rear_reference, forward, body_length),
+        "rearRight": _paw_signal(points, RIGHT_BACK_PAW, rear_reference, forward, body_length),
+    }
+    strikes: dict[str, list[int]] = {}
+    for name, signal in signals.items():
+        finite = np.isfinite(signal)
+        if np.count_nonzero(finite) < 5:
+            strikes[name] = []
+            continue
+        filled = signal.copy()
+        filled[~finite] = np.nanmin(signal[finite]) - 1.0
+        distance = max(1, int(round(MIN_PEAK_SPACING_SECONDS / step)))
+        peaks, _ = find_peaks(filled, prominence=PEAK_PROMINENCE_BODY_LENGTHS, distance=distance)
+        strikes[name] = [int(peak) for peak in peaks if finite[int(peak)]]
+    return strikes
+
+
 def compute_gait_metrics(
     keypoints: np.ndarray,
     *,

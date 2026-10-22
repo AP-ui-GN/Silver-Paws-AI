@@ -132,6 +132,15 @@ and `labels.csv` there when you have them. Columns are
 `file,label,source,license,notes`. `label` is `normal`, `mild`, or
 `significant`. Do not commit the videos.
 
+```bash
+python scripts/validate_gait.py --clips-dir validation_clips \
+  --labels validation_clips/labels.csv --out outputs/validation.csv
+```
+
+If the folder is empty the command prints how to add clips and exits 0.
+Its summary line says the result is preliminary, a small sample, and not
+clinical validation.
+
 ## What is not tested here
 
 - A hosted image build. Docker was not installed here.

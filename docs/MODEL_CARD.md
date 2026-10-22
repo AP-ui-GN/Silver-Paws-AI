@@ -55,5 +55,10 @@ Weights go to `HF_HOME`, default `models/hf`. That directory is gitignored.
 
 ## Time and memory
 
-Not measured on a hosted image. A local CPU timing, if one was recorded, is
-in `docs/HOSTING.md`. Do not copy a number from anywhere else.
+On this CPU, a 15.000-second 30 fps file made by repeating a 5-second clip
+took 40.127 seconds end to end (`scripts/time_clip.py`: sample 0.949 s,
+pose including weight load 39.162 s, gait math 0.015 s). Peak RSS was
+1665.3 MB. One-shot `analyze_clip.py` on the same file took 37.543 seconds.
+Loading both models in a new process, without a clip, took 4.02 seconds of
+wall time. The Docker image was not built, so hosted RAM is not measured.
+Details are in `docs/HOSTING.md`.
