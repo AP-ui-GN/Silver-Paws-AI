@@ -2,11 +2,37 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { rm } from "node:fs/promises";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import express from "express";
 import test from "node:test";
+import { build } from "esbuild";
 
-import { createHealthRouter } from "../src/routes/health.ts";
-import type { ReadinessReport } from "../src/lib/readiness.ts";
+type ReadinessReport = {
+  status: "ready" | "unavailable";
+  capabilities: string[];
+  poseModelAvailable: boolean;
+  warnings: string[];
+};
+
+const HEALTH_ENTRY = new URL("../src/routes/health.ts", import.meta.url);
+const HEALTH_BUNDLE = new URL("./.tmp-readyz-router.mjs", import.meta.url);
+
+async function loadHealthRouter(): Promise<{
+  createHealthRouter: (check: () => Promise<ReadinessReport>) => import("express").Router;
+}> {
+  await build({
+    entryPoints: [HEALTH_ENTRY.pathname],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    outfile: HEALTH_BUNDLE.pathname,
+    external: ["express", "pino", "pino-http", "pino-pretty", "cors"],
+    logLevel: "silent",
+  });
+  return import(pathToFileURL(HEALTH_BUNDLE.pathname).href);
+}
 
 const readyReport: ReadinessReport = {
   status: "ready",
@@ -22,6 +48,7 @@ async function withReadyServer(
   report: ReadinessReport,
   testBody: (baseUrl: string) => Promise<void>,
 ): Promise<void> {
+  const { createHealthRouter } = await loadHealthRouter();
   const app = express();
   app.use("/api", createHealthRouter(async () => report));
   const server: Server = createServer(app);
@@ -35,6 +62,7 @@ async function withReadyServer(
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));
     });
+    await rm(HEALTH_BUNDLE, { force: true });
   }
 }
 
