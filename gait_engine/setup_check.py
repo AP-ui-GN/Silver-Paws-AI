@@ -122,9 +122,10 @@ def collect_setup(root: Path | None = None) -> dict[str, object]:
         "torch": importlib.util.find_spec("torch") is not None,
         "transformers": importlib.util.find_spec("transformers") is not None,
     }
+    opencv = opencv_version()
     return {
         "python": sys.version.split()[0],
-        "opencv": opencv_version(),
+        "opencv": opencv,
         "pose": pose,
         "detector": detector,
         "poseDependencies": dependencies,
@@ -135,7 +136,7 @@ def collect_setup(root: Path | None = None) -> dict[str, object]:
             and detector["weightsPresent"]
             and pose["schema"] == "coco-17"
         ),
-        "fallbackReady": opencv_version() is not None,
+        "fallbackReady": opencv is not None,
         "downloadsWeights": False,
     }
 
