@@ -63,6 +63,8 @@ test("an uploaded video is deleted after the request finishes", async () => {
   const uploadDir = await mkdtemp(path.join(tmpdir(), "silverpaws-upload-test-"));
   const previous = process.env["SILVERPAWS_UPLOAD_DIR"];
   process.env["SILVERPAWS_UPLOAD_DIR"] = uploadDir;
+  const previousTrust = process.env["TRUST_PROXY"];
+  process.env["TRUST_PROXY"] = "1";
   const { default: app } = await loadApp();
   const server = createServer(app);
 
@@ -70,7 +72,10 @@ test("an uploaded video is deleted after the request finishes", async () => {
     const port = await listen(server);
     const response = await fetch(`http://127.0.0.1:${port}/api/analyze`, {
       method: "POST",
-      headers: { "content-type": `multipart/form-data; boundary=${BOUNDARY}` },
+      headers: {
+        "content-type": `multipart/form-data; boundary=${BOUNDARY}`,
+        "x-forwarded-proto": "https",
+      },
       body: videoBody(),
     });
 
@@ -104,6 +109,8 @@ test("an uploaded video is deleted after the request finishes", async () => {
     });
     if (previous === undefined) delete process.env["SILVERPAWS_UPLOAD_DIR"];
     else process.env["SILVERPAWS_UPLOAD_DIR"] = previous;
+    if (previousTrust === undefined) delete process.env["TRUST_PROXY"];
+    else process.env["TRUST_PROXY"] = previousTrust;
     await rm(uploadDir, { recursive: true, force: true });
     await rm(new URL("./.tmp-upload-server.mjs", import.meta.url), { force: true });
   }

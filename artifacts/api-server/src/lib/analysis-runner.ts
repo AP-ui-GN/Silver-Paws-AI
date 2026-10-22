@@ -6,7 +6,7 @@
  * generated schema before anything reaches a user.
  */
 
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 import { AnalyzeMovementClipResponse, type AnalyzeResult } from "@workspace/api-zod";
 
+import { positiveInteger } from "./hosting";
 import { logger } from "./logger";
 
 // This file is bundled to artifacts/api-server/dist, so the repository root is
@@ -30,9 +31,11 @@ const CLIP_PROBLEM_EXIT_CODE = 2;
 
 const STDERR_LOG_LIMIT = 4000;
 
-export const ANALYSIS_TIMEOUT_MS = Number(
-  process.env["ANALYSIS_TIMEOUT_MS"] ?? 120_000,
-);
+export function analysisTimeoutMs(): number {
+  return positiveInteger(process.env["ANALYSIS_TIMEOUT_MS"], 120_000, 1_000);
+}
+
+export const ANALYSIS_TIMEOUT_MS = analysisTimeoutMs();
 
 export interface AnalysisRequest {
   videoPath: string;
@@ -87,9 +90,36 @@ interface ProcessOutcome {
   spawnError: Error | null;
 }
 
+/** Start the pipeline in its own group so a timeout can stop it and anything it starts. */
+export function spawnAnalysisProcess(command: string, args: string[]): ChildProcess {
+  return spawn(command, args, {
+    cwd: REPOSITORY_ROOT,
+    detached: process.platform !== "win32",
+  });
+}
+
+/** SIGKILL the pipeline. A hung native call can ignore the default terminate signal. */
+export function stopAnalysisProcess(child: ChildProcess): void {
+  const pid = child.pid;
+  if (pid && process.platform !== "win32") {
+    try {
+      process.kill(-pid, "SIGKILL");
+      return;
+    } catch {
+      // The group is already gone. Signal the child directly.
+    }
+  }
+  try {
+    child.kill("SIGKILL");
+  } catch {
+    // Already exited.
+  }
+}
+
 function runPython(command: string, args: string[]): Promise<ProcessOutcome> {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { cwd: REPOSITORY_ROOT });
+    const child = spawnAnalysisProcess(command, args);
+    const timeoutMs = analysisTimeoutMs();
 
     let stdout = "";
     let stderr = "";
@@ -98,8 +128,8 @@ function runPython(command: string, args: string[]): Promise<ProcessOutcome> {
 
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill();
-    }, ANALYSIS_TIMEOUT_MS);
+      stopAnalysisProcess(child);
+    }, timeoutMs);
 
     child.stdout.on("data", (chunk: Buffer) => {
       stdout += chunk.toString();
@@ -183,7 +213,7 @@ export async function runAnalysis(
     }
 
     if (outcome.timedOut) {
-      logger.error({ timeoutMs: ANALYSIS_TIMEOUT_MS }, "Analysis pipeline timed out");
+      logger.error({ timeoutMs: analysisTimeoutMs() }, "Analysis pipeline timed out");
       return {
         ok: false,
         status: 502,

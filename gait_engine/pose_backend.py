@@ -244,19 +244,31 @@ def choose_initial_dog(
     return min(boxes, key=lambda box: (-(box[2] * box[3]), _center_distance(box, width, height)))
 
 
+# A box with no real overlap is a different animal, not the dog we were following.
+MIN_TRACK_IOU = 0.1
+
+
 def choose_tracked_dog(
     boxes: list[tuple[float, float, float, float]],
     previous: tuple[float, float, float, float] | None,
     width: int,
     height: int,
 ) -> tuple[float, float, float, float] | None:
-    """Follow the previous dog by IoU. The first box uses size and center."""
+    """Follow the previous dog when the boxes overlap.
+
+    The first box uses size and center. Later frames keep the box with the
+    highest overlap, and only when that overlap clears ``MIN_TRACK_IOU``.
+    A disjoint box is a lost track, not a new identity for the same pet.
+    """
 
     if previous is None:
         return choose_initial_dog(boxes, width, height)
     if not boxes:
         return None
-    return max(boxes, key=lambda box: _box_iou(box, previous))
+    best = max(boxes, key=lambda box: _box_iou(box, previous))
+    if _box_iou(best, previous) < MIN_TRACK_IOU:
+        return None
+    return best
 
 
 def crop_from_keypoints(

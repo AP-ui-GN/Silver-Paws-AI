@@ -10,21 +10,49 @@ const WINDOW_MS = 60_000;
 
 const slots = new Map<string, number[]>();
 
-export function analyzeRateLimitPerMinute(): number {
-  const parsed = Number(process.env["ANALYZE_RATE_LIMIT_PER_MINUTE"] ?? 10);
-  if (!Number.isFinite(parsed) || parsed < 1) return 10;
+let activeAnalyses = 0;
+
+/** A missing or unusable setting falls back instead of becoming NaN or zero. */
+export function positiveInteger(
+  value: string | undefined,
+  fallback: number,
+  minimum: number,
+): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < minimum) return fallback;
   return Math.floor(parsed);
+}
+
+export function analyzeRateLimitPerMinute(): number {
+  return positiveInteger(process.env["ANALYZE_RATE_LIMIT_PER_MINUTE"], 10, 1);
+}
+
+/** How many pipelines may run at once. Extra requests are refused before the upload is read. */
+export function analyzeMaxConcurrent(): number {
+  return positiveInteger(process.env["ANALYZE_MAX_CONCURRENT"], 2, 1);
+}
+
+/**
+ * Forwarded client headers are ignored unless the operator set TRUST_PROXY.
+ * A browser can send those headers itself, so they are not a client identity
+ * on a server that is reachable directly.
+ */
+export function trustProxyEnabled(): boolean {
+  const value = process.env["TRUST_PROXY"]?.trim().toLowerCase();
+  return value === "1" || value === "true" || value === "yes";
 }
 
 export function resetAnalyzeSlots(): void {
   slots.clear();
+  activeAnalyses = 0;
 }
 
 /** True when this client may start another analysis. */
 export function takeAnalyzeSlot(key: string, now: number, limit: number, windowMs = WINDOW_MS): boolean {
   const recent = (slots.get(key) ?? []).filter((stamp) => now - stamp < windowMs);
   if (recent.length >= limit) {
-    slots.set(key, recent);
+    if (recent.length === 0) slots.delete(key);
+    else slots.set(key, recent);
     return false;
   }
   recent.push(now);
@@ -32,13 +60,39 @@ export function takeAnalyzeSlot(key: string, now: number, limit: number, windowM
   return true;
 }
 
-export function clientAddress(forwardedFor: string | undefined, remoteAddress: string | undefined): string {
-  const forwarded = forwardedFor?.split(",")[0]?.trim();
-  return forwarded || remoteAddress || "unknown";
+/** Reserve one running analysis. False when the server is already at the cap. */
+export function tryStartAnalysis(): boolean {
+  if (activeAnalyses >= analyzeMaxConcurrent()) return false;
+  activeAnalyses += 1;
+  return true;
 }
 
-export function requestIsHttps(secure: boolean, forwardedProto: string | undefined): boolean {
+export function finishAnalysis(): void {
+  activeAnalyses = Math.max(0, activeAnalyses - 1);
+}
+
+export function clientAddress(
+  forwardedFor: string | undefined,
+  remoteAddress: string | undefined,
+  trustProxy = false,
+): string {
+  if (!trustProxy) return remoteAddress || "unknown";
+  // The nearest proxy appends the address it actually saw. Earlier values
+  // were supplied by the client and can be chosen freely.
+  const forwarded = (forwardedFor ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return forwarded[forwarded.length - 1] || remoteAddress || "unknown";
+}
+
+export function requestIsHttps(
+  secure: boolean,
+  forwardedProto: string | undefined,
+  trustProxy = false,
+): boolean {
   if (secure) return true;
+  if (!trustProxy) return false;
   const proto = forwardedProto?.split(",")[0]?.trim().toLowerCase();
   return proto === "https";
 }

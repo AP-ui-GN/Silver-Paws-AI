@@ -7,7 +7,7 @@
     "dev": "node -e \"const { spawn } = require('node:child_process'); process.env.NODE_ENV = 'development'; const build = spawn(process.execPath, ['./build.mjs'], { stdio: 'inherit' }); build.on('exit', (code) => { if (code !== 0) process.exit(code ?? 1); const server = spawn(process.execPath, ['--enable-source-maps', './dist/index.mjs'], { stdio: 'inherit', env: { ...process.env, NODE_ENV: 'development' } }); server.on('exit', (serverCode) => process.exit(serverCode ?? 0)); });\"",  
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "test": "node --experimental-strip-types --test --test-concurrency=1 tests/multipart.test.ts tests/explanation.test.ts tests/upload-cleanup.test.ts tests/mobile-walks.test.ts tests/ai-use.test.ts tests/hosting.test.ts tests/api-address.test.ts",
+    "test": "node --experimental-strip-types --test --test-concurrency=1 tests/multipart.test.ts tests/explanation.test.ts tests/upload-cleanup.test.ts tests/mobile-walks.test.ts tests/ai-use.test.ts tests/hosting.test.ts tests/api-address.test.ts tests/analyze-gate.test.ts tests/analysis-stop.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

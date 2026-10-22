@@ -25,9 +25,11 @@ that cache.
 
 The container listens on port 8080. `GET /api/healthz` returns `{ "status": "ok" }`.
 That path stays on plain HTTP so the Docker healthcheck can call localhost.
-Every other path requires HTTPS when `NODE_ENV=production`. The host's proxy
-sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
-`NODE_ENV=development`, so `http://127.0.0.1:8080` works on your machine.
+Every other path requires HTTPS when `NODE_ENV=production`. Set `TRUST_PROXY=1`
+only when a reverse proxy in front of this process sets `X-Forwarded-Proto`.
+The API ignores `X-Forwarded-For` and `X-Forwarded-Proto` unless that variable
+is set, because a client can send those headers itself. Local `docker compose`
+keeps `NODE_ENV=development`, so `http://127.0.0.1:8080` works on your machine.
 
 ## Environment variables
 
@@ -35,9 +37,11 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | --- | --- | --- |
 | `PORT` | `8080` | Listen port |
 | `NODE_ENV` | unset | `production` turns on the HTTPS check |
-| `MAX_UPLOAD_MB` | `60` | Largest clip accepted |
-| `ANALYSIS_TIMEOUT_MS` | `120000` | Stop a pipeline run after this many milliseconds |
+| `TRUST_PROXY` | unset | Set to `1` only behind a proxy that sets `X-Forwarded-Proto` |
+| `MAX_UPLOAD_MB` | `60` | Largest clip accepted. A bad value stays at 60 |
+| `ANALYSIS_TIMEOUT_MS` | `120000` | Stop a pipeline run after this many milliseconds. The process group is killed |
 | `ANALYZE_RATE_LIMIT_PER_MINUTE` | `10` | Analyses allowed per client address each minute |
+| `ANALYZE_MAX_CONCURRENT` | `2` | Pipelines running at once. Extra requests are refused before the upload is read |
 | `SILVERPAWS_PYTHON` | `/opt/venv/bin/python` in the image | Python that runs the pipeline |
 | `SILVERPAWS_REPO_ROOT` | `/app` in the image | Where `gait_engine` and `scripts` live |
 | `HF_HOME` | `/app/models/hf` in the image | Detector and pose weight cache |
@@ -102,7 +106,7 @@ Render is the host described here because a Docker web service, a health check, 
 2. In Render, create a **Web Service** and choose **Docker**. Set the root to the repository root so `Dockerfile` is used.
 3. Set the health check path to `/api/healthz`.
 4. Choose an instance with at least 2 GB of RAM.
-5. Set `NODE_ENV` to `production` and set any other variables from the table. Leave the language-model variables empty unless you have a provider.
+5. Set `NODE_ENV` to `production` and `TRUST_PROXY` to `1` (Render's proxy terminates TLS). Set any other variables from the table. Leave the language-model variables empty unless you have a provider.
 6. Deploy. Render serves HTTPS. The image build caches the detector and the pose model, so the first request should not download them.
 7. Copy the `https://` address Render shows. Serve the web build from that origin, or point the web build at it. Do not invent an address in the repo.
 
