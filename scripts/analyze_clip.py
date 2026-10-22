@@ -72,6 +72,22 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def attach_request_id(result: dict, request_id: str | None) -> dict:
+    """Attach the API correlation ID without changing measurement fields."""
+
+    if not request_id:
+        return result
+    if result.get("ok") is True:
+        diagnostics = result.get("diagnostics")
+        if not isinstance(diagnostics, dict):
+            diagnostics = {}
+            result["diagnostics"] = diagnostics
+        diagnostics["requestId"] = request_id
+    else:
+        result["requestId"] = request_id
+    return result
+
+
 def write_json(path: Path, result: dict) -> None:
     """Replace the output file only after the JSON is fully written."""
 
@@ -92,11 +108,7 @@ def main() -> int:
         output_path = args.output_json
 
         def motion_ready(result: dict, destination: Path = output_path) -> None:
-            if args.request_id:
-                diagnostics = result.get("diagnostics")
-                if isinstance(diagnostics, dict):
-                    diagnostics["requestId"] = args.request_id
-            write_json(destination, result)
+            write_json(destination, attach_request_id(result, args.request_id))
 
     try:
         result = analyze_clip(
@@ -118,13 +130,7 @@ def main() -> int:
         }
         exit_code = 1
 
-    if args.request_id:
-        if result.get("ok") is True:
-            diagnostics = result.get("diagnostics")
-            if isinstance(diagnostics, dict):
-                diagnostics["requestId"] = args.request_id
-        else:
-            result["requestId"] = args.request_id
+    result = attach_request_id(result, args.request_id)
 
     if args.debug_video and exit_code == 0:
         from gait_engine.debug_video import write_debug_video
