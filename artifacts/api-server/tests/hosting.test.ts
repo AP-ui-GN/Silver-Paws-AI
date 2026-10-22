@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  allowedCorsOrigins,
   clientAddress,
   finishAnalysis,
   httpsOnlyApplies,
@@ -71,4 +72,25 @@ test("a full analysis slot refuses the next start until one finishes", () => {
     else process.env["ANALYZE_MAX_CONCURRENT"] = previous;
     resetAnalyzeSlots();
   }
+});
+
+
+test("development CORS defaults are restricted to the documented Vite origins", () => {
+  assert.deepEqual(
+    [...allowedCorsOrigins("development", undefined)].sort(),
+    ["http://localhost:4173", "http://127.0.0.1:4173"].sort(),
+  );
+});
+
+test("production CORS requires an explicit origin allowlist", () => {
+  assert.deepEqual([...allowedCorsOrigins("production", undefined)], []);
+  assert.deepEqual(
+    [...allowedCorsOrigins("production", "https://app.example.com, https://mobile-web.example.org/")].sort(),
+    ["https://app.example.com", "https://mobile-web.example.org"].sort(),
+  );
+});
+
+test("CORS configuration rejects paths and non-HTTP schemes", () => {
+  assert.throws(() => allowedCorsOrigins("production", "https://example.com/app"));
+  assert.throws(() => allowedCorsOrigins("production", "javascript:alert(1)"));
 });
