@@ -6,6 +6,7 @@ not call Hugging Face, does not import torch, and does not download weights.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -117,11 +118,24 @@ def collect_setup(root: Path | None = None) -> dict[str, object]:
     cache = root if root is not None else hf_home()
     pose = inspect_model(cache, POSE_ID)
     detector = inspect_model(cache, DETECTOR_ID)
+    dependencies = {
+        "torch": importlib.util.find_spec("torch") is not None,
+        "transformers": importlib.util.find_spec("transformers") is not None,
+    }
     return {
         "python": sys.version.split()[0],
         "opencv": opencv_version(),
         "pose": pose,
         "detector": detector,
+        "poseDependencies": dependencies,
+        "poseReady": (
+            dependencies["torch"]
+            and dependencies["transformers"]
+            and pose["weightsPresent"]
+            and detector["weightsPresent"]
+            and pose["schema"] == "coco-17"
+        ),
+        "fallbackReady": opencv_version() is not None,
         "downloadsWeights": False,
     }
 
@@ -140,6 +154,8 @@ def format_setup(report: dict[str, object]) -> str:
         f"Pose schema: {pose['schema']}",
         f"Pose channel 4: {pose['channel4'] if pose['channel4'] is not None else 'absent'}",
         f"Detector weights: {'present' if detector['weightsPresent'] else 'absent'} ({detector['modelId']})",
+        f"Pose dependencies: {'present' if all(report['poseDependencies'].values()) else 'incomplete'} (torch + transformers)",
+        f"Pose capability cached: {'yes' if report['poseReady'] else 'no'}",
         "This command does not download weights.",
     ]
     return "\n".join(lines) + "\n"
