@@ -16,8 +16,9 @@ over time and, if needed, take to a veterinarian.
 
 - Pet profile (name, species, breed, age, weight, notes) stored in this browser
 - Walking-clip upload with file, size, and duration checks
-- Computer vision pipeline: frame-to-frame picture motion on every clip, and
-  a dog box plus 17 COCO joints when torch and the weights are installed
+- Computer vision pipeline: frame-to-frame picture motion on every clip, plus
+  a detected dog box and the checkpoint's 17 COCO-17 human joint labels when
+  torch and weights are installed; canine landmark semantics remain unvalidated
 - Measurements kept separate from interpretation. This pose head does not
   measure stride length, because it has no neck and no base of the tail
 - Transparent factor scores (consistency, symmetry, mobility, activity, and
@@ -55,10 +56,12 @@ The wording for each step lives in `lib/ai-use/registry.json` and is copied
 into the web app by `node scripts/sync-ai-use.mjs`. The generated page is
 `docs/AI_USE.md`. Pose limits are in `docs/MODEL_CARD.md`.
 
-- **RT-DETR** finds the dog. **ViTPose++** estimates 17 animal keypoints on
-  the analysis server when torch and the weights are installed. How accurate
-  that is on pet dogs is still unproven. Low confidence is reported as
-  “not measured”, not as a perfect score.
+- **RT-DETR** detects dog boxes. **ViTPose++** emits the checkpoint's 17
+  COCO-17 human joint labels inside those boxes when torch and weights are
+  installed. This checkpoint does not contain the AP-10K canine keypoint head;
+  canine landmark interpretation has not been validated on a labeled dog-video
+  set. Stride length and left/right gait symmetry remain unmeasured. Low-
+  confidence outputs are not treated as reliable measurements.
 - **OpenCV frame difference** runs on every clip. It is not a learned model.
   When pose is missing, it is the only movement measurement. When pose runs,
   it still supplies movement consistency and activity. Results from different
@@ -144,8 +147,10 @@ pnpm --filter @workspace/silverpaws-beta run dev
 
 Open http://127.0.0.1:4173
 
-To run the API in Docker, see `docs/HOSTING.md`. The image was not built in
-this repository checkout.
+To run the API in Docker, see `docs/HOSTING.md`. GitHub Actions now builds
+the image and smoke-tests readiness plus `POST /api/analyze` with a synthetic
+motion clip. This verifies container packaging and API integration, not canine
+pose accuracy or production-host memory use.
 
 ### On a phone on the same Wi-Fi
 
