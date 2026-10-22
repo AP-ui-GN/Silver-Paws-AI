@@ -49,8 +49,9 @@ No API key is required for a clip to be measured.
 
 ## Memory
 
-Start the service at **2 GB** of RAM. TensorFlow loads MoveNet on a pose
-request, and 2 GB is a starting size, not a measurement from a finished image.
+Peak RAM and the time for a 15-second clip are **not measured** until a timed
+run is written here. Do not invent either number. A starting size of 2 GB is
+only a plan, not a measurement.
 
 To see what a real clip uses:
 
@@ -81,7 +82,7 @@ Render is the host described here because a Docker web service, a health check, 
 3. Set the health check path to `/api/healthz`.
 4. Choose an instance with at least 2 GB of RAM.
 5. Set `NODE_ENV` to `production` and set any other variables from the table. Leave the language-model variables empty unless you have a provider.
-6. Deploy. Render serves HTTPS. The first pose request should not download MoveNet, because the image build already cached it.
+6. Deploy. Render serves HTTPS. The image build caches the detector and the pose model, so the first request should not download them.
 7. Copy the `https://` address Render shows. Serve the web build from that origin, or point the web build at it. Do not invent an address in the repo.
 
 The web build does not contain `SILVERPAWS_LLM_KEY` or any other server secret.

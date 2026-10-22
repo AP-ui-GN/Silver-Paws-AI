@@ -18,7 +18,7 @@ export interface AnalyzeError {
 }
 
 /**
- * Mean normalized location for one MoveNet keypoint.
+ * One keypoint. x and y are fractions from 0 to 1.
  */
 export interface PoseKeypointSummary {
   name: string;
@@ -39,24 +39,79 @@ export interface PoseKeypointSummary {
   confidence: number;
 }
 
+export interface SideOnView {
+  sideOn?: boolean | null;
+  reason?: string | null;
+}
+
+export interface SubjectInfo {
+  dogFramesShare?: number | null;
+  multipleDogs?: boolean | null;
+  personPresent?: boolean | null;
+}
+
+export interface PawStride {
+  strideCount?: number | null;
+  excursion?: number | null;
+}
+
+export interface StrideSet {
+  frontLeft?: PawStride;
+  frontRight?: PawStride;
+  rearLeft?: PawStride;
+  rearRight?: PawStride;
+}
+
+export interface PairValues {
+  front?: number | null;
+  rear?: number | null;
+}
+
 /**
  * Raw measurements from the clip. These describe what was measured and carry no interpretation.
  */
 export interface AnalysisMeasurements {
-  /** Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left, after correcting MoveNet's letterboxing. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters. */
+  /** Confidence-filtered mean keypoint coordinates across usable pose frames, normalized to the source frame from 0 to 1. Kept for older saved walks. Null when pose did not run. An empty array means pose ran but no point passed the confidence filters. */
   poseKeypoints?: PoseKeypointSummary[] | null;
   frameCount: number;
   durationSeconds: number;
   meanKeypointConfidence?: number | null;
+  /**
+     * Legacy field from the human-pose path. The dog-pose pipeline leaves this null.
+     * @deprecated
+     */
   leftAnkleMotion?: number | null;
+  /**
+     * Legacy field from the human-pose path. The dog-pose pipeline leaves this null.
+     * @deprecated
+     */
   rightAnkleMotion?: number | null;
+  /** Worse of the measured front and rear pair symmetries, from 0 to 1. Null when no pair was measured. */
   strideSymmetry?: number | null;
   asymmetryPercent?: number | null;
   motionMean: number;
   motionStd: number;
   motionCoverage: number;
+  /**
+     * Legacy field from the human-pose path. The dog-pose pipeline leaves this null. Left-versus-right hip height is not computed.
+     * @deprecated
+     */
   hipStability?: number | null;
   symmetryReliable: boolean;
+  view?: SideOnView;
+  subject?: SubjectInfo;
+  strides?: StrideSet;
+  limbSymmetry?: PairValues;
+  strideLengthBodyLengths?: PairValues;
+  cadenceStridesPerMinute?: number | null;
+  strideTimeCv?: number | null;
+  headVerticalOscillation?: number | null;
+  pelvisVerticalOscillation?: number | null;
+  headBobAsymmetry?: number | null;
+  pelvisAsymmetry?: number | null;
+  notMeasuredReasons?: string[];
+  /** One sampled frame, 17 AP-10K points normalized to that frame's dog box from 0 to 1. This is not the uploaded video and stores no pixels. */
+  poseSample?: PoseKeypointSummary[] | null;
 }
 
 /**
@@ -74,6 +129,7 @@ export type ModelInfoPipeline = typeof ModelInfoPipeline[keyof typeof ModelInfoP
 
 
 export const ModelInfoPipeline = {
+  'dog-pose': 'dog-pose',
   movenet: 'movenet',
   'opencv-motion': 'opencv-motion',
 } as const;
@@ -107,12 +163,13 @@ export interface AnalysisWeights {
 }
 
 /**
- * movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.
+ * dog-pose when the dog detector and animal pose model ran, opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.
  */
 export type AnalyzeResultPipeline = typeof AnalyzeResultPipeline[keyof typeof AnalyzeResultPipeline];
 
 
 export const AnalyzeResultPipeline = {
+  'dog-pose': 'dog-pose',
   movenet: 'movenet',
   'opencv-motion': 'opencv-motion',
 } as const;
@@ -136,7 +193,7 @@ export type AnalyzeResultDiagnostics = { [key: string]: unknown };
 
 export interface AnalyzeResult {
   ok: boolean;
-  /** movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured. */
+  /** dog-pose when the dog detector and animal pose model ran, opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet. */
   pipeline: AnalyzeResultPipeline;
   /** How much the measurements from this clip can be trusted. */
   signalQuality: AnalyzeResultSignalQuality;

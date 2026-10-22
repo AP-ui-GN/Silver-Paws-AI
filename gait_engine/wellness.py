@@ -303,6 +303,49 @@ def build_observation(
     if unscored:
         sentences.append(f"Not scored in this clip: {', '.join(unscored)}.")
 
+    strides = measurements.get("strides") or {}
+
+    def stride_counts(names: tuple[str, ...]) -> list[int]:
+        values: list[int] = []
+        for name in names:
+            paw = strides.get(name) or {}
+            count = paw.get("strideCount") if isinstance(paw, dict) else None
+            if isinstance(count, int) and not isinstance(count, bool):
+                values.append(count)
+        return sorted(values)
+
+    front_counts = stride_counts(("frontLeft", "frontRight"))
+    rear_counts = stride_counts(("rearLeft", "rearRight"))
+    if front_counts:
+        joined = " and ".join(str(count) for count in front_counts)
+        sentences.append(f"Front stride counts: {joined}.")
+    if rear_counts:
+        joined = " and ".join(str(count) for count in rear_counts)
+        sentences.append(f"Rear stride counts: {joined}.")
+
+    limb = measurements.get("limbSymmetry") or {}
+    pairs = [
+        (label, float(limb[key]))
+        for label, key in (("front", "front"), ("rear", "rear"))
+        if _is_number(limb.get(key))
+    ]
+    if pairs:
+        label, score = min(pairs, key=lambda item: item[1])
+        percent = round((1.0 - score) * 100.0, 1)
+        sentences.append(f"The {label} pair was the less symmetric, by {percent} percent.")
+
+    cadence = measurements.get("cadenceStridesPerMinute")
+    if _is_number(cadence):
+        sentences.append(f"Cadence was {cadence} strides per minute.")
+
+    reasons = [
+        reason
+        for reason in measurements.get("notMeasuredReasons") or []
+        if isinstance(reason, str) and reason.strip()
+    ]
+    if reasons:
+        sentences.append("Not measured: " + " ".join(reasons))
+
     if signal_quality == "limited":
         sentences.append(signal_note)
 

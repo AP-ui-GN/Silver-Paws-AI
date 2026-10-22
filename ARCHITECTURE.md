@@ -19,7 +19,7 @@ FRAMES               gait_engine/motion.py
   ↓
 POSE (optional)      gait_engine/pose_backend.py
   ↓
-FEATURES             gait_engine/features.py
+FEATURES             gait_engine/features.py, gait_engine/gait.py
   ↓
 WELLNESS MODEL       gait_engine/wellness.py
   ↓

@@ -1,139 +1,59 @@
-# SilverPaws model card
+# Model card
 
-SilverPaws measures a short walking clip and writes a wellness note. It does
-not diagnose pain, injury, or disease. A concerning change tells the owner to
-ask a veterinarian.
+SilverPaws measures a walking clip. It does not diagnose pain, injury, or disease.
 
 ## What runs
 
-Two paths exist. The result names the one that ran. The app does not swap them
-silently.
-
-| Path | When | What it measures |
+| Pipeline | When | What it measures |
 | --- | --- | --- |
-| `movenet` | TensorFlow is installed and MoveNet Thunder loads | 17 body keypoints, then hip stability and left/right ankle motion |
-| `opencv-motion` | TensorFlow is missing, or the pose model cannot run | Frame-to-frame picture change only |
+| `dog-pose` | torch, transformers, and the weights load | A dog box, then 17 AP-10K keypoints |
+| `opencv-motion` | pose cannot run, or pose throws | Frame-to-frame picture change only |
 
-**MoveNet Thunder** is Google's single-pose model, TensorFlow Hub
-`movenet/singlepose/thunder/4`. Input is 256×256. Output is 17 keypoints in
-`(y, x, confidence)` order, the same labels the model was trained with (nose,
-eyes, ears, shoulders, elbows, wrists, hips, knees, ankles).
+New results do not use the older human-pose pipeline name. Saved walks that
+used it still validate.
 
-**OpenCV frame difference** downscales the clip to 320 px, blurs it, and records
-the mean absolute grayscale change between frames. There are no limbs in that
-path. Symmetry, mobility, and pose confidence stay unset.
+**Dog detector.** `PekingU/rtdetr_r50vd_coco_o365` (`RTDetrForObjectDetection`).
+The model card on Hugging Face lists Apache-2.0. The dog class id is read
+from `config.id2label`. It is not hard-coded. A box is kept at
+`DOG_DETECT_THRESHOLD` 0.3.
 
-Inference runs on the server. The phone and the browser only upload the clip
-and store the JSON. `modelInfo.runsOn` is always `"server"`.
+**Pose.** `usyd-community/vitpose-plus-base` (`VitPoseForPoseEstimation`),
+the ViTPose++ base checkpoint. The Transformers documentation read on
+October 21, 2026 lists dataset index 3 as AP-10K and 4 as APT-36K. This
+pipeline passes index 3. The checkpoint `id2label` is human COCO names and
+is not used. Keypoint order is the AP-10K list in `gait_engine/pose_backend.py`.
 
-## Versions
+A check image from one side-view dog clip showed the dog box on the dog, and
+the drawn names did not sit on the body parts those names mean. Treat pose
+quality on pet dogs as unproven until that order is confirmed and a labeled
+set is measured.
 
-| Piece | Pinned version | Python |
-| --- | --- | --- |
-| TensorFlow | 2.15.1 | 3.10 or 3.11 only. Not 3.12. |
-| TensorFlow Hub | 0.16.1 | same |
-| OpenCV | 4.10.0.84 | 3.10–3.12 for the motion-only install |
-| NumPy | 1.26.4 | same as the install you chose |
+Both models run on the server. The browser only uploads the clip.
 
-`requirements.txt` is the pose install. `requirements-opencv.txt` is the
-motion-only install. Do not float these versions: a different build would
-change the numbers without saying so.
+## What is not validated
 
-Warm the MoveNet cache before the first request, at build or deploy time:
+- Keypoint order on pet dogs, until the pose-check images are reviewed
+- Stride symmetry as a clinical measure
+- Any link between a score and pain, injury, or disease
+
+Placeholder peak, spacing, and phase cutoffs are in `docs/GAIT_METRICS.md`.
+
+## Fallback
+
+If torch, transformers, or the weights are missing, or pose throws, the clip
+is still measured with OpenCV frame difference. `diagnostics.poseSkipReason`
+says why. The request does not fail because pose failed.
+
+## Cache
 
 ```bash
-python scripts/cache_movenet.py
+pip install -r requirements.txt
+python scripts/cache_models.py
 ```
 
-That fills `models/tfhub` (or `SILVERPAWS_MOVENET_CACHE`). `load_movenet()`
-points `TFHUB_CACHE_DIR` at the same directory, so a warmed cache is reused.
-If the cache is empty and TensorFlow is installed, the first pose request
-still downloads Thunder once. If TensorFlow is not installed, the clip is
-labeled `opencv-motion` and no download is attempted.
+Weights go to `HF_HOME`, default `models/hf`. That directory is gitignored.
 
-## Intended use
+## Time and memory
 
-- A pet owner films one pet, from the side, with the whole body in frame and enough light to see the legs. A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds.
-- The note is something to compare with an earlier walk and, if the change is
-  large, to take to a veterinarian.
-- It is educational observation software.
-
-## Human-trained limits
-
-MoveNet was trained on human bodies. A dog or cat is not that training set.
-Legs, a tail, and a coat can be assigned to the wrong human joint, or to none.
-Low confidence is reported as not measured. It is not filled in, and it is not
-shown as zero.
-
-## Confidence gating
-
-Two thresholds are already in the pipeline and were kept:
-
-- `0.2` — a single keypoint below this is ignored inside hip stability and
-  ankle motion. It is not treated as a real joint position.
-- `0.3` — mean keypoint confidence. Below this, or when no frame reaches it,
-  limb measurements stay unset (`null`), `lowConfidence` is true, and the
-  result screen says **Low confidence — try a clearer clip**.
-
-`modelConfidence` is that mean, from 0 to 1. `null` means pose did not run.
-The older `confidence` field is the same number on a 0–100 scale so existing
-screens keep working.
-
-`framesUsed` counts frames whose mean keypoint confidence reached 0.3.
-`framesTotal` is how many frames the model ran on (at most 120). Both are
-`null` when pose did not run. A used-count of 0 means no frame passed. That
-is a count, not a missing value rewritten as a score.
-
-## Clip-quality pre-check
-
-Before scoring, the pipeline looks at duration, resolution, brightness, and
-whether enough of the clip actually moved. Failures become `qualityNotes`:
-short sentences that tell the owner what to film next, including "Film from
-the side with the whole body in frame." An unknown duration (no frame rate)
-is not described as 0 seconds. A clip can still be scored when a note is only
-a warning. A clip that is too short or has no visible movement is not scored.
-
-## What is measured vs interpreted
-
-**Measured** (or explicitly not measured): frame count, duration, motion mean
-and spread, motion coverage, brightness used only for the quality note,
-keypoint confidence, frames used, and — when pose confidence is high enough —
-ankle motion, stride symmetry, asymmetry, and hip stability.
-
-When MoveNet runs, the API also returns `measurements.poseKeypoints`: a compact
-per-joint mean of source-frame-normalized `(x, y)` positions across frames whose
-mean pose confidence reaches the existing trust threshold. Coordinates are
-corrected for the padding MoveNet adds around frames that do not match its
-square input. Individual points must also pass the existing keypoint-confidence
-threshold and fall inside the frame. These coordinates are a visual summary,
-not a frame-by-frame recording, and they do not feed or change any score. They
-are saved with the local analysis record so the detail screen can render the
-same summary later. The app does not retain or replay the uploaded video. The
-OpenCV-only path has no pose points; its detail screen instead displays frame
-motion coverage.
-
-**Interpreted:** factor scores, the overall 0–100 indicator, the observation
-sentence, and the "ask a veterinarian" flag. The observation may quote
-measured numbers. It does not name a condition. An optional language model
-may only rephrase that sentence, and `validateExplanation()` rejects invented
-numbers, diagnoses, certainty, and a dropped vet recommendation.
-
-## Known failure modes
-
-- The pet is facing the camera, partly out of frame, or wearing something
-  that hides the legs. Pose confidence drops and limb values are not measured.
-- The clip is dark, blown out, very small, or mostly still. A quality note
-  explains what to change. Scores from a still clip are withheld.
-- MoveNet draws a human skeleton onto a pet. Even a high confidence can be
-  the wrong joint. Treat limb numbers as a rough comparison with the same
-  camera setup, not as a clinical measurement.
-- One angle of one short clip is not the whole animal.
-- OpenCV motion cannot tell left from right. Those factors stay unset.
-- The first 120 pose frames are the ones that are read, not a sample spread
-  across a long clip.
-
-## What this is not
-
-Not a diagnosis. Not an emergency service. Not a pain or injury detector.
-For pain, collapse, breathing trouble, or a sudden change, contact a
-veterinarian directly.
+Not measured on a hosted image. A local CPU timing, if one was recorded, is
+in `docs/HOSTING.md`. Do not copy a number from anywhere else.

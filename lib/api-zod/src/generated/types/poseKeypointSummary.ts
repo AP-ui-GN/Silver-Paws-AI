@@ -7,7 +7,7 @@
  */
 
 /**
- * Mean normalized location for one MoveNet keypoint.
+ * One keypoint. x and y are fractions from 0 to 1.
  */
 export interface PoseKeypointSummary {
   name: string;

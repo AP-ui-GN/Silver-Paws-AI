@@ -61,6 +61,35 @@ test("accepts a rewrite that only uses measured values", () => {
   assert.equal(result.ok, true);
 });
 
+test("keeps a rewrite that quotes a measured cadence", () => {
+  const result = validateExplanation(
+    "Mabel's walk scored 91.4 out of 100 overall, with a cadence of 60 strides per minute and consistency of 87.6.",
+    context({
+      measurements: {
+        ...context().measurements,
+        cadenceStridesPerMinute: 60,
+      },
+    }),
+  );
+
+  assert.equal(result.ok, true);
+});
+
+test("rejects a rewrite that invents a cadence", () => {
+  const result = validateExplanation(
+    "Mabel's walk scored 91.4 out of 100 overall, with a cadence of 77 strides per minute during the clip.",
+    context({
+      measurements: {
+        ...context().measurements,
+        cadenceStridesPerMinute: 60,
+      },
+    }),
+  );
+
+  assert.equal(result.ok, false);
+  assert.match(result.ok === false ? result.reason : "", /unmeasured number/);
+});
+
 test("rejects a rewrite that invents a measurement", () => {
   const result = validateExplanation(
     "Mabel's walk scored 91.4 out of 100 overall, and her stride symmetry " +

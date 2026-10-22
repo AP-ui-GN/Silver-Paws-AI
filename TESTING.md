@@ -74,7 +74,7 @@ pnpm --filter @workspace/silverpaws-beta run dev
 
 ## What to test
 
-On a saved result, the AI-use lines should name only the steps that produced that walk: MoveNet when pose ran, frame-to-frame motion (it runs on every clip), fixed scores and a fixed note, and a language-model reword only when the server kept one.
+On a saved result, the AI-use lines should name only the steps that produced that walk: the dog detector and the pose model when pose ran, frame-to-frame motion (it runs on every clip), fixed scores and a fixed note, and a language-model reword only when the server kept one.
 
 ## Manual checklist (for teammates)
 
@@ -99,7 +99,7 @@ That command covers:
 - pet form: age or weight that is present but not a positive number is rejected
 - pet form: a blank age and weight, with a name, can be saved
 - history trends: an empty list produces no series
-- history trends: walks from `movenet` and `opencv-motion` stay in separate series
+- history trends: walks from different pipelines stay in separate series
 - history trends: a missing score stays null and is not drawn as zero
 
 The history page still shows the empty-state “Record a walk” link when no
@@ -125,9 +125,16 @@ node artifacts/silverpaws-beta/tests/report-download.browser.mjs
 
 That test expects `CHROMIUM_PATH` and is not required for a local Windows run.
 
+## validation_clips
+
+That folder is gitignored, so a README inside it would not be kept. Add clips
+and `labels.csv` there when you have them. Columns are
+`file,label,source,license,notes`. `label` is `normal`, `mild`, or
+`significant`. Do not commit the videos.
+
 ## What is not tested here
 
-- Live TensorFlow Hub download of MoveNet (this environment has OpenCV only)
+- A hosted image build. Docker was not installed here.
 - Live LLM provider (the request is unit-tested with a mock; no live endpoint was configured)
 - `lib/db` — unused in the beta
 
@@ -152,8 +159,8 @@ Checks that passed in this environment:
 Checks that were not run, and are not passed:
 
 - UI → API → pipeline with a real walking clip. The repository has no `.mp4`, `.mov`, or `.webm`. No browser was used for a real walk.
-- MoveNet on a real clip. `import tensorflow` fails with `ModuleNotFoundError`. Pose was not measured.
-- The low-confidence banner. The banner code is in the walk-detail screen. It was not shown, because MoveNet did not run.
+- A full labeled pose validation. See the clip folder note below.
+- The low-confidence banner on a real walk in the browser. The banner code is in the walk-detail screen.
 - Server down → the offline note and the kept clip. The API process was stopped and `curl` to it failed. The Analyze screen was not opened. That path was not exercised in a browser.
 - Demo mode in the browser. Unit tests drop the sample from history and trends helpers. The Demo screen was not opened.
 - A live language-model provider. No endpoint was configured.

@@ -16,8 +16,8 @@ over time and, if needed, take to a veterinarian.
 
 - Pet profile (name, species, breed, age, weight, notes) stored in this browser
 - Walking-clip upload with file, size, and duration checks
-- Computer vision pipeline: frames → picture motion, and MoveNet pose when
-  TensorFlow is installed
+- Computer vision pipeline: frames → picture motion, and dog pose when
+  torch and the model weights are installed
 - Gait measurements (left/right ankle motion, stride symmetry) kept separate
   from interpretation
 - Transparent factor scores (consistency, symmetry, mobility, activity, and
@@ -53,13 +53,14 @@ The wording for each step lives in `lib/ai-use/registry.json` and is copied
 into the web app by `node scripts/sync-ai-use.mjs`. The generated page is
 `docs/AI_USE.md`. Pose limits are in `docs/MODEL_CARD.md`.
 
-- **MoveNet Thunder** finds 17 body keypoints on the analysis server when
-  TensorFlow is installed. It was trained on human bodies. Low confidence is
-  reported as “not measured”, not as a perfect score.
+- **RT-DETR** finds the dog. **ViTPose++** estimates 17 animal keypoints on
+  the analysis server when torch and the weights are installed. How accurate
+  that is on pet dogs is still unproven. Low confidence is reported as
+  “not measured”, not as a perfect score.
 - **OpenCV frame difference** runs on every clip. It is not a learned model.
-  When MoveNet is missing, it is the only movement measurement. When MoveNet
-  runs, it still supplies movement consistency and activity. Results from the
-  two pipelines are never mixed in a chart.
+  When pose is missing, it is the only movement measurement. When pose runs,
+  it still supplies movement consistency and activity. Results from different
+  pipelines are never mixed in a chart.
 - **Scores and the note** come from fixed formulas and templates in
   `gait_engine/wellness.py`. They are not an AI model.
 - **Optional language-model rewrite** in
@@ -76,7 +77,7 @@ into the web app by `node scripts/sync-ai-use.mjs`. The generated page is
 - Does not replace a veterinarian
 - Not for emergencies
 - One camera angle of one short clip is not a full picture of a pet
-- MoveNet is a human-pose model; treat pet limb detections cautiously
+- The animal pose model has not been validated on a labeled set of pet dogs
 - Beta data stays in this browser (`localStorage`), not a shared database
 
 ## How to run

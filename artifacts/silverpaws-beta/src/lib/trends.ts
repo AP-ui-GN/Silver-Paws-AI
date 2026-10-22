@@ -34,7 +34,8 @@ export type TrendSeries = {
 export type SparkPoint = { x: number; y: number; score: number };
 
 const PIPELINE_LABELS: Record<string, string> = {
-  movenet: "Pose landmarks (MoveNet)",
+  "dog-pose": "Dog pose",
+  movenet: "Pose landmarks (older saved walk)",
   "opencv-motion": "Picture motion only",
   unspecified: "Measurement method not recorded",
 };

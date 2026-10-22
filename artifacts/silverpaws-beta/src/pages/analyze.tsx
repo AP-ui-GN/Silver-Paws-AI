@@ -207,7 +207,7 @@ export default function Analyze({ pets, analyses, addAnalysis, openDemoAnalysis 
               <div className="dotted-drop mt-6 min-h-[245px] flex flex-col items-center justify-center text-center p-7">
                 <div className="empty-art"><UploadCloud size={27} /></div>
                 <h2 className="font-bold text-lg mt-5">Drop a walking video here</h2>
-                <p className="body-muted text-sm mt-2">Side view, steady camera. A useful walk is about 5 to 15 seconds. The server accepts a longer clip, up to 120 seconds.</p>
+                <p className="body-muted text-sm mt-2">Have the dog walk across the frame. Hold the camera at the dog's shoulder height. Keep the whole dog in frame, including all four paws. Film one dog, with a steady camera, on a leash, on flat ground, for 10 to 15 seconds, in good light. The server accepts a longer clip, up to 120 seconds.</p>
                 <div className="flex flex-wrap justify-center gap-3 mt-5">
                   <button type="button" className="btn-secondary" onClick={() => inputRef.current?.click()} disabled={!pets.length} data-testid="button-choose-video"><Film size={16} /> Choose video</button>
                   <button type="button" className="btn-secondary" onClick={() => recordRef.current?.click()} disabled={!pets.length} data-testid="button-record-walk"><Film size={16} /> Record walk</button>

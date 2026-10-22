@@ -28,11 +28,20 @@ export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMax = 1;
 export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMin = 0;
 export const analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMax = 1;
 
+export const analyzeMovementClipResponseMeasurementsPoseSampleItemXMin = 0;
+export const analyzeMovementClipResponseMeasurementsPoseSampleItemXMax = 1;
+
+export const analyzeMovementClipResponseMeasurementsPoseSampleItemYMin = 0;
+export const analyzeMovementClipResponseMeasurementsPoseSampleItemYMax = 1;
+
+export const analyzeMovementClipResponseMeasurementsPoseSampleItemConfidenceMin = 0;
+export const analyzeMovementClipResponseMeasurementsPoseSampleItemConfidenceMax = 1;
+
 
 
 export const AnalyzeMovementClipResponse = zod.object({
   "ok": zod.boolean(),
-  "pipeline": zod.enum(['movenet', 'opencv-motion']).describe('movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.'),
+  "pipeline": zod.enum(['dog-pose', 'movenet', 'opencv-motion']).describe('dog-pose when the dog detector and animal pose model ran, opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.'),
   "signalQuality": zod.enum(['good', 'limited', 'unusable']).describe('How much the measurements from this clip can be trusted.'),
   "signalNote": zod.string().describe('Plain-language reason for signalQuality, safe to display.'),
   "measurements": zod.object({
@@ -41,19 +50,67 @@ export const AnalyzeMovementClipResponse = zod.object({
   "x": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemXMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemXMax),
   "y": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemYMax),
   "confidence": zod.number().min(analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMin).max(analyzeMovementClipResponseMeasurementsPoseKeypointsItemConfidenceMax)
-}).describe('Mean normalized location for one MoveNet keypoint.')).nullish().describe('Confidence-filtered mean keypoint coordinates across usable pose frames. Coordinates are normalized to the source frame from 0 to 1 with the origin at its top-left, after correcting MoveNet\'s letterboxing. Null when pose did not run; an empty array means pose ran but no point passed the confidence filters.'),
+}).describe('One keypoint. x and y are fractions from 0 to 1.')).nullish().describe('Confidence-filtered mean keypoint coordinates across usable pose frames, normalized to the source frame from 0 to 1. Kept for older saved walks. Null when pose did not run. An empty array means pose ran but no point passed the confidence filters.'),
   "frameCount": zod.number(),
   "durationSeconds": zod.number(),
   "meanKeypointConfidence": zod.number().nullish(),
-  "leftAnkleMotion": zod.number().nullish(),
-  "rightAnkleMotion": zod.number().nullish(),
-  "strideSymmetry": zod.number().nullish(),
+  "leftAnkleMotion": zod.number().nullish().describe('Legacy field from the human-pose path. The dog-pose pipeline leaves this null.'),
+  "rightAnkleMotion": zod.number().nullish().describe('Legacy field from the human-pose path. The dog-pose pipeline leaves this null.'),
+  "strideSymmetry": zod.number().nullish().describe('Worse of the measured front and rear pair symmetries, from 0 to 1. Null when no pair was measured.'),
   "asymmetryPercent": zod.number().nullish(),
   "motionMean": zod.number(),
   "motionStd": zod.number(),
   "motionCoverage": zod.number(),
-  "hipStability": zod.number().nullish(),
-  "symmetryReliable": zod.boolean()
+  "hipStability": zod.number().nullish().describe('Legacy field from the human-pose path. The dog-pose pipeline leaves this null. Left-versus-right hip height is not computed.'),
+  "symmetryReliable": zod.boolean(),
+  "view": zod.object({
+  "sideOn": zod.boolean().nullish(),
+  "reason": zod.string().nullish()
+}).optional(),
+  "subject": zod.object({
+  "dogFramesShare": zod.number().nullish(),
+  "multipleDogs": zod.boolean().nullish(),
+  "personPresent": zod.boolean().nullish()
+}).optional(),
+  "strides": zod.object({
+  "frontLeft": zod.object({
+  "strideCount": zod.number().nullish(),
+  "excursion": zod.number().nullish()
+}).optional(),
+  "frontRight": zod.object({
+  "strideCount": zod.number().nullish(),
+  "excursion": zod.number().nullish()
+}).optional(),
+  "rearLeft": zod.object({
+  "strideCount": zod.number().nullish(),
+  "excursion": zod.number().nullish()
+}).optional(),
+  "rearRight": zod.object({
+  "strideCount": zod.number().nullish(),
+  "excursion": zod.number().nullish()
+}).optional()
+}).optional(),
+  "limbSymmetry": zod.object({
+  "front": zod.number().nullish(),
+  "rear": zod.number().nullish()
+}).optional(),
+  "strideLengthBodyLengths": zod.object({
+  "front": zod.number().nullish(),
+  "rear": zod.number().nullish()
+}).optional(),
+  "cadenceStridesPerMinute": zod.number().nullish(),
+  "strideTimeCv": zod.number().nullish(),
+  "headVerticalOscillation": zod.number().nullish(),
+  "pelvisVerticalOscillation": zod.number().nullish(),
+  "headBobAsymmetry": zod.number().nullish(),
+  "pelvisAsymmetry": zod.number().nullish(),
+  "notMeasuredReasons": zod.array(zod.string()).optional(),
+  "poseSample": zod.array(zod.object({
+  "name": zod.string(),
+  "x": zod.number().min(analyzeMovementClipResponseMeasurementsPoseSampleItemXMin).max(analyzeMovementClipResponseMeasurementsPoseSampleItemXMax),
+  "y": zod.number().min(analyzeMovementClipResponseMeasurementsPoseSampleItemYMin).max(analyzeMovementClipResponseMeasurementsPoseSampleItemYMax),
+  "confidence": zod.number().min(analyzeMovementClipResponseMeasurementsPoseSampleItemConfidenceMin).max(analyzeMovementClipResponseMeasurementsPoseSampleItemConfidenceMax)
+}).describe('One keypoint. x and y are fractions from 0 to 1.')).nullish().describe('One sampled frame, 17 AP-10K points normalized to that frame\'s dog box from 0 to 1. This is not the uploaded video and stores no pixels.')
 }).describe('Raw measurements from the clip. These describe what was measured and carry no interpretation.'),
   "factors": zod.object({
   "movementConsistency": zod.number().nullish(),
@@ -78,7 +135,7 @@ export const AnalyzeMovementClipResponse = zod.object({
   "historicalChange": zod.number().optional()
 }).optional().describe('Weights used to blend the available factors into overallScore.'),
   "modelInfo": zod.object({
-  "pipeline": zod.enum(['movenet', 'opencv-motion']),
+  "pipeline": zod.enum(['dog-pose', 'movenet', 'opencv-motion']),
   "modelName": zod.string(),
   "modelVersion": zod.string(),
   "runsOn": zod.enum(['server'])

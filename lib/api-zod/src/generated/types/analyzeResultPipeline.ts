@@ -7,12 +7,13 @@
  */
 
 /**
- * movenet when pose landmarks were used, opencv-motion when only frame-to-frame picture change could be measured.
+ * dog-pose when the dog detector and animal pose model ran, opencv-motion when only frame-to-frame picture change could be measured. movenet remains so older saved walks still validate. New results do not use movenet.
  */
 export type AnalyzeResultPipeline = typeof AnalyzeResultPipeline[keyof typeof AnalyzeResultPipeline];
 
 
 export const AnalyzeResultPipeline = {
+  'dog-pose': 'dog-pose',
   movenet: 'movenet',
   'opencv-motion': 'opencv-motion',
 } as const;

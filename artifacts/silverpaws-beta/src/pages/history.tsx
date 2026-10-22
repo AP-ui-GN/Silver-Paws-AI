@@ -15,7 +15,7 @@ type Props = { pets: Pet[]; analyses: Analysis[]; deleteAnalysis: (id: string) =
 const FACTOR_LABELS: { key: keyof NonNullable<Analysis['factors']>; label: string; help: string }[] = [
   { key: 'movementConsistency', label: 'Movement consistency', help: 'How steady the amount of movement stayed between frames.' },
   { key: 'symmetry', label: 'Stride symmetry', help: 'How similar the left and right leg movement looked.' },
-  { key: 'mobility', label: 'Mobility', help: 'Hip steadiness and stride balance, when pose landmarks were reliable enough to measure.' },
+  { key: 'mobility', label: 'Mobility', help: 'Stride regularity and up-and-down symmetry, when those were measured.' },
   { key: 'activity', label: 'Activity', help: 'Share of the clip that contained visible movement.' },
   { key: 'historicalChange', label: 'Change from baseline', help: 'How this walk compares with the previous walk measured the same way. A first walk is not scored.' },
 ];
@@ -35,9 +35,29 @@ const SIGNAL_LABELS: Record<string, string> = {
 };
 
 const PIPELINE_LABELS: Record<string, string> = {
-  movenet: 'Pose landmarks (MoveNet)',
+  'dog-pose': 'Dog pose',
+  movenet: 'Pose landmarks (older saved walk)',
   'opencv-motion': 'Picture motion only',
 };
+
+const AP10K_EDGES = [
+  ['left_eye', 'nose'],
+  ['right_eye', 'nose'],
+  ['nose', 'neck'],
+  ['neck', 'root_of_tail'],
+  ['neck', 'left_shoulder'],
+  ['left_shoulder', 'left_elbow'],
+  ['left_elbow', 'left_front_paw'],
+  ['neck', 'right_shoulder'],
+  ['right_shoulder', 'right_elbow'],
+  ['right_elbow', 'right_front_paw'],
+  ['root_of_tail', 'left_hip'],
+  ['left_hip', 'left_knee'],
+  ['left_knee', 'left_back_paw'],
+  ['root_of_tail', 'right_hip'],
+  ['right_hip', 'right_knee'],
+  ['right_knee', 'right_back_paw'],
+] as const;
 
 const POSE_CONNECTIONS = [
   ['left_shoulder', 'right_shoulder'],
@@ -71,8 +91,12 @@ function isPosePoint(point: unknown): point is PosePoint {
 function PipelineVisual({ analysis }: { analysis: Analysis }) {
   const measurements = analysis.measurements;
   const [selectedPoint, setSelectedPoint] = useState<PosePoint | null>(null);
-  const rawPoints = measurements?.poseKeypoints;
+  const sample = measurements?.poseSample;
+  const legacy = analysis.pipeline === 'movenet' ? measurements?.poseKeypoints : undefined;
+  const rawPoints = Array.isArray(sample) && sample.length > 0 ? sample : legacy;
   const points = Array.isArray(rawPoints) ? rawPoints.filter(isPosePoint) : [];
+  const connections = Array.isArray(sample) && sample.length > 0 ? AP10K_EDGES : POSE_CONNECTIONS;
+  const sampleFrame = Array.isArray(sample) && sample.length > 0;
   const lowConfidence =
     analysis.lowConfidence === true ||
     (typeof analysis.modelConfidence === 'number' && analysis.modelConfidence < 0.3) ||
@@ -107,11 +131,13 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
   const byName = new Map(points.map((point) => [point.name, point]));
 
   return (
-    <section className="panel panel-padded mt-5" aria-label="MoveNet pose landmark summary">
+    <section className="panel panel-padded mt-5" aria-label={sampleFrame ? 'Sample pose frame' : 'Saved pose landmark summary'}>
       <div className="eyebrow">Computer vision activity</div>
-      <h2 className="display-title text-2xl mt-2">MoveNet landmark summary</h2>
+      <h2 className="display-title text-2xl mt-2">{sampleFrame ? 'Gait measurements' : 'Saved landmark summary'}</h2>
       <p className="body-muted text-sm mt-2">
-        Mean normalized landmark positions from confident pose frames—not a diagnosis or a clinical measurement.
+        {sampleFrame
+          ? 'Sample frame (not your video). Points are scaled to the dog box. This is not a diagnosis.'
+          : 'Mean landmark positions saved with an older walk. This is not a diagnosis.'}
       </p>
       {points.length ? (
         <>
@@ -121,10 +147,10 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
               style={{ aspectRatio: '10 / 7' }}
               viewBox="0 0 100 70"
               role="img"
-              aria-label={`${points.length} averaged MoveNet keypoint markers`}
+              aria-label={`${points.length} pose keypoint markers`}
             >
               <title>Confidence-filtered average pose landmarks</title>
-              {POSE_CONNECTIONS.map(([from, to]) => {
+              {connections.map(([from, to]) => {
                 const start = byName.get(from);
                 const end = byName.get(to);
                 return start && end ? (
@@ -204,6 +230,12 @@ function PipelineVisual({ analysis }: { analysis: Analysis }) {
 }
 
 /** Format a measurement for display, keeping "not measured" visibly different from zero. */
+function formatStrideCounts(left: number | null | undefined, right: number | null | undefined) {
+  const values = [left, right].filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  if (!values.length) return 'Not measured';
+  return [...values].sort((a, b) => a - b).join(' and ');
+}
+
 function formatMeasure(value: number | null | undefined, suffix = '', digits = 3) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 'Not measured';
   return `${Number(value.toFixed(digits))}${suffix}`;
@@ -421,12 +453,30 @@ function ResultDetail({ analysis, pet, onDelete }: { analysis: Analysis; pet?: P
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Mean frame motion</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.motionMean, '', 4)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Motion variation</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.motionStd, '', 4)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Frame Motion Coverage</div><div className="font-bold text-lg mt-1">{formatMeasure(typeof measurements.motionCoverage === 'number' ? measurements.motionCoverage * 100 : undefined, '%', 0)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Front strides</div><div className="font-bold text-lg mt-1">{formatStrideCounts(measurements.strides?.frontLeft?.strideCount, measurements.strides?.frontRight?.strideCount)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Rear strides</div><div className="font-bold text-lg mt-1">{formatStrideCounts(measurements.strides?.rearLeft?.strideCount, measurements.strides?.rearRight?.strideCount)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Front symmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.limbSymmetry?.front)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Rear symmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.limbSymmetry?.rear)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Front stride length</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.strideLengthBodyLengths?.front, ' body lengths')}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Rear stride length</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.strideLengthBodyLengths?.rear, ' body lengths')}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Cadence</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.cadenceStridesPerMinute, ' / min', 1)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Stride regularity</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.strideTimeCv)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Head vertical asymmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.headBobAsymmetry)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Pelvis vertical asymmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.pelvisAsymmetry)}</div></div>
+          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Dog in frame</div><div className="font-bold text-lg mt-1">{formatMeasure(typeof measurements.subject?.dogFramesShare === 'number' ? measurements.subject.dogFramesShare * 100 : undefined, '%', 0)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Stride symmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.strideSymmetry)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Asymmetry</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.asymmetryPercent, '%', 2)}</div></div>
-          <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Hip stability</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>
+          {typeof measurements.leftAnkleMotion === 'number' && <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Left ankle motion</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.leftAnkleMotion)}</div></div>}
+          {typeof measurements.rightAnkleMotion === 'number' && <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Right ankle motion</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.rightAnkleMotion)}</div></div>}
+          {typeof measurements.hipStability === 'number' && <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Hip stability</div><div className="font-bold text-lg mt-1">{formatMeasure(measurements.hipStability)}</div></div>}
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Pose confidence</div><div className="font-bold text-lg mt-1">{formatMeasure(analysis.confidence, '%', 1)}</div></div>
           <div className="soft-note p-3"><div className="mono text-[10px] uppercase tracking-wider">Confident frames</div><div className="font-bold text-lg mt-1">{formatPoseFrames(analysis.framesUsed, analysis.framesTotal)}</div></div>
         </div>
+        {(measurements.notMeasuredReasons ?? []).length > 0 && (
+          <ul className="body-muted text-sm mt-4 flex flex-col gap-1" data-testid="text-not-measured-reasons">
+            {measurements.notMeasuredReasons?.map((reason) => <li key={reason}>Not measured: {reason}</li>)}
+          </ul>
+        )}
       </section>
     )}
 

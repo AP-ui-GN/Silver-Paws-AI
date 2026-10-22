@@ -17,5 +17,10 @@ export type {
   AnalyzeResultDiagnostics,
   HealthStatus,
   ModelInfo,
+  PairValues,
+  PawStride,
   PoseKeypointSummary,
+  SideOnView,
+  StrideSet,
+  SubjectInfo,
 } from "./generated/types";

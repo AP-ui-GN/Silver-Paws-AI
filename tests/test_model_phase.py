@@ -137,7 +137,8 @@ class ClipQualityTests(unittest.TestCase):
 
         self.assertTrue(any("too dark" in note for note in notes))
         self.assertTrue(any("too small" in note for note in notes))
-        self.assertTrue(all("Film from the side with the whole body in frame." in note for note in notes))
+        self.assertTrue(all("shoulder height" in note for note in notes))
+        self.assertTrue(all("all four paws" in note for note in notes))
         for banned in ("diagnos", "arthritis", "pain", "injury"):
             self.assertFalse(any(banned in note.lower() for note in notes))
 

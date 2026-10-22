@@ -116,9 +116,8 @@ components:
           nullable: true
           description: >-
             Confidence-filtered mean keypoint coordinates across usable pose
-            frames. Coordinates are normalized to the source frame from 0 to 1
-            with the origin at its top-left, after correcting MoveNet's
-            letterboxing. Null when pose did not run; an empty array means pose
+            frames, normalized to the source frame from 0 to 1. Kept for older
+            saved walks. Null when pose did not run. An empty array means pose
             ran but no point passed the confidence filters.
           items:
             $ref: "#/components/schemas/PoseKeypointSummary"
@@ -134,12 +133,17 @@ components:
         leftAnkleMotion:
           type: number
           nullable: true
+          deprecated: true
+          description: Legacy field from the human-pose path. The dog-pose pipeline leaves this null.
         rightAnkleMotion:
           type: number
           nullable: true
+          deprecated: true
+          description: Legacy field from the human-pose path. The dog-pose pipeline leaves this null.
         strideSymmetry:
           type: number
           nullable: true
+          description: Worse of the measured front and rear pair symmetries, from 0 to 1. Null when no pair was measured.
         asymmetryPercent:
           type: number
           nullable: true
@@ -152,8 +156,50 @@ components:
         hipStability:
           type: number
           nullable: true
+          deprecated: true
+          description: Legacy field from the human-pose path. The dog-pose pipeline leaves this null. Left-versus-right hip height is not computed.
         symmetryReliable:
           type: boolean
+        view:
+          $ref: "#/components/schemas/SideOnView"
+        subject:
+          $ref: "#/components/schemas/SubjectInfo"
+        strides:
+          $ref: "#/components/schemas/StrideSet"
+        limbSymmetry:
+          $ref: "#/components/schemas/PairValues"
+        strideLengthBodyLengths:
+          $ref: "#/components/schemas/PairValues"
+        cadenceStridesPerMinute:
+          type: number
+          nullable: true
+        strideTimeCv:
+          type: number
+          nullable: true
+        headVerticalOscillation:
+          type: number
+          nullable: true
+        pelvisVerticalOscillation:
+          type: number
+          nullable: true
+        headBobAsymmetry:
+          type: number
+          nullable: true
+        pelvisAsymmetry:
+          type: number
+          nullable: true
+        notMeasuredReasons:
+          type: array
+          items:
+            type: string
+        poseSample:
+          type: array
+          nullable: true
+          description: >-
+            One sampled frame, 17 AP-10K points normalized to that frame's dog
+            box from 0 to 1. This is not the uploaded video and stores no pixels.
+          items:
+            $ref: "#/components/schemas/PoseKeypointSummary"
       required:
         - frameCount
         - durationSeconds
@@ -161,9 +207,59 @@ components:
         - motionStd
         - motionCoverage
         - symmetryReliable
+    SideOnView:
+      type: object
+      properties:
+        sideOn:
+          type: boolean
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+    SubjectInfo:
+      type: object
+      properties:
+        dogFramesShare:
+          type: number
+          nullable: true
+        multipleDogs:
+          type: boolean
+          nullable: true
+        personPresent:
+          type: boolean
+          nullable: true
+    PawStride:
+      type: object
+      properties:
+        strideCount:
+          type: number
+          nullable: true
+        excursion:
+          type: number
+          nullable: true
+    StrideSet:
+      type: object
+      properties:
+        frontLeft:
+          $ref: "#/components/schemas/PawStride"
+        frontRight:
+          $ref: "#/components/schemas/PawStride"
+        rearLeft:
+          $ref: "#/components/schemas/PawStride"
+        rearRight:
+          $ref: "#/components/schemas/PawStride"
+    PairValues:
+      type: object
+      properties:
+        front:
+          type: number
+          nullable: true
+        rear:
+          type: number
+          nullable: true
     PoseKeypointSummary:
       type: object
-      description: Mean normalized location for one MoveNet keypoint.
+      description: One keypoint. x and y are fractions from 0 to 1.
       properties:
         name:
           type: string
@@ -212,6 +308,7 @@ components:
         pipeline:
           type: string
           enum:
+            - dog-pose
             - movenet
             - opencv-motion
         modelName:
@@ -249,9 +346,12 @@ components:
         pipeline:
           type: string
           description: >-
-            movenet when pose landmarks were used, opencv-motion when only
-            frame-to-frame picture change could be measured.
+            dog-pose when the dog detector and animal pose model ran,
+            opencv-motion when only frame-to-frame picture change could be
+            measured. movenet remains so older saved walks still validate.
+            New results do not use movenet.
           enum:
+            - dog-pose
             - movenet
             - opencv-motion
         signalQuality:

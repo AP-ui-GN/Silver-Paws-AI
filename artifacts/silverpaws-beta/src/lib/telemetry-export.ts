@@ -113,14 +113,27 @@ function getTelemetryRows(analysis: Analysis): TelemetryRow[] {
   addRow(timestamp, 'Frame count', measurements?.frameCount, 'frames');
   addRow(timestamp, 'Duration', measurements?.durationSeconds ?? analysis.durationSeconds, 'seconds');
   addRow(timestamp, 'Mean keypoint confidence', measurements?.meanKeypointConfidence, 'fraction');
-  addRow(timestamp, 'Left ankle motion', measurements?.leftAnkleMotion, 'normalized motion');
-  addRow(timestamp, 'Right ankle motion', measurements?.rightAnkleMotion, 'normalized motion');
+  addRow(timestamp, 'Cadence', measurements?.cadenceStridesPerMinute, 'strides per minute');
+  addRow(timestamp, 'Stride interval variation', measurements?.strideTimeCv, 'coefficient');
+  addRow(timestamp, 'Front symmetry', measurements?.limbSymmetry?.front, 'ratio');
+  addRow(timestamp, 'Rear symmetry', measurements?.limbSymmetry?.rear, 'ratio');
+  addRow(timestamp, 'Head vertical asymmetry', measurements?.headBobAsymmetry, 'index');
+  addRow(timestamp, 'Pelvis vertical asymmetry', measurements?.pelvisAsymmetry, 'index');
+  addRow(timestamp, 'Dog frames share', measurements?.subject?.dogFramesShare, 'fraction');
+  if (typeof measurements?.leftAnkleMotion === 'number') {
+    addRow(timestamp, 'Left ankle motion', measurements.leftAnkleMotion, 'normalized motion');
+  }
+  if (typeof measurements?.rightAnkleMotion === 'number') {
+    addRow(timestamp, 'Right ankle motion', measurements.rightAnkleMotion, 'normalized motion');
+  }
   addRow(timestamp, 'Raw stride symmetry', measurements?.strideSymmetry, 'ratio');
   addRow(timestamp, 'Raw asymmetry', measurements?.asymmetryPercent, '%');
   addRow(timestamp, 'Mean frame motion', measurements?.motionMean, 'normalized motion');
   addRow(timestamp, 'Motion variation', measurements?.motionStd, 'normalized motion');
   addRow(timestamp, 'Motion coverage', measurements?.motionCoverage, 'fraction');
-  addRow(timestamp, 'Hip stability', measurements?.hipStability, 'normalized value');
+  if (typeof measurements?.hipStability === 'number') {
+    addRow(timestamp, 'Hip stability', measurements.hipStability, 'normalized value');
+  }
   addRow(timestamp, 'Symmetry reliable', measurements?.symmetryReliable, 'boolean');
   addRow(timestamp, 'Confident frames', analysis.framesUsed, 'frames');
   addRow(timestamp, 'Frames processed by model', analysis.framesTotal, 'frames');

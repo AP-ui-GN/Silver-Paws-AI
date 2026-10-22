@@ -56,7 +56,7 @@ COMPLETION CRITERIA:
 # ==================================================
 
 STATUS: Done. The web trend panel compares saved walks and keeps
-`movenet` and `opencv-motion` apart. The pet form blocks a blank name and an
+different pipelines apart. The pet form blocks a blank name and an
 age or weight that is present but not a positive number. Automated checks:
 `pnpm --filter @workspace/silverpaws-beta run test`.
 
@@ -67,7 +67,7 @@ FILE / MODULE:
 - `artifacts/silverpaws-beta/src/pages/pet.tsx`
 - `TESTING.md`
 WHAT TO IMPLEMENT:
-1. **Trend panel** — replace the placeholder in `trend-panel.tsx` with a real comparison of saved walks. Show date, overall score, movement consistency, and symmetry. Only compare records that share the same `pipeline` (`movenet` vs `opencv-motion`). Handle empty, one-walk, and many-walk states. Do not invent chart data.
+1. **Trend panel** — replace the placeholder in `trend-panel.tsx` with a real comparison of saved walks. Show date, overall score, movement consistency, and symmetry. Only compare records that share the same pipeline. Handle empty, one-walk, and many-walk states. Do not invent chart data.
 2. **Pet form validation** — in `pet.tsx`, show a visible message when name is blank, or when age/weight is present but not a positive number. Do not save until those checks pass.
 3. **Testing** — add a short automated check (Playwright, Vitest, or a node test) for one of: pet save, clip-type rejection, or history empty state. Update the checklist in `TESTING.md`.
 WHY IT MATTERS:

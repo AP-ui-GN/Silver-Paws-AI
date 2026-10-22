@@ -27,7 +27,12 @@ BLOWN_BRIGHTNESS = 0.92
 # Share of frame pairs that should show movement before we call the clip quiet.
 LOW_MOTION_COVERAGE = 0.2
 
-SIDE_ON = "Film from the side with the whole body in frame."
+FILMING_GUIDE = (
+    "Have the dog walk across the frame. Hold the camera at the dog's shoulder height. "
+    "Keep the whole dog in frame, including all four paws. Film one dog, with a steady camera, "
+    "on a leash, on flat ground, for 10 to 15 seconds, in good light."
+)
+SIDE_ON = FILMING_GUIDE
 
 
 def quality_notes(

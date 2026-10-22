@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 import cv2
+import numpy as np
 
 from .clip_quality import quality_notes
 from .confidence import pose_is_trusted, summarize_keypoints, summarize_pose_coordinates
@@ -81,8 +82,8 @@ def ai_use_ids(pipeline: str) -> list[str]:
     Frame-difference motion runs on every successful clip, including when
     pose also runs. ``development`` is a product fact, not a per-clip step.
     ``llm-rewrite`` is added by the API only when a validated rewrite is kept.
-    ``movenet`` is accepted so an old caller still gets a list. This pipeline
-    does not emit that name.
+    The previous pipeline name is accepted so an old caller still gets a list.
+    This pipeline does not emit that name.
     """
 
     shared = ["motion-fallback", "scoring", "observation-rules"]
@@ -91,6 +92,44 @@ def ai_use_ids(pipeline: str) -> list[str]:
     if pipeline == "movenet":
         return ["pose-model", *shared]
     return shared
+
+
+def _pose_sample(keypoints, boxes) -> list[dict[str, float | str]] | None:
+    """One frame of AP-10K points, normalized to that frame's dog box."""
+
+    from .pose_backend import AP10K_KEYPOINTS, KEYPOINT_MIN_SCORE
+
+    best_index = None
+    best_count = 0
+    for index, box in enumerate(boxes):
+        if box is None:
+            continue
+        count = int(np.count_nonzero(keypoints[index, :, 2] >= KEYPOINT_MIN_SCORE))
+        if count > best_count:
+            best_index = index
+            best_count = count
+    if best_index is None:
+        return None
+    origin_x, origin_y, width, height = boxes[best_index]
+    if width <= 1 or height <= 1:
+        return None
+    sample: list[dict[str, float | str]] = []
+    for name, point in zip(AP10K_KEYPOINTS, keypoints[best_index]):
+        if not np.isfinite(point[0]) or not np.isfinite(point[1]):
+            continue
+        if float(point[2]) < KEYPOINT_MIN_SCORE:
+            continue
+        x = (float(point[0]) - float(origin_x)) / float(width)
+        y = (float(point[1]) - float(origin_y)) / float(height)
+        if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
+            continue
+        sample.append({
+            "name": name,
+            "x": round(x, 4),
+            "y": round(y, 4),
+            "confidence": round(float(point[2]), 4),
+        })
+    return sample
 
 
 def _clean_pet_name(pet_name: str | None) -> str | None:
@@ -179,7 +218,7 @@ def analyze_clip(
     use_pose: bool = True,
     model_url: str | None = None,
 ) -> dict[str, Any]:
-    del model_url  # The TensorFlow Hub override is gone with MoveNet.
+    del model_url  # Older callers passed a pose URL. It is ignored.
     """Analyze one movement clip and return an ``AnalyzeResult`` dictionary.
 
     Raises:
@@ -255,6 +294,15 @@ def analyze_clip(
             measurements["headBobAsymmetry"] = gait["headBobAsymmetry"]
             measurements["pelvisAsymmetry"] = gait["pelvisAsymmetry"]
             measurements["notMeasuredReasons"] = gait["notMeasuredReasons"]
+            measurements["subject"] = {
+                "dogFramesShare": pose_payload["dog_frames_share"],
+                "multipleDogs": pose_payload["multiple_dogs"],
+                "personPresent": pose_payload["person_present"],
+            }
+            measurements["poseSample"] = _pose_sample(
+                keypoints,
+                pose_payload["boxes"],
+            )
             # Below the trust line the limb numbers stay, but the result is
             # marked so the screen can say the pose was not confident.
             # A missing stride value is already None. It is not rewritten to 0.

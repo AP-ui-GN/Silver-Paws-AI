@@ -83,7 +83,8 @@ const FACTOR_REPORT_LABELS: [keyof NonNullable<Analysis['factors']>, string][] =
 ];
 
 const PIPELINE_REPORT_LABELS: Record<string, string> = {
-  movenet: 'Pose landmarks (MoveNet)',
+  'dog-pose': 'Dog pose',
+  movenet: 'Pose landmarks (older saved walk)',
   'opencv-motion': 'Picture motion only',
 };
 
@@ -158,7 +159,30 @@ function buildReportLines(analysis: Analysis, pet?: Pet): ReportLine[] {
     addText(lines, `Mean frame motion: ${formatMeasurement(analysis.measurements.motionMean)}`, { size: 10, gapAfter: 2 });
     addText(lines, `Motion variation: ${formatMeasurement(analysis.measurements.motionStd)}`, { size: 10, gapAfter: 2 });
     addText(lines, `Frames with movement: ${formatMeasurement(analysis.measurements.motionCoverage)}`, { size: 10, gapAfter: 2 });
-    addText(lines, `Hip stability: ${formatMeasurement(analysis.measurements.hipStability)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Front symmetry: ${formatMeasurement(analysis.measurements.limbSymmetry?.front)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Rear symmetry: ${formatMeasurement(analysis.measurements.limbSymmetry?.rear)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Front stride length (body lengths): ${formatMeasurement(analysis.measurements.strideLengthBodyLengths?.front)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Rear stride length (body lengths): ${formatMeasurement(analysis.measurements.strideLengthBodyLengths?.rear)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Cadence (strides per minute): ${formatMeasurement(analysis.measurements.cadenceStridesPerMinute)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Stride interval variation: ${formatMeasurement(analysis.measurements.strideTimeCv)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Head vertical oscillation (body lengths): ${formatMeasurement(analysis.measurements.headVerticalOscillation)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Pelvis vertical oscillation (body lengths): ${formatMeasurement(analysis.measurements.pelvisVerticalOscillation)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Head vertical asymmetry: ${formatMeasurement(analysis.measurements.headBobAsymmetry)}`, { size: 10, gapAfter: 2 });
+    addText(lines, `Pelvis vertical asymmetry: ${formatMeasurement(analysis.measurements.pelvisAsymmetry)}`, { size: 10, gapAfter: 2 });
+    const share = analysis.measurements.subject?.dogFramesShare;
+    addText(lines, `Dog found in: ${typeof share === 'number' ? formatMeasurement(share * 100, '%') : 'Not measured'}`, { size: 10, gapAfter: 2 });
+    for (const reason of analysis.measurements.notMeasuredReasons ?? []) {
+      addText(lines, `Not measured: ${reason}`, { size: 10, gapAfter: 2 });
+    }
+    if (typeof analysis.measurements.hipStability === 'number') {
+      addText(lines, `Hip stability: ${formatMeasurement(analysis.measurements.hipStability)}`, { size: 10, gapAfter: 2 });
+    }
+    if (typeof analysis.measurements.leftAnkleMotion === 'number') {
+      addText(lines, `Left ankle motion: ${formatMeasurement(analysis.measurements.leftAnkleMotion)}`, { size: 10, gapAfter: 2 });
+    }
+    if (typeof analysis.measurements.rightAnkleMotion === 'number') {
+      addText(lines, `Right ankle motion: ${formatMeasurement(analysis.measurements.rightAnkleMotion)}`, { size: 10, gapAfter: 2 });
+    }
   }
   addText(lines, 'A value of "Not measured" means the clip did not support that measurement. It does not mean zero.', {
     size: 8,
