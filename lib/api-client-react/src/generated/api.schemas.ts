@@ -10,11 +10,36 @@ export interface HealthStatus {
 }
 
 /**
+ * Stable machine-readable error code; optional for compatibility with older clients.
+ */
+export type AnalyzeErrorCode = typeof AnalyzeErrorCode[keyof typeof AnalyzeErrorCode];
+
+
+export const AnalyzeErrorCode = {
+  HTTPS_REQUIRED: 'HTTPS_REQUIRED',
+  INVALID_MULTIPART: 'INVALID_MULTIPART',
+  VIDEO_REQUIRED: 'VIDEO_REQUIRED',
+  UNSUPPORTED_VIDEO: 'UNSUPPORTED_VIDEO',
+  UPLOAD_TOO_LARGE: 'UPLOAD_TOO_LARGE',
+  UPLOAD_REJECTED: 'UPLOAD_REJECTED',
+  ANALYSIS_BUSY: 'ANALYSIS_BUSY',
+  RATE_LIMITED: 'RATE_LIMITED',
+  PIPELINE_UNAVAILABLE: 'PIPELINE_UNAVAILABLE',
+  PIPELINE_TIMEOUT: 'PIPELINE_TIMEOUT',
+  INVALID_VIDEO: 'INVALID_VIDEO',
+  PIPELINE_INVALID_OUTPUT: 'PIPELINE_INVALID_OUTPUT',
+  SCHEMA_MISMATCH: 'SCHEMA_MISMATCH',
+  ANALYSIS_FAILED: 'ANALYSIS_FAILED',
+} as const;
+
+/**
  * A message the app can show to the user as-is.
  */
 export interface AnalyzeError {
   ok: boolean;
   error: string;
+  /** Stable machine-readable error code; optional for compatibility with older clients. */
+  code?: AnalyzeErrorCode;
 }
 
 /**
