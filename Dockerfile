@@ -1,8 +1,8 @@
 # Analysis API plus the Python gait pipeline.
-# Node 20. Python 3.11 from Debian bookworm. The pins also support 3.10 and 3.12.
+# Node 24 LTS. Python 3.11 from Debian bookworm. The pins also support 3.10 and 3.12.
 # CPU torch. Detector and pose weights download while the image builds.
 
-FROM node:20-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates python3 \
@@ -20,7 +20,7 @@ COPY gait_engine ./gait_engine
 RUN pnpm install --frozen-lockfile --filter @workspace/api-server...
 RUN pnpm --filter @workspace/api-server run build
 
-FROM node:20-bookworm-slim
+FROM node:24-bookworm-slim
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \

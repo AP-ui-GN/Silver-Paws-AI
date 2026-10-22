@@ -25,7 +25,7 @@ async function loadApp(): Promise<{ default: import("express").Express }> {
     outfile: outfile.pathname,
     // Bundle our source (extensionless imports) and zod. Leave express and pino
     // external so their Node builtins keep working.
-    external: ["express", "pino", "pino-pretty"],
+    external: ["express", "pino", "pino-http", "pino-pretty", "cors"],
     logLevel: "silent",
   });
   // Production logging has no pino-pretty worker, so the bundled server can start.
@@ -65,6 +65,8 @@ test("an uploaded video is deleted after the request finishes", async () => {
   process.env["SILVERPAWS_UPLOAD_DIR"] = uploadDir;
   const previousTrust = process.env["TRUST_PROXY"];
   process.env["TRUST_PROXY"] = "1";
+  const previousOrigins = process.env["ALLOWED_ORIGINS"];
+  process.env["ALLOWED_ORIGINS"] = "https://allowed.example";
   const { default: app } = await loadApp();
   const server = createServer(app);
 
@@ -85,6 +87,26 @@ test("an uploaded video is deleted after the request finishes", async () => {
     );
     const payload = (await response.json()) as { error?: string };
     assert.equal(typeof payload.error, "string");
+    assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(response.headers.get("x-frame-options"), "DENY");
+    assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+    assert.equal(response.headers.get("x-permitted-cross-domain-policies"), "none");
+    assert.equal(response.headers.get("strict-transport-security"), "max-age=15552000");
+
+    const allowedOriginResponse = await fetch(`http://127.0.0.1:${port}/api/healthz`, {
+      headers: { origin: "https://allowed.example" },
+    });
+    assert.equal(allowedOriginResponse.status, 200);
+    assert.equal(
+      allowedOriginResponse.headers.get("access-control-allow-origin"),
+      "https://allowed.example",
+    );
+
+    const rejectedOriginResponse = await fetch(`http://127.0.0.1:${port}/api/healthz`, {
+      headers: { origin: "https://untrusted.example" },
+    });
+    assert.equal(rejectedOriginResponse.status, 200);
+    assert.equal(rejectedOriginResponse.headers.get("access-control-allow-origin"), null);
     // These early replies return before the temp file is written. Anything else
     // means the clip was on disk and the finally block had to delete it.
     assert.notEqual(payload.error, "Choose a video file to analyze.");
@@ -111,6 +133,8 @@ test("an uploaded video is deleted after the request finishes", async () => {
     else process.env["SILVERPAWS_UPLOAD_DIR"] = previous;
     if (previousTrust === undefined) delete process.env["TRUST_PROXY"];
     else process.env["TRUST_PROXY"] = previousTrust;
+    if (previousOrigins === undefined) delete process.env["ALLOWED_ORIGINS"];
+    else process.env["ALLOWED_ORIGINS"] = previousOrigins;
     await rm(uploadDir, { recursive: true, force: true });
     await rm(new URL("./.tmp-upload-server.mjs", import.meta.url), { force: true });
   }

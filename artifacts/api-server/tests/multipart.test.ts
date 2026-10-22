@@ -88,6 +88,22 @@ test("keeps binary file content byte for byte", () => {
   assert.deepEqual(form.files[0]?.data, bytes);
 });
 
+test("does not split binary content on boundary-like bytes", () => {
+  const payload = Buffer.concat([
+    Buffer.from([0x00, 0xff, 0x0d, 0x0a]),
+    Buffer.from(`--${BOUNDARY}not-a-real-boundary\r\ninside-video--${BOUNDARY}X`),
+    Buffer.from([0x80, 0x00, 0x11]),
+  ]);
+
+  const form = parseMultipart(
+    buildBody([{ name: "video", value: payload, fileName: "clip.mp4", type: "video/mp4" }]),
+    BOUNDARY,
+  );
+
+  assert.equal(form.files.length, 1);
+  assert.deepEqual(form.files[0]?.data, payload);
+});
+
 test("rejects a body with no boundary marker", () => {
   assert.throws(
     () => parseMultipart(Buffer.from("just some bytes"), BOUNDARY),

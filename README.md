@@ -83,7 +83,7 @@ into the web app by `node scripts/sync-ai-use.mjs`. The generated page is
 
 ## How to run
 
-Needs **Node.js 20+**, **pnpm**, and **Python 3.10–3.12** with OpenCV.
+Needs **Node.js 24 LTS**, **pnpm 10.33.4**, and **Python 3.10–3.12** with OpenCV.
 
 ```bash
 pnpm install
@@ -125,8 +125,10 @@ pnpm --filter @workspace/api-server run test
 pnpm --filter @workspace/silverpaws-beta run test
 ```
 
-On October 22, 2026 those were 73 Python tests, 37 API tests, and 17 web
-tests, all passing. The pose head was not validated by those counts.
+Recorded on October 22, 2026 after the tracker and upload-limit changes:
+90 Python tests, 45 API tests, and 17 web tests passed, with API and web
+typechecks passing. The hosted workflow also passed its Python, API, and web
+jobs. These are point-in-time checks; they do not validate canine pose accuracy.
 
 Start both services (two terminals):
 
@@ -160,6 +162,7 @@ Optional environment variables:
 | `SILVERPAWS_PYTHON` | API | project `.venv` if present | Python used to run the pipeline |
 | `SILVERPAWS_REPO_ROOT` | API | inferred | Repo root so the CLI can be found |
 | `MAX_UPLOAD_MB` | API | `60` | Upload size cap |
+| `ALLOWED_ORIGINS` | API | localhost Vite origins outside production; empty in production | Comma-separated exact browser origins for the deployed web app |
 | `ANALYSIS_TIMEOUT_MS` | API | `600000` | Stop the pipeline after this many milliseconds. Motion saved before pose is returned if pose is still running |
 | `ANALYZE_MAX_CONCURRENT` | API | `2` | Pipelines running at once. Extra uploads are refused before the body is read |
 | `TRUST_PROXY` | API | unset | Set to `1` only behind a proxy that sets `X-Forwarded-Proto` |
@@ -168,6 +171,10 @@ Optional environment variables:
 | `SILVERPAWS_LLM_MODEL` | API | unset | Model name. Required, with the URL, before a rewrite is attempted |
 
 No API keys are required for the app to analyze a clip.
+
+For local CORS defaults and production browser-origin configuration, see
+`.env.example` and `docs/HOSTING.md`. In production, set `ALLOWED_ORIGINS`
+to the exact HTTPS origin(s) of the web app. CORS is not authentication.
 
 ## How teammates can contribute
 

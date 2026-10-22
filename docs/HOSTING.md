@@ -13,7 +13,7 @@ mean a server is already running, and it does not include a public URL.
 
 ## What the image contains
 
-`Dockerfile` uses Node 20 and Debian bookworm's Python 3.11. The same pins
+`Dockerfile` uses Node 24 LTS and Debian bookworm's Python 3.11. The same pins
 support Python 3.10–3.12. The image installs `opencv-python-headless` (the
 laptop file `requirements.txt` uses `opencv-python`, which expects a display),
 NumPy, SciPy, CPU torch, and transformers at the versions in
@@ -37,6 +37,7 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | `NODE_ENV` | unset | `production` turns on the HTTPS check |
 | `MAX_UPLOAD_MB` | `60` | Largest clip accepted |
 | `TRUST_PROXY` | unset | Set to `1` only behind a proxy that sets `X-Forwarded-Proto` |
+| `ALLOWED_ORIGINS` | Development defaults when unset outside production; empty allow-list in production | Comma-separated exact browser origins, e.g. `https://app.example.com`; do not include paths. Production web clients must be listed explicitly. |
 | `ANALYSIS_TIMEOUT_MS` | `600000` | Stop the pipeline after this many milliseconds. A motion result written before pose starts is returned if pose is still running |
 | `ANALYZE_RATE_LIMIT_PER_MINUTE` | `10` | Analyses allowed per client address each minute |
 | `ANALYZE_MAX_CONCURRENT` | `2` | Pipelines running at once. Extra uploads are refused before the body is read |
@@ -48,6 +49,24 @@ sets `X-Forwarded-Proto: https`. Local `docker compose` keeps
 | `SILVERPAWS_LLM_MODEL` | unset | Model name. Required, with the URL, before a rewrite is attempted |
 
 No API key is required for a clip to be measured.
+
+## Browser origins and response headers
+
+The API uses an explicit CORS origin allow-list. In development, the default
+origins are `http://127.0.0.1:4173` and `http://localhost:4173`. In production,
+set `ALLOWED_ORIGINS` to the exact HTTPS origin(s) of the deployed web app,
+separated by commas (for example, `https://app.example.com`). Do not include
+URL paths. If production origins are not configured, browser origins are not
+allowed to read API responses. Origin-less native clients are not subject to
+browser CORS; CORS is not authentication.
+
+The API also sets conservative content-sniffing, framing, referrer, and
+cross-domain policy headers. HSTS is returned only for requests recognized as
+HTTPS in production. Configure `TRUST_PROXY=1` only when the service sits behind
+a trusted proxy that sets forwarded headers correctly.
+
+Copy `.env.example` for the local configuration reference, and replace local
+origins with your real web origin before deploying.
 
 ## Memory
 
