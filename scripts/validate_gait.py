@@ -4,7 +4,8 @@
     python scripts/validate_gait.py --clips-dir validation_clips \\
         --labels validation_clips/labels.csv --out outputs/validation.csv
 
-If the folder has no clips, this prints how to add them and exits 0.
+If no clips or labels are present, this prints setup instructions and exits 2
+so automation cannot mistake a skipped validation for a passing validation.
 Do not commit the clips.
 """
 
@@ -97,11 +98,16 @@ def main() -> int:
             for path in args.clips_dir.iterdir()
             if path.suffix.lower() in {".mp4", ".mov", ".webm", ".avi"}
         ]
-    if not clips or not args.labels.is_file():
+    if not clips:
         print(HOW_TO.strip())
         print("\npreliminary, small sample, not clinical validation.")
-        print("Validation did not run: no labeled clips were found.")
-        return 0
+        print("Validation did not run: no video clips were found.")
+        return 2
+    if not args.labels.is_file():
+        print(HOW_TO.strip())
+        print("\npreliminary, small sample, not clinical validation.")
+        print(f"Validation did not run: label file not found at {args.labels}.")
+        return 2
 
     from gait_engine.pipeline import analyze_clip
 
